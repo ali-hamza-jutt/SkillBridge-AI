@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-import {JwtModule} from "@nestjs/jwt";
-import {ThrottlerModule, ThrottlerGuard} from  "@nestjs/throttler";
+import { JwtModule } from "@nestjs/jwt";
+import { ThrottlerModule, ThrottlerGuard } from "@nestjs/throttler";
 import { APP_GUARD } from '@nestjs/core';
+import { JwtStrategy } from './jwt.strategy';
+import { JwtAuthGuard } from './jwt-auth.guard';
 
 @Module({
   imports:[
@@ -19,10 +21,11 @@ import { APP_GUARD } from '@nestjs/core';
       signOptions: { expiresIn: '1h' },
     }),
   ],
-  providers: [AuthService, {
+  providers: [AuthService, JwtStrategy, {
     provide: APP_GUARD,
     useClass: ThrottlerGuard,
   }],
-  controllers: [AuthController]
+  controllers: [AuthController],
+  exports: [JwtAuthGuard, AuthService]
 })
 export class AuthModule {}
