@@ -5,6 +5,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { TasksModule } from './tasks/tasks.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -16,7 +17,8 @@ import { TasksModule } from './tasks/tasks.module';
       process.env.MONGODB_URI || 'mongodb://localhost:27017/marketplace',
     ),
     AuthModule,
-    TasksModule
+    TasksModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
