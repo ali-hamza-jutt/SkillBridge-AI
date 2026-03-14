@@ -5,13 +5,16 @@ import { Model } from 'mongoose';
 import { Task, TaskDocument } from './schemas/task.schema';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
+import { CacheService } from '../cache/cache.service';
 
 @Injectable()
 export class TasksService {
+  private readonly tasksCacheKey = 'tasks:all';
 
   constructor(
     @InjectModel(Task.name)
     private taskModel: Model<TaskDocument>,
+    private readonly cacheService: CacheService,
   ) {}
 
   async create(createTaskDto: CreateTaskDto, userId: string) {
@@ -21,11 +24,20 @@ export class TasksService {
       clientId: userId,
     });
 
-    return task.save();
+    const savedTask = await task.save();
+    await this.cacheService.del(this.tasksCacheKey);
+    return savedTask;
   }
 
   async findAll() {
-    return this.taskModel.find();
+    const cachedTasks = await this.cacheService.get(this.tasksCacheKey);
+    if (cachedTasks) {
+      return JSON.parse(cachedTasks);
+    }
+
+    const tasks = await this.taskModel.find().lean().exec();
+    await this.cacheService.set(this.tasksCacheKey, JSON.stringify(tasks), 300);
+    return tasks;
   }
 
   async findOne(id: string) {
@@ -36,6 +48,7 @@ export class TasksService {
       throw new NotFoundException("Task not found");
     }
 
+    await this.cacheService.del(this.tasksCacheKey);
     return task;
   }
 
@@ -62,6 +75,7 @@ export class TasksService {
       throw new NotFoundException("Task not found");
     }
 
+    await this.cacheService.del(this.tasksCacheKey);
     return { message: "Task deleted" };
   }
 
