@@ -47,8 +47,6 @@ export class TasksService {
     if (!task) {
       throw new NotFoundException("Task not found");
     }
-
-    await this.cacheService.del(this.tasksCacheKey);
     return task;
   }
 
@@ -64,6 +62,7 @@ export class TasksService {
       throw new NotFoundException("Task not found");
     }
 
+    await this.cacheService.del(this.tasksCacheKey);
     return task;
   }
 
