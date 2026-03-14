@@ -24,7 +24,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
   providers: [AuthService, JwtStrategy, {
     provide: APP_GUARD,
     useClass: ThrottlerGuard,
-  }],
+  }, JwtAuthGuard],
   controllers: [AuthController],
   exports: [JwtAuthGuard, AuthService]
 })

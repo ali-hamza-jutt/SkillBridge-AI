@@ -12,7 +12,9 @@ import { TasksModule } from './tasks/tasks.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
-    MongooseModule.forRoot('mongodb://mongodb:27017/marketplace'),
+    MongooseModule.forRoot(
+      process.env.MONGODB_URI || 'mongodb://localhost:27017/marketplace',
+    ),
     AuthModule,
     TasksModule
   ],
