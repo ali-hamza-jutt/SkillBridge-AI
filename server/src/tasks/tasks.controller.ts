@@ -14,6 +14,7 @@ import { UpdateTaskDto } from './dto/update-task.dto';
 
 
 import { ApiTags } from '@nestjs/swagger';
+import { AssignTaskDto } from './dto/assign-task.dto';
 
 @ApiTags('Tasks')
 @Controller('tasks')
@@ -48,5 +49,12 @@ export class TasksController {
   delete(@Param('id') id: string) {
     return this.tasksService.delete(id);
   }
+  @Post(':taskId/assign')
+assignTask(
+  @Param('taskId') taskId: string,
+  @Body() dto: AssignTaskDto
+) {
+  return this.tasksService.assignTask(taskId, dto.bidId);
+}
 
 }

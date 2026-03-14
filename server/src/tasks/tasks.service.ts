@@ -6,6 +6,7 @@ import { Task, TaskDocument } from './schemas/task.schema';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { CacheService } from '../cache/cache.service';
+import { BidsService } from 'src/bids/bids.service';
 
 @Injectable()
 export class TasksService {
@@ -15,6 +16,7 @@ export class TasksService {
     @InjectModel(Task.name)
     private taskModel: Model<TaskDocument>,
     private readonly cacheService: CacheService,
+     private bidsService: BidsService
   ) {}
 
   async create(createTaskDto: CreateTaskDto, userId: string) {
@@ -78,4 +80,23 @@ export class TasksService {
     return { message: "Task deleted" };
   }
 
+  async assignTask(taskId: string, bidId: string) {
+
+  const bid = await this.bidsService.findBidById(bidId);
+
+  if (!bid) {
+    throw new NotFoundException("Bid not found");
+  }
+
+  const task = await this.taskModel.findById(taskId);
+
+  if (!task) {
+    throw new NotFoundException("Task not found");
+  }
+
+  task.assignedFreelancer = bid.freelancerId;
+  task.status = "ASSIGNED";
+
+  return task.save();
+}
 }

@@ -37,5 +37,8 @@ export class BidsService {
 
     return { message: "Bid deleted" };
   }
+  async findBidById(id: string) {
+  return this.bidModel.findById(id);
+}
 
 }
