@@ -7,6 +7,8 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { CacheService } from '../cache/cache.service';
 import { BidsService } from 'src/bids/bids.service';
+import { NotificationsService } from '../notifications/notifications.service';
+
 
 @Injectable()
 export class TasksService {
@@ -16,7 +18,8 @@ export class TasksService {
     @InjectModel(Task.name)
     private taskModel: Model<TaskDocument>,
     private readonly cacheService: CacheService,
-     private bidsService: BidsService
+     private bidsService: BidsService,
+     private notificationsService: NotificationsService
   ) {}
 
   async create(createTaskDto: CreateTaskDto, userId: string) {
@@ -97,6 +100,15 @@ export class TasksService {
   task.assignedFreelancer = bid.freelancerId;
   task.status = "ASSIGNED";
 
-  return task.save();
+  await task.save();
+
+  this.notificationsService.sendNotification('task.assigned', {
+    taskId: task._id,
+    freelancerId: bid.freelancerId,
+    clientId: task.clientId
+  });
+
+
+  return task;
 }
 }

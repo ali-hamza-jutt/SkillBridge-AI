@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { TasksModule } from './tasks/tasks.module';
 import { UsersModule } from './users/users.module';
 import { BidsModule } from './bids/bids.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { BidsModule } from './bids/bids.module';
     TasksModule,
     UsersModule,
     BidsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

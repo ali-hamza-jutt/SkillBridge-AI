@@ -6,6 +6,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Task, TaskSchema } from './schemas/task.schema';
 import { CacheModule } from '../cache/cache.module';
 import { BidsModule } from 'src/bids/bids.module';
+import { NotificationsModule } from 'src/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -13,7 +14,8 @@ import { BidsModule } from 'src/bids/bids.module';
       { name: Task.name, schema: TaskSchema },
     ]),
     CacheModule,
-    BidsModule
+    BidsModule,
+    NotificationsModule,
   ],
   controllers: [TasksController],
   providers: [TasksService],
