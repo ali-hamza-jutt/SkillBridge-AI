@@ -6,9 +6,11 @@ import { ThrottlerModule, ThrottlerGuard } from "@nestjs/throttler";
 import { APP_GUARD } from '@nestjs/core';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports:[
+    UsersModule,
     ThrottlerModule.forRoot([
       {
         name: 'short',
