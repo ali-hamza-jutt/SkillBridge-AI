@@ -9,6 +9,8 @@ import { CacheService } from '../cache/cache.service';
 import { BidsService } from 'src/bids/bids.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
+const DEMO_USER_ID = 'DEMO_USER_1';
+
 
 @Injectable()
 export class TasksService {
@@ -104,7 +106,7 @@ export class TasksService {
 
   this.notificationsService.sendNotification('task.assigned', {
     taskId: task._id,
-    freelancerId: bid.freelancerId,
+    freelancerId: DEMO_USER_ID,
     clientId: task.clientId
   });
 

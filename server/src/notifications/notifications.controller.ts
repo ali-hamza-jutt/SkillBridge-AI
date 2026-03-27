@@ -7,6 +7,8 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { NotificationsService } from './notifications.service';
 import { NotificationsGateway } from './notifications.gateway';
 
+const DEMO_USER_ID = 'DEMO_USER_1';
+
 @Controller()
 export class NotificationsController {
   constructor(@InjectModel(Notification.name) private notificationModel: Model<NotificationDocument>,
@@ -19,11 +21,11 @@ private notificationsService: NotificationsService,
   async handleTaskAssigned(@Payload() data: any) {
 
     const notification = await this.notificationModel.create({
-      userId: data.freelancerId,
+      userId: DEMO_USER_ID,
       message: "You have been assigned a new task",
     });
 
-    this.gateway.sendNotification(data.freelancerId, notification);
+    this.gateway.sendNotification(DEMO_USER_ID, notification);
 
     console.log('✅ Task Assigned Event Received:', data);
 
