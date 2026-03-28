@@ -61,72 +61,88 @@ export default function SignupPage() {
         </nav>
 
         <section className="surface-card form-shell">
-          <h1 className="section-title">Create Your Account</h1>
-          <p className="muted-copy mt-2">Join as a freelancer and start bidding on tasks quickly.</p>
+          <div className="auth-grid">
+            <aside className="auth-info">
+              <p className="section-kicker">Get Started</p>
+              <h1 className="section-title mt-2">Create Your Account</h1>
+              <p className="muted-copy mt-3">Join the platform and start finding opportunities that match your skills.</p>
 
-          <form className="field-stack mt-6" onSubmit={onSubmit}>
-            <div>
-              <label className="field-label" htmlFor="name">Name</label>
-              <input
-                id="name"
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="field-input"
-                placeholder="John Doe"
-              />
+              <ul className="auth-list">
+                <li>Build your identity and showcase your expertise.</li>
+                <li>Apply on tasks and compete through clear bidding flows.</li>
+                <li>Receive updates when clients assign work in realtime.</li>
+              </ul>
+            </aside>
+
+            <div className="auth-form">
+              <h2 className="section-title">Sign Up</h2>
+              <p className="muted-copy mt-2">Create your profile in less than a minute.</p>
+
+              <form className="field-stack mt-6" onSubmit={onSubmit}>
+                <div>
+                  <label className="field-label" htmlFor="name">Name</label>
+                  <input
+                    id="name"
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="field-input"
+                    placeholder="John Doe"
+                  />
+                </div>
+
+                <div>
+                  <label className="field-label" htmlFor="email">Email</label>
+                  <input
+                    id="email"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="field-input"
+                    placeholder="you@example.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="field-label" htmlFor="password">Password</label>
+                  <input
+                    id="password"
+                    type="password"
+                    minLength={6}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="field-input"
+                    placeholder="minimum 6 characters"
+                  />
+                </div>
+
+                <div>
+                  <label className="field-label" htmlFor="skills">Skills (comma separated)</label>
+                  <input
+                    id="skills"
+                    type="text"
+                    value={skillsText}
+                    onChange={(e) => setSkillsText(e.target.value)}
+                    className="field-input"
+                    placeholder="Node.js, Redis, NestJS"
+                  />
+                </div>
+
+                {status ? <p className="status-error">{status}</p> : null}
+
+                <button
+                  className="btn btn-primary w-full"
+                  type="submit"
+                  disabled={isSigningUp || isLoggingIn}
+                >
+                  {isSigningUp || isLoggingIn ? "Creating Account..." : "Sign Up"}
+                </button>
+              </form>
             </div>
-
-            <div>
-              <label className="field-label" htmlFor="email">Email</label>
-              <input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="field-input"
-                placeholder="you@example.com"
-              />
-            </div>
-
-            <div>
-              <label className="field-label" htmlFor="password">Password</label>
-              <input
-                id="password"
-                type="password"
-                minLength={6}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="field-input"
-                placeholder="minimum 6 characters"
-              />
-            </div>
-
-            <div>
-              <label className="field-label" htmlFor="skills">Skills (comma separated)</label>
-              <input
-                id="skills"
-                type="text"
-                value={skillsText}
-                onChange={(e) => setSkillsText(e.target.value)}
-                className="field-input"
-                placeholder="Node.js, Redis, NestJS"
-              />
-            </div>
-
-            {status ? <p className="status-error">{status}</p> : null}
-
-            <button
-              className="btn btn-primary w-full"
-              type="submit"
-              disabled={isSigningUp || isLoggingIn}
-            >
-              {isSigningUp || isLoggingIn ? "Creating Account..." : "Sign Up"}
-            </button>
-          </form>
+          </div>
         </section>
       </div>
     </main>

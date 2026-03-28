@@ -51,42 +51,58 @@ export default function LoginPage() {
         </nav>
 
         <section className="surface-card form-shell">
-          <h1 className="section-title">Welcome Back</h1>
-          <p className="muted-copy mt-2">Log in to access your workspace and continue your tasks.</p>
+          <div className="auth-grid">
+            <aside className="auth-info">
+              <p className="section-kicker">Member Access</p>
+              <h1 className="section-title mt-2">Welcome Back</h1>
+              <p className="muted-copy mt-3">Continue from where you left off. Your workspace keeps task flow, bids, and notifications in one place.</p>
 
-          <form className="field-stack mt-6" onSubmit={onSubmit}>
-            <div>
-              <label className="field-label" htmlFor="email">Email</label>
-              <input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="field-input"
-                placeholder="you@example.com"
-              />
+              <ul className="auth-list">
+                <li>Track your assigned tasks with a cleaner workflow.</li>
+                <li>Receive realtime notifications when task status changes.</li>
+                <li>Access dashboard insights powered by modular backend services.</li>
+              </ul>
+            </aside>
+
+            <div className="auth-form">
+              <h2 className="section-title">Log In</h2>
+              <p className="muted-copy mt-2">Use your registered email and password.</p>
+
+              <form className="field-stack mt-6" onSubmit={onSubmit}>
+                <div>
+                  <label className="field-label" htmlFor="email">Email</label>
+                  <input
+                    id="email"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="field-input"
+                    placeholder="you@example.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="field-label" htmlFor="password">Password</label>
+                  <input
+                    id="password"
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="field-input"
+                    placeholder="••••••••"
+                  />
+                </div>
+
+                {status ? <p className="status-error">{status}</p> : null}
+
+                <button className="btn btn-primary w-full" type="submit" disabled={isLoading}>
+                  {isLoading ? "Signing In..." : "Log In"}
+                </button>
+              </form>
             </div>
-
-            <div>
-              <label className="field-label" htmlFor="password">Password</label>
-              <input
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="field-input"
-                placeholder="••••••••"
-              />
-            </div>
-
-            {status ? <p className="status-error">{status}</p> : null}
-
-            <button className="btn btn-primary w-full" type="submit" disabled={isLoading}>
-              {isLoading ? "Signing In..." : "Log In"}
-            </button>
-          </form>
+          </div>
         </section>
       </div>
     </main>
