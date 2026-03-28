@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useLoginMutation } from "@/lib/features/auth/authApi";
-import { setCredentials } from "@/lib/features/auth/authSlice";
+import { useAuthControllerLoginMutation } from "@/lib/features/auth/authApi";
+import { logout, setCredentials } from "@/lib/features/auth/authSlice";
 import { useAppDispatch } from "@/lib/hooks";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 
@@ -15,16 +15,41 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<string | null>(null);
+  const [login, { isLoading }] = useAuthControllerLoginMutation();
 
-  const [login, { isLoading }] = useLoginMutation();
+  useEffect(() => {
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("auth_email");
+    dispatch(logout());
+  }, [dispatch]);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setStatus(null);
 
+    const formData = new FormData(event.currentTarget);
+    const submittedEmail = String(formData.get("email") ?? "").trim();
+    const submittedPassword = String(formData.get("password") ?? "").trim();
+
+    if (!submittedEmail || !submittedPassword) {
+      setStatus("Email and password are required.");
+      return;
+    }
+
     try {
-      const response = await login({ email, password }).unwrap();
-      const userEmail = response.user?.email ?? email;
+      const rawResponse = await login({
+        loginDto: {
+          email: submittedEmail,
+          password: submittedPassword,
+        },
+      }).unwrap();
+
+      const response = rawResponse as {
+        access_token: string;
+        user?: { email?: string };
+      };
+
+      const userEmail = response.user?.email ?? submittedEmail;
 
       dispatch(
         setCredentials({
@@ -73,6 +98,7 @@ export default function LoginPage() {
                   <label className="field-label" htmlFor="email">Email</label>
                   <input
                     id="email"
+                    name="email"
                     type="email"
                     required
                     value={email}
@@ -86,6 +112,7 @@ export default function LoginPage() {
                   <label className="field-label" htmlFor="password">Password</label>
                   <input
                     id="password"
+                    name="password"
                     type="password"
                     required
                     value={password}

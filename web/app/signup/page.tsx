@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useLoginMutation, useSignupMutation } from "@/lib/features/auth/authApi";
+import {
+  useAuthControllerLoginMutation,
+  useUsersControllerCreateMutation,
+} from "@/lib/features/auth/authApi";
 import { setCredentials } from "@/lib/features/auth/authSlice";
 import { useAppDispatch } from "@/lib/hooks";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
@@ -18,8 +21,8 @@ export default function SignupPage() {
   const [skillsText, setSkillsText] = useState("");
   const [status, setStatus] = useState<string | null>(null);
 
-  const [signup, { isLoading: isSigningUp }] = useSignupMutation();
-  const [login, { isLoading: isLoggingIn }] = useLoginMutation();
+  const [signup, { isLoading: isSigningUp }] = useUsersControllerCreateMutation();
+  const [login, { isLoading: isLoggingIn }] = useAuthControllerLoginMutation();
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -31,9 +34,27 @@ export default function SignupPage() {
       .filter(Boolean);
 
     try {
-      await signup({ name, email, password, skills }).unwrap();
+      await signup({
+        createUserDto: {
+          name,
+          email,
+          password,
+          skills,
+        },
+      }).unwrap();
 
-      const loginResponse = await login({ email, password }).unwrap();
+      const rawLoginResponse = await login({
+        loginDto: {
+          email,
+          password,
+        },
+      }).unwrap();
+
+      const loginResponse = rawLoginResponse as {
+        access_token: string;
+        user?: { email?: string };
+      };
+
       const userEmail = loginResponse.user?.email ?? email;
 
       dispatch(

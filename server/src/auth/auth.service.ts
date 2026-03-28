@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
+import { LoginDto } from './dto/login.dto';
 
 @Injectable()
 export class AuthService {
@@ -10,7 +11,7 @@ export class AuthService {
     private usersService: UsersService,
   ) {}
 
-  async login(user: any) {
+  async login(user: LoginDto) {
     const existingUser = await this.usersService.findByEmail(user.email);
 
     if (!existingUser) {
