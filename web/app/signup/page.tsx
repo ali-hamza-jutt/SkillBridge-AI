@@ -52,6 +52,7 @@ export default function SignupPage() {
 
       const loginResponse = rawLoginResponse as {
         access_token: string;
+        refresh_token: string;
         user?: { email?: string };
       };
 
@@ -60,11 +61,13 @@ export default function SignupPage() {
       dispatch(
         setCredentials({
           token: loginResponse.access_token,
+          refreshToken: loginResponse.refresh_token,
           email: userEmail,
         }),
       );
 
       localStorage.setItem("auth_token", loginResponse.access_token);
+      localStorage.setItem("auth_refresh_token", loginResponse.refresh_token);
       localStorage.setItem("auth_email", userEmail);
 
       router.push("/dashboard");

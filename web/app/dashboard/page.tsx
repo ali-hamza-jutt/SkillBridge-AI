@@ -12,6 +12,7 @@ export default function DashboardPage() {
 
   const signOut = () => {
     localStorage.removeItem("auth_token");
+    localStorage.removeItem("auth_refresh_token");
     localStorage.removeItem("auth_email");
     dispatch(logout());
     router.push("/login");

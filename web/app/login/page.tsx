@@ -19,6 +19,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     localStorage.removeItem("auth_token");
+    localStorage.removeItem("auth_refresh_token");
     localStorage.removeItem("auth_email");
     dispatch(logout());
   }, [dispatch]);
@@ -46,6 +47,7 @@ export default function LoginPage() {
 
       const response = rawResponse as {
         access_token: string;
+        refresh_token: string;
         user?: { email?: string };
       };
 
@@ -54,11 +56,13 @@ export default function LoginPage() {
       dispatch(
         setCredentials({
           token: response.access_token,
+          refreshToken: response.refresh_token,
           email: userEmail,
         }),
       );
 
       localStorage.setItem("auth_token", response.access_token);
+      localStorage.setItem("auth_refresh_token", response.refresh_token);
       localStorage.setItem("auth_email", userEmail);
 
       router.push("/dashboard");

@@ -15,6 +15,9 @@ export class User {
   @Prop({ required: true })
   password: string;
 
+  @Prop()
+  refreshTokenHash?: string;
+
   @Prop({ type: [String], default: [] })
   skills: string[];
 

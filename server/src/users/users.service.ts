@@ -51,6 +51,14 @@ export class UsersService {
     return this.userModel.findOne({ email });
   }
 
+  async findAuthById(id: string) {
+    return this.userModel.findById(id);
+  }
+
+  async updateRefreshTokenHash(id: string, refreshTokenHash: string | null) {
+    await this.userModel.findByIdAndUpdate(id, { refreshTokenHash });
+  }
+
   async update(id: string, updateUserDto: UpdateUserDto) {
 
     const user = await this.userModel.findByIdAndUpdate(

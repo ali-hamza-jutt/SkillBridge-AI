@@ -8,10 +8,11 @@ import { setCredentials } from "@/lib/features/auth/authSlice";
 function AuthBootstrap() {
   useEffect(() => {
     const token = localStorage.getItem("auth_token");
+    const refreshToken = localStorage.getItem("auth_refresh_token");
     const email = localStorage.getItem("auth_email");
 
-    if (token) {
-      store.dispatch(setCredentials({ token, email }));
+    if (token && refreshToken) {
+      store.dispatch(setCredentials({ token, refreshToken, email }));
     }
   }, []);
 
