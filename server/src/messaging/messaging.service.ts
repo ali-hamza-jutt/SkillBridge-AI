@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, BadRequestException } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 
 @Injectable()
@@ -8,10 +8,18 @@ export class MessagingService {
   ) {}
 
   async sendMessage(pattern: string, data: any) {
-    return this.client.send(pattern, data);
+    try {
+      return await this.client.send(pattern, data).toPromise();
+    } catch (error) {
+      throw new BadRequestException(`Failed to send message: ${error.message}`);
+    }
   }
 
   emitMessage(pattern: string, data: any) {
-    this.client.emit(pattern, data);
+    try {
+      return this.client.emit(pattern, data);
+    } catch (error) {
+      throw new BadRequestException(`Failed to emit message: ${error.message}`);
+    }
   }
 }

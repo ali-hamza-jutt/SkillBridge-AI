@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientProxy, ClientProxyFactory, Transport } from '@nestjs/microservices';
 import { Model } from 'mongoose';
@@ -24,22 +24,39 @@ export class NotificationsService {
   }
 
   sendNotification(event: string, payload: any) {
-    return this.client.emit(event, payload);
+    try {
+      return this.client.emit(event, payload);
+    } catch (error) {
+      throw new BadRequestException(`Failed to send notification: ${error.message}`);
+    }
   }
 
   async findByUser(userId: string) {
-    return this.notificationModel
-      .find({ userId })
-      .sort({ createdAt: -1 })
-      .lean()
-      .exec();
+    try {
+      return await this.notificationModel
+        .find({ userId })
+        .sort({ createdAt: -1 })
+        .lean()
+        .exec();
+    } catch (error) {
+      throw new BadRequestException(`Failed to fetch notifications: ${error.message}`);
+    }
   }
   async markAsRead(id: string) {
-  return this.notificationModel.findByIdAndUpdate(
-    id,
-    { isRead: true },
-    { new: true }
-  );
-}
+    try {
+      const notification = await this.notificationModel.findByIdAndUpdate(
+        id,
+        { isRead: true },
+        { new: true }
+      );
+      if (!notification) {
+        throw new NotFoundException('Notification not found');
+      }
+      return notification;
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      throw new BadRequestException(`Failed to mark notification as read: ${error.message}`);
+    }
+  }
 
 }

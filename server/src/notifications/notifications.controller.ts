@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Patch, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Patch, Req, UseGuards, Logger } from '@nestjs/common';
 import { EventPattern, Payload } from '@nestjs/microservices';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -11,6 +11,8 @@ const DEMO_USER_ID = 'DEMO_USER_1';
 
 @Controller()
 export class NotificationsController {
+  private readonly logger = new Logger(NotificationsController.name);
+
   constructor(@InjectModel(Notification.name) private notificationModel: Model<NotificationDocument>,
 private notificationsService: NotificationsService,
   private gateway: NotificationsGateway
@@ -19,30 +21,35 @@ private notificationsService: NotificationsService,
 
   @EventPattern('task.assigned')
   async handleTaskAssigned(@Payload() data: any) {
+    try {
+      const notification = await this.notificationModel.create({
+        userId: DEMO_USER_ID,
+        message: "You have been assigned a new task",
+      });
 
-    const notification = await this.notificationModel.create({
-      userId: DEMO_USER_ID,
-      message: "You have been assigned a new task",
-    });
-
-    this.gateway.sendNotification(DEMO_USER_ID, notification);
-
-    console.log('✅ Task Assigned Event Received:', data);
-
-    // future:
-    // send email
-    // save notification in DB
-    // push notification
+      this.gateway.sendNotification(DEMO_USER_ID, notification);
+      this.logger.log('✅ Task Assigned Event Received:', data);
+    } catch (error) {
+      this.logger.error('Failed to handle task assigned event:', error);
+    }
   }
 
   @EventPattern('bid.placed')
   handleBidPlaced(@Payload() data: any) {
-    console.log('📢 Bid Placed Event:', data);
+    try {
+      this.logger.log('📢 Bid Placed Event:', data);
+    } catch (error) {
+      this.logger.error('Failed to handle bid placed event:', error);
+    }
   }
 
   @EventPattern('task.completed')
   handleTaskCompleted(@Payload() data: any) {
-    console.log('🎉 Task Completed:', data);
+    try {
+      this.logger.log('🎉 Task Completed:', data);
+    } catch (error) {
+      this.logger.error('Failed to handle task completed event:', error);
+    }
   }
 
   @Get()

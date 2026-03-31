@@ -6,6 +6,7 @@ import {
   MessageBody
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { Logger } from '@nestjs/common';
 
 @WebSocketGateway({
   cors: {
@@ -13,6 +14,7 @@ import { Server, Socket } from 'socket.io';
   },
 })
 export class NotificationsGateway {
+  private readonly logger = new Logger(NotificationsGateway.name);
 
   @WebSocketServer()
   server: Server;
@@ -21,17 +23,25 @@ export class NotificationsGateway {
   private users = new Map<string, string>();
 
   handleConnection(client: Socket) {
-    console.log('Client connected:', client.id);
+    try {
+      this.logger.log(`Client connected: ${client.id}`);
+    } catch (error) {
+      this.logger.error('Error handling connection:', error);
+    }
   }
 
   handleDisconnect(client: Socket) {
-    console.log('Client disconnected:', client.id);
+    try {
+      this.logger.log(`Client disconnected: ${client.id}`);
 
-    // remove user mapping
-    for (const [userId, socketId] of this.users.entries()) {
-      if (socketId === client.id) {
-        this.users.delete(userId);
+      // remove user mapping
+      for (const [userId, socketId] of this.users.entries()) {
+        if (socketId === client.id) {
+          this.users.delete(userId);
+        }
       }
+    } catch (error) {
+      this.logger.error('Error handling disconnection:', error);
     }
   }
 
@@ -40,15 +50,23 @@ export class NotificationsGateway {
     @MessageBody() userId: string,
     @ConnectedSocket() client: Socket
   ) {
-    this.users.set(userId, client.id);
-    console.log(`User ${userId} registered with socket ${client.id}`);
+    try {
+      this.users.set(userId, client.id);
+      this.logger.log(`User ${userId} registered with socket ${client.id}`);
+    } catch (error) {
+      this.logger.error('Error registering user:', error);
+    }
   }
 
   sendNotification(userId: string, message: any) {
-    const socketId = this.users.get(userId);
+    try {
+      const socketId = this.users.get(userId);
 
-    if (socketId) {
-      this.server.to(socketId).emit('notification', message);
+      if (socketId) {
+        this.server.to(socketId).emit('notification', message);
+      }
+    } catch (error) {
+      this.logger.error('Error sending notification:', error);
     }
   }
 }

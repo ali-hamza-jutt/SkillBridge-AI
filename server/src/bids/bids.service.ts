@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
@@ -14,31 +14,51 @@ export class BidsService {
   ) {}
 
   async create(dto: CreateBidDto, freelancerId: string) {
+    try {
+      const bid = new this.bidModel({
+        ...dto,
+        freelancerId,
+      });
 
-    const bid = new this.bidModel({
-      ...dto,
-      freelancerId,
-    });
-
-    return bid.save();
+      return await bid.save();
+    } catch (error) {
+      throw new BadRequestException(`Failed to create bid: ${error.message}`);
+    }
   }
 
   async findByTask(taskId: string) {
-    return this.bidModel.find({ taskId });
+    try {
+      return await this.bidModel.find({ taskId });
+    } catch (error) {
+      throw new BadRequestException(`Failed to fetch bids: ${error.message}`);
+    }
   }
 
   async delete(id: string) {
+    try {
+      const bid = await this.bidModel.findByIdAndDelete(id);
 
-    const bid = await this.bidModel.findByIdAndDelete(id);
+      if (!bid) {
+        throw new NotFoundException('Bid not found');
+      }
 
-    if (!bid) {
-      throw new NotFoundException("Bid not found");
+      return { message: 'Bid deleted' };
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      throw new BadRequestException(`Failed to delete bid: ${error.message}`);
     }
-
-    return { message: "Bid deleted" };
   }
   async findBidById(id: string) {
-  return this.bidModel.findById(id);
-}
+    try {
+      const bid = await this.bidModel.findById(id);
+      if (!bid) {
+        throw new NotFoundException('Bid not found');
+      }
+      return bid;
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      throw new BadRequestException(`Failed to fetch bid: ${error.message}`);
+    }
+  }
 
 }
