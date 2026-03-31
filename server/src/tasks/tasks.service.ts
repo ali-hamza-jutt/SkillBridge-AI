@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
-import { Task, TaskDocument } from './schemas/task.schema';
+import { Task, TaskDocument, TaskStatus } from './schemas/task.schema';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
+import { UpdateTaskStatusDto } from './dto/update-task-status.dto';
 import { CacheService } from '../cache/cache.service';
 import { BidsService } from 'src/bids/bids.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -100,7 +101,7 @@ export class TasksService {
   }
 
   task.assignedFreelancer = bid.freelancerId;
-  task.status = "ASSIGNED";
+  task.status = TaskStatus.ASSIGNED;
 
   await task.save();
 
@@ -110,7 +111,92 @@ export class TasksService {
     clientId: task.clientId
   });
 
-
   return task;
 }
+
+  async updateTaskStatus(taskId: string, dto: UpdateTaskStatusDto) {
+    const task = await this.taskModel.findById(taskId);
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    task.status = dto.status;
+
+    if (dto.status === TaskStatus.ASSIGNED && dto.developerId) {
+      task.assignedFreelancer = dto.developerId;
+      this.notificationsService.sendNotification('task.assigned', {
+        taskId: task._id,
+        freelancerId: dto.developerId,
+        clientId: task.clientId
+      });
+    } else if (dto.status === TaskStatus.COMPLETED && dto.developerId) {
+      task.completedBy = dto.developerId;
+      this.notificationsService.sendNotification('task.completed', {
+        taskId: task._id,
+        developerId: dto.developerId,
+        clientId: task.clientId
+      });
+    }
+
+    await task.save();
+    await this.cacheService.del(this.tasksCacheKey);
+    return task;
+  }
+
+  async findByCategory(categoryId: string) {
+    const tasks = await this.taskModel
+      .find({ categoryId, status: TaskStatus.OPEN })
+      .lean()
+      .exec();
+    return tasks;
+  }
+
+  async findBySubCategory(subCategoryId: string) {
+    const tasks = await this.taskModel
+      .find({ subCategoryId, status: TaskStatus.OPEN })
+      .lean()
+      .exec();
+    return tasks;
+  }
+
+  async findByCategoryAndSubCategory(categoryId: string, subCategoryId: string) {
+    const tasks = await this.taskModel
+      .find({ categoryId, subCategoryId, status: TaskStatus.OPEN })
+      .lean()
+      .exec();
+    return tasks;
+  }
+
+  async getTaskAssignedToDeveloper(developerId: string) {
+    const tasks = await this.taskModel
+      .find({ assignedFreelancer: developerId, status: TaskStatus.ASSIGNED })
+      .lean()
+      .exec();
+    return tasks;
+  }
+
+  async getTaskCompletedByDeveloper(developerId: string) {
+    const tasks = await this.taskModel
+      .find({ completedBy: developerId, status: TaskStatus.COMPLETED })
+      .lean()
+      .exec();
+    return tasks;
+  }
+
+  async matchTasksWithDeveloper(developerId: string, userCategory: string, userSubCategories: string[], userSkills: string[]) {
+    const tasks = await this.taskModel
+      .find({
+        $or: [
+          { category: userCategory },
+          { subCategoryId: { $in: userSubCategories } },
+          { requiredSkills: { $in: userSkills } }
+        ],
+        status: TaskStatus.OPEN
+      })
+      .lean()
+      .exec();
+
+    return tasks;
+  }
 }
