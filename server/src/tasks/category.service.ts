@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Category, CategoryDocument, SubCategory, SubCategoryDocument } from './schemas/category.schema';
@@ -15,47 +15,81 @@ export class CategoryService {
   ) {}
 
   async createCategory(dto: CreateCategoryDto) {
-    const existing = await this.categoryModel.findOne({ name: dto.name });
-    if (existing) {
-      throw new ConflictException('Category already exists');
-    }
+    try {
+      const existing = await this.categoryModel.findOne({ name: dto.name });
+      if (existing) {
+        throw new ConflictException('Category already exists');
+      }
 
-    const category = new this.categoryModel(dto);
-    return await category.save();
+      const category = new this.categoryModel(dto);
+      return await category.save();
+    } catch (error) {
+      if (error instanceof ConflictException) throw error;
+      throw new BadRequestException(`Failed to create category: ${error.message}`);
+    }
   }
 
   async getAllCategories() {
-    return await this.categoryModel.find().lean().exec();
+    try {
+      return await this.categoryModel.find().lean().exec();
+    } catch (error) {
+      throw new BadRequestException(`Failed to fetch categories: ${error.message}`);
+    }
   }
 
   async getCategoryById(id: string) {
-    const category = await this.categoryModel.findById(id);
-    if (!category) {
-      throw new NotFoundException('Category not found');
+    try {
+      const category = await this.categoryModel.findById(id);
+      if (!category) {
+        throw new NotFoundException('Category not found');
+      }
+      return category;
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      throw new BadRequestException(`Failed to fetch category: ${error.message}`);
     }
-    return category;
   }
 
   async createSubCategory(dto: CreateSubCategoryDto) {
-    const category = await this.categoryModel.findById(dto.categoryId);
-    if (!category) {
-      throw new NotFoundException('Category not found');
-    }
+    try {
+      const category = await this.categoryModel.findById(dto.categoryId);
+      if (!category) {
+        throw new NotFoundException('Category not found');
+      }
 
-    const subCategory = new this.subCategoryModel(dto);
-    return await subCategory.save();
+      const subCategory = new this.subCategoryModel(dto);
+      return await subCategory.save();
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      throw new BadRequestException(`Failed to create sub-category: ${error.message}`);
+    }
   }
 
   async getSubCategoriesByCategory(categoryId: string) {
-    return await this.subCategoryModel.find({ categoryId }).lean().exec();
+    try {
+      const category = await this.categoryModel.findById(categoryId);
+      if (!category) {
+        throw new NotFoundException('Category not found');
+      }
+
+      return await this.subCategoryModel.find({ categoryId }).lean().exec();
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      throw new BadRequestException(`Failed to fetch sub-categories: ${error.message}`);
+    }
   }
 
   async getSubCategoryById(id: string) {
-    const subCategory = await this.subCategoryModel.findById(id);
-    if (!subCategory) {
-      throw new NotFoundException('SubCategory not found');
+    try {
+      const subCategory = await this.subCategoryModel.findById(id);
+      if (!subCategory) {
+        throw new NotFoundException('SubCategory not found');
+      }
+      return subCategory;
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      throw new BadRequestException(`Failed to fetch sub-category: ${error.message}`);
     }
-    return subCategory;
   }
 
 }
