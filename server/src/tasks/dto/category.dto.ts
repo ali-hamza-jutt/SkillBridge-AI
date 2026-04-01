@@ -16,9 +16,10 @@ export class CreateCategoryDto {
 
 export class CreateSubCategoryDto {
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
-  categoryId: string;
+  categoryId?: string;
 
   @ApiProperty()
   @IsString()

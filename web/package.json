@@ -7,8 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "codegen:auth": "cross-env TS_NODE_PROJECT=./tsconfig.codegen.json rtk-query-codegen-openapi ./openapi/auth.codegen.ts",
-    "codegen:auth:watch": "cross-env TS_NODE_PROJECT=./tsconfig.codegen.json rtk-query-codegen-openapi ./openapi/auth.codegen.ts --watch"
+    "codegen": "cross-env TS_NODE_PROJECT=./tsconfig.codegen.json rtk-query-codegen-openapi ./openapi/api.codegen.ts",
+    "codegen:watch": "cross-env TS_NODE_PROJECT=./tsconfig.codegen.json rtk-query-codegen-openapi ./openapi/api.codegen.ts --watch"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.11.2",

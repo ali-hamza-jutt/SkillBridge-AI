@@ -31,8 +31,14 @@ export class CategoryController {
   }
 
   @Post(':categoryId/sub-categories')
-  createSubCategory(@Body() dto: CreateSubCategoryDto) {
-    return this.categoryService.createSubCategory(dto);
+  createSubCategory(
+    @Param('categoryId') categoryId: string,
+    @Body() dto: CreateSubCategoryDto,
+  ) {
+    return this.categoryService.createSubCategory({
+      ...dto,
+      categoryId,
+    });
   }
 
   @Get(':categoryId/sub-categories')
