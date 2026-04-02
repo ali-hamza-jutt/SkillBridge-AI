@@ -1,9 +1,9 @@
 import { emptySplitApi as api } from "./emptyApi";
 const injectedRtkApi = api.injectEndpoints({
   endpoints: (build) => ({
-    notificationsControllerGetUserNotifications: build.query<
-      NotificationsControllerGetUserNotificationsApiResponse,
-      NotificationsControllerGetUserNotificationsApiArg
+    appControllerGetHello: build.query<
+      AppControllerGetHelloApiResponse,
+      AppControllerGetHelloApiArg
     >({
       query: () => ({ url: `/` }),
     }),
@@ -244,18 +244,27 @@ const injectedRtkApi = api.injectEndpoints({
     >({
       query: (queryArg) => ({ url: `/bids/${queryArg.id}`, method: "DELETE" }),
     }),
+    notificationsControllerGetUserNotifications: build.query<
+      NotificationsControllerGetUserNotificationsApiResponse,
+      NotificationsControllerGetUserNotificationsApiArg
+    >({
+      query: () => ({ url: `/notifications` }),
+    }),
     notificationsControllerMarkAsRead: build.mutation<
       NotificationsControllerMarkAsReadApiResponse,
       NotificationsControllerMarkAsReadApiArg
     >({
-      query: (queryArg) => ({ url: `/${queryArg.id}/read`, method: "PATCH" }),
+      query: (queryArg) => ({
+        url: `/notifications/${queryArg.id}/read`,
+        method: "PATCH",
+      }),
     }),
   }),
   overrideExisting: false,
 });
 export { injectedRtkApi as apiHooks };
-export type NotificationsControllerGetUserNotificationsApiResponse = unknown;
-export type NotificationsControllerGetUserNotificationsApiArg = void;
+export type AppControllerGetHelloApiResponse = unknown;
+export type AppControllerGetHelloApiArg = void;
 export type AuthControllerLoginApiResponse = unknown;
 export type AuthControllerLoginApiArg = {
   loginDto: LoginDto;
@@ -375,6 +384,8 @@ export type BidsControllerDeleteApiResponse = unknown;
 export type BidsControllerDeleteApiArg = {
   id: string;
 };
+export type NotificationsControllerGetUserNotificationsApiResponse = unknown;
+export type NotificationsControllerGetUserNotificationsApiArg = void;
 export type NotificationsControllerMarkAsReadApiResponse = unknown;
 export type NotificationsControllerMarkAsReadApiArg = {
   id: string;
@@ -432,7 +443,7 @@ export type CreateBidDto = {
   message: string;
 };
 export const {
-  useNotificationsControllerGetUserNotificationsQuery,
+  useAppControllerGetHelloQuery,
   useAuthControllerLoginMutation,
   useAuthControllerRefreshMutation,
   useUsersControllerCreateMutation,
@@ -462,5 +473,6 @@ export const {
   useBidsControllerCreateMutation,
   useBidsControllerFindByTaskQuery,
   useBidsControllerDeleteMutation,
+  useNotificationsControllerGetUserNotificationsQuery,
   useNotificationsControllerMarkAsReadMutation,
 } = injectedRtkApi;

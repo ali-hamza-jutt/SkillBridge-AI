@@ -9,7 +9,7 @@ import { NotificationsGateway } from './notifications.gateway';
 
 const DEMO_USER_ID = 'DEMO_USER_1';
 
-@Controller()
+@Controller('notifications')
 export class NotificationsController {
   private readonly logger = new Logger(NotificationsController.name);
 
