@@ -75,6 +75,7 @@ I completed the initial version in **6 days**, with a strong focus on backend en
 - Role-based permissions and guards
 - Better error handling and observability
 - Automated tests for service and integration layers
+- Full Job Board features
 - Deployment and CI/CD setup
 
 ---
