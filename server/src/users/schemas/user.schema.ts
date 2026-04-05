@@ -1,6 +1,12 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
+export enum UserRole {
+  FREELANCER = 'FREELANCER',
+  HIRER = 'HIRER',
+  ADMIN = 'ADMIN',
+}
+
 export type UserDocument = User & Document;
 
 @Schema({ timestamps: true })
@@ -24,8 +30,12 @@ export class User {
   @Prop({ default: 0 })
   rating: number;
 
-  @Prop({ default: "freelancer" })
-  role: string;
+  @Prop({
+    type: String,
+    enum: UserRole,
+    default: UserRole.FREELANCER,
+  })
+  role: UserRole;
 
 }
 
