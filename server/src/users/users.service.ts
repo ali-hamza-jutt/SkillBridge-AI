@@ -24,6 +24,7 @@ export class UsersService {
 
       const user = new this.userModel({
         ...createUserDto,
+        role: createUserDto.role,
         password: hashedPassword,
       });
 

@@ -4,6 +4,7 @@ import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { SignupDto } from './dto/signup.dto';
 
 @Injectable()
 export class AuthService {
@@ -32,6 +33,41 @@ export class AuthService {
       return { accessToken, refreshToken };
     } catch (error) {
       throw new BadRequestException(`Failed to generate tokens: ${error.message}`);
+    }
+  }
+
+  async signup(signupDto: SignupDto) {
+    try {
+      const createdUser = await this.usersService.create({
+        name: signupDto.name,
+        email: signupDto.email,
+        password: signupDto.password,
+        skills: signupDto.skills ?? [],
+        role: signupDto.role,
+      });
+
+      const userId = createdUser._id?.toString() ?? createdUser.id;
+      const payload = { email: createdUser.email, sub: userId };
+      const { accessToken, refreshToken } = await this.generateTokens(payload);
+      const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
+
+      await this.usersService.updateRefreshTokenHash(userId, refreshTokenHash);
+
+      return {
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        user: {
+          id: userId,
+          name: createdUser.name,
+          email: createdUser.email,
+          role: createdUser.role,
+        },
+      };
+    } catch (error) {
+      if (error instanceof BadRequestException || error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new BadRequestException(`Signup failed: ${error.message}`);
     }
   }
 
