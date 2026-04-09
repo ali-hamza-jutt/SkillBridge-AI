@@ -6,11 +6,11 @@ export class CreateUserDto {
 
   @ApiProperty()
   @IsString()
-  name: string;
+  name!: string;
 
   @ApiProperty()
   @IsEmail()
-  email: string;
+  email!: string;
 
   @ApiProperty()
   @IsString()
@@ -19,11 +19,10 @@ export class CreateUserDto {
 
   @ApiProperty({ type: [String] })
   @IsArray()
-  skills: string[];
+  skills!: string[];
 
   @ApiProperty({ enum: UserRole, required: false, default: UserRole.FREELANCER })
-  @IsOptional()
-
+  @IsEnum(UserRole)
   role?: UserRole;
 
 }
