@@ -23,7 +23,7 @@ export class CreateUserDto {
 
   @ApiProperty({ enum: UserRole, required: false, default: UserRole.FREELANCER })
   @IsOptional()
-  @IsEnum(UserRole)
+
   role?: UserRole;
 
 }
