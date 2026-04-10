@@ -5,21 +5,17 @@ import helmet from 'helmet';
 import { ValidationPipe } from '@nestjs/common';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 
-
-
-
-
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.use(helmet());
   app.useGlobalPipes(
-  new ValidationPipe({
-    whitelist: true,
-  }),
-);
-app.enableCors({
-  origin: '*',
-});
+    new ValidationPipe({
+      whitelist: true,
+    }),
+  );
+  app.enableCors({
+    origin: '*',
+  });
 
   const config = new DocumentBuilder()
     .setTitle('Skill Bridge API')
@@ -28,9 +24,9 @@ app.enableCors({
     .addBearerAuth()
     .build();
 
-    const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('api', app, document);
-    app.connectMicroservice<MicroserviceOptions>({
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document);
+  app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.RMQ,
     options: {
       urls: ['amqp://guest:guest@localhost:5672'],

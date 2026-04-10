@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
@@ -7,7 +11,6 @@ import { CreateBidDto } from './dto/create-bid.dto';
 
 @Injectable()
 export class BidsService {
-
   constructor(
     @InjectModel(Bid.name)
     private bidModel: Model<BidDocument>,
@@ -21,7 +24,7 @@ export class BidsService {
       });
 
       return await bid.save();
-    } catch (error) {
+    } catch (error:any) {
       throw new BadRequestException(`Failed to create bid: ${error.message}`);
     }
   }
@@ -29,7 +32,7 @@ export class BidsService {
   async findByTask(taskId: string) {
     try {
       return await this.bidModel.find({ taskId });
-    } catch (error) {
+    } catch (error:any) {
       throw new BadRequestException(`Failed to fetch bids: ${error.message}`);
     }
   }
@@ -43,7 +46,7 @@ export class BidsService {
       }
 
       return { message: 'Bid deleted' };
-    } catch (error) {
+    } catch (error:any) {
       if (error instanceof NotFoundException) throw error;
       throw new BadRequestException(`Failed to delete bid: ${error.message}`);
     }
@@ -55,10 +58,9 @@ export class BidsService {
         throw new NotFoundException('Bid not found');
       }
       return bid;
-    } catch (error) {
+    } catch (error:any) {
       if (error instanceof NotFoundException) throw error;
       throw new BadRequestException(`Failed to fetch bid: ${error.message}`);
     }
   }
-
 }

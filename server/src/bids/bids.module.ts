@@ -6,11 +6,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Bid, BidSchema } from './schemas/bid.schema';
 
 @Module({
-  imports: [
-    MongooseModule.forFeature([
-      { name: Bid.name, schema: BidSchema },
-    ]),
-  ],
+  imports: [MongooseModule.forFeature([{ name: Bid.name, schema: BidSchema }])],
   controllers: [BidsController],
   providers: [BidsService],
   exports: [BidsService],

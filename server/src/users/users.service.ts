@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
@@ -9,7 +14,6 @@ import { UpdateUserDto } from './dto/update.dto.user';
 
 @Injectable()
 export class UsersService {
-
   constructor(
     @InjectModel(User.name)
     private userModel: Model<UserDocument>,
@@ -17,10 +21,7 @@ export class UsersService {
 
   async create(createUserDto: CreateUserDto) {
     try {
-      const hashedPassword = await bcrypt.hash(
-        createUserDto.password,
-        10,
-      );
+      const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
 
       const user = new this.userModel({
         ...createUserDto,
@@ -29,7 +30,7 @@ export class UsersService {
       });
 
       return await user.save();
-    } catch (error) {
+    } catch (error:any) {
       if (error.code === 11000) {
         throw new ConflictException('User email already exists');
       }
@@ -40,23 +41,21 @@ export class UsersService {
   async findAll() {
     try {
       return await this.userModel.find().select('-password');
-    } catch (error) {
+    } catch (error:any) {
       throw new BadRequestException(`Failed to fetch users: ${error.message}`);
     }
   }
 
   async findById(id: string) {
     try {
-      const user = await this.userModel
-        .findById(id)
-        .select('-password');
+      const user = await this.userModel.findById(id).select('-password');
 
       if (!user) {
         throw new NotFoundException('User not found');
       }
 
       return user;
-    } catch (error) {
+    } catch (error:any) {
       if (error instanceof NotFoundException) throw error;
       throw new BadRequestException(`Failed to fetch user: ${error.message}`);
     }
@@ -65,15 +64,17 @@ export class UsersService {
   async findByEmail(email: string) {
     try {
       return await this.userModel.findOne({ email });
-    } catch (error) {
-      throw new BadRequestException(`Failed to find user by email: ${error.message}`);
+    } catch (error:any) {
+      throw new BadRequestException(
+        `Failed to find user by email: ${error.message}`,
+      );
     }
   }
 
   async findAuthById(id: string) {
     try {
       return await this.userModel.findById(id);
-    } catch (error) {
+    } catch (error:any) {
       throw new BadRequestException(`Failed to fetch user: ${error.message}`);
     }
   }
@@ -81,25 +82,25 @@ export class UsersService {
   async updateRefreshTokenHash(id: string, refreshTokenHash: string | null) {
     try {
       await this.userModel.findByIdAndUpdate(id, { refreshTokenHash });
-    } catch (error) {
-      throw new BadRequestException(`Failed to update refresh token: ${error.message}`);
+    } catch (error:any) {
+      throw new BadRequestException(
+        `Failed to update refresh token: ${error.message}`,
+      );
     }
   }
 
   async update(id: string, updateUserDto: UpdateUserDto) {
     try {
-      const user = await this.userModel.findByIdAndUpdate(
-        id,
-        updateUserDto,
-        { new: true },
-      );
+      const user = await this.userModel.findByIdAndUpdate(id, updateUserDto, {
+        new: true,
+      });
 
       if (!user) {
         throw new NotFoundException('User not found');
       }
 
       return user;
-    } catch (error) {
+    } catch (error:any) {
       if (error instanceof NotFoundException) throw error;
       throw new BadRequestException(`Failed to update user: ${error.message}`);
     }
@@ -114,10 +115,9 @@ export class UsersService {
       }
 
       return { message: 'User deleted successfully' };
-    } catch (error) {
+    } catch (error:any) {
       if (error instanceof NotFoundException) throw error;
       throw new BadRequestException(`Failed to delete user: ${error.message}`);
     }
   }
-
 }

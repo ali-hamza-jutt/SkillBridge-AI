@@ -6,7 +6,12 @@ import { CategoryController } from './category.controller';
 
 import { MongooseModule } from '@nestjs/mongoose';
 import { Task, TaskSchema } from './schemas/task.schema';
-import { Category, CategorySchema, SubCategory, SubCategorySchema } from './schemas/category.schema';
+import {
+  Category,
+  CategorySchema,
+  SubCategory,
+  SubCategorySchema,
+} from './schemas/category.schema';
 import { CacheModule } from '../cache/cache.module';
 import { BidsModule } from 'src/bids/bids.module';
 import { NotificationsModule } from 'src/notifications/notifications.module';

@@ -8,11 +8,11 @@ import { NotificationsGateway } from './notifications.gateway';
 @Module({
   imports: [
     MongooseModule.forFeature([
-      { name: Notification.name, schema: NotificationSchema }
-    ])
+      { name: Notification.name, schema: NotificationSchema },
+    ]),
   ],
   providers: [NotificationsService, NotificationsGateway],
   controllers: [NotificationsController],
-  exports: [NotificationsService,NotificationsGateway],
+  exports: [NotificationsService, NotificationsGateway],
 })
 export class NotificationsModule {}

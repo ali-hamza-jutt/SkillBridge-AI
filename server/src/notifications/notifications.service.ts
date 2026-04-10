@@ -1,12 +1,22 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { ClientProxy, ClientProxyFactory, Transport } from '@nestjs/microservices';
+import {
+  ClientProxy,
+  ClientProxyFactory,
+  Transport,
+} from '@nestjs/microservices';
 import { Model } from 'mongoose';
-import { Notification, NotificationDocument } from './schema/notification.scehma';
+import {
+  Notification,
+  NotificationDocument,
+} from './schema/notification.scehma';
 
 @Injectable()
 export class NotificationsService {
-
   private client: ClientProxy;
 
   constructor(
@@ -26,8 +36,10 @@ export class NotificationsService {
   sendNotification(event: string, payload: any) {
     try {
       return this.client.emit(event, payload);
-    } catch (error) {
-      throw new BadRequestException(`Failed to send notification: ${error.message}`);
+    } catch (error:any) {
+      throw new BadRequestException(
+        `Failed to send notification: ${error.message}`,
+      );
     }
   }
 
@@ -38,8 +50,10 @@ export class NotificationsService {
         .sort({ createdAt: -1 })
         .lean()
         .exec();
-    } catch (error) {
-      throw new BadRequestException(`Failed to fetch notifications: ${error.message}`);
+    } catch (error:any) {
+      throw new BadRequestException(
+        `Failed to fetch notifications: ${error.message}`,
+      );
     }
   }
   async markAsRead(id: string) {
@@ -47,16 +61,17 @@ export class NotificationsService {
       const notification = await this.notificationModel.findByIdAndUpdate(
         id,
         { isRead: true },
-        { new: true }
+        { new: true },
       );
       if (!notification) {
         throw new NotFoundException('Notification not found');
       }
       return notification;
-    } catch (error) {
+    } catch (error:any) {
       if (error instanceof NotFoundException) throw error;
-      throw new BadRequestException(`Failed to mark notification as read: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to mark notification as read: ${error.message}`,
+      );
     }
   }
-
 }

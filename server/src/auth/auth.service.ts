@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
@@ -15,7 +19,9 @@ export class AuthService {
 
   private async generateTokens(payload: { email: string; sub: string }) {
     try {
-      const accessTokenTtl = Number(process.env.JWT_ACCESS_EXPIRES_SECONDS ?? 900);
+      const accessTokenTtl = Number(
+        process.env.JWT_ACCESS_EXPIRES_SECONDS ?? 900,
+      );
       const refreshTokenTtl = Number(
         process.env.JWT_REFRESH_EXPIRES_SECONDS ?? 604800,
       );
@@ -32,7 +38,9 @@ export class AuthService {
 
       return { accessToken, refreshToken };
     } catch (error) {
-      throw new BadRequestException(`Failed to generate tokens: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to generate tokens: ${error.message}`,
+      );
     }
   }
 
@@ -64,7 +72,10 @@ export class AuthService {
         },
       };
     } catch (error) {
-      if (error instanceof BadRequestException || error instanceof UnauthorizedException) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof UnauthorizedException
+      ) {
         throw error;
       }
       throw new BadRequestException(`Signup failed: ${error.message}`);
@@ -141,7 +152,10 @@ export class AuthService {
       }
 
       const userId = user._id?.toString() ?? user.id;
-      const tokens = await this.generateTokens({ email: user.email, sub: userId });
+      const tokens = await this.generateTokens({
+        email: user.email,
+        sub: userId,
+      });
       const refreshTokenHash = await bcrypt.hash(tokens.refreshToken, 10);
 
       await this.usersService.updateRefreshTokenHash(userId, refreshTokenHash);

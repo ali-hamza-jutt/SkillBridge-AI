@@ -6,7 +6,7 @@ import {
   Delete,
   Body,
   Param,
-  Query
+  Query,
 } from '@nestjs/common';
 
 import { TasksService } from './tasks.service';
@@ -20,12 +20,11 @@ import { AssignTaskDto } from './dto/assign-task.dto';
 @ApiTags('Tasks')
 @Controller('tasks')
 export class TasksController {
-
   constructor(private tasksService: TasksService) {}
 
   @Post()
   create(@Body() dto: CreateTaskDto) {
-    return this.tasksService.create(dto, "USER_ID");
+    return this.tasksService.create(dto, 'USER_ID');
   }
 
   @Get()
@@ -46,9 +45,12 @@ export class TasksController {
   @Get('category/:categoryId/sub-category/:subCategoryId')
   findByCategoryAndSubCategory(
     @Param('categoryId') categoryId: string,
-    @Param('subCategoryId') subCategoryId: string
+    @Param('subCategoryId') subCategoryId: string,
   ) {
-    return this.tasksService.findByCategoryAndSubCategory(categoryId, subCategoryId);
+    return this.tasksService.findByCategoryAndSubCategory(
+      categoryId,
+      subCategoryId,
+    );
   }
 
   @Get('developer/:developerId/assigned')
@@ -66,7 +68,7 @@ export class TasksController {
     @Param('developerId') developerId: string,
     @Query('category') category: string,
     @Query('subCategories') subCategories: string,
-    @Query('skills') skills: string
+    @Query('skills') skills: string,
   ) {
     const subCategoriesArray = subCategories ? subCategories.split(',') : [];
     const skillsArray = skills ? skills.split(',') : [];
@@ -74,7 +76,7 @@ export class TasksController {
       developerId,
       category,
       subCategoriesArray,
-      skillsArray
+      skillsArray,
     );
   }
 
@@ -84,18 +86,12 @@ export class TasksController {
   }
 
   @Patch(':id')
-  update(
-    @Param('id') id: string,
-    @Body() dto: UpdateTaskDto
-  ) {
+  update(@Param('id') id: string, @Body() dto: UpdateTaskDto) {
     return this.tasksService.update(id, dto);
   }
 
   @Patch(':id/status')
-  updateTaskStatus(
-    @Param('id') id: string,
-    @Body() dto: UpdateTaskStatusDto
-  ) {
+  updateTaskStatus(@Param('id') id: string, @Body() dto: UpdateTaskStatusDto) {
     return this.tasksService.updateTaskStatus(id, dto);
   }
 
@@ -105,11 +101,7 @@ export class TasksController {
   }
 
   @Post(':taskId/assign')
-  assignTask(
-    @Param('taskId') taskId: string,
-    @Body() dto: AssignTaskDto
-  ) {
+  assignTask(@Param('taskId') taskId: string, @Body() dto: AssignTaskDto) {
     return this.tasksService.assignTask(taskId, dto.bidId);
   }
-
 }

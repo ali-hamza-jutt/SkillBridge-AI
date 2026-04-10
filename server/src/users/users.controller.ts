@@ -20,7 +20,6 @@ import { UpdateUserDto } from './dto/update.dto.user';
 @ApiTags('Users')
 @Controller('users')
 export class UsersController {
-
   constructor(private usersService: UsersService) {}
 
   @Post()
@@ -42,10 +41,7 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id')
-  update(
-    @Param('id') id: string,
-    @Body() dto: UpdateUserDto,
-  ) {
+  update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
     return this.usersService.update(id, dto);
   }
 
@@ -54,5 +50,4 @@ export class UsersController {
   delete(@Param('id') id: string) {
     return this.usersService.delete(id);
   }
-
 }

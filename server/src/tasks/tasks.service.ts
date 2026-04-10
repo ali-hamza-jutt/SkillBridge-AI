@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
@@ -12,7 +16,6 @@ import { NotificationsService } from '../notifications/notifications.service';
 
 const DEMO_USER_ID = 'DEMO_USER_1';
 
-
 @Injectable()
 export class TasksService {
   private readonly tasksCacheKey = 'tasks:all';
@@ -21,8 +24,8 @@ export class TasksService {
     @InjectModel(Task.name)
     private taskModel: Model<TaskDocument>,
     private readonly cacheService: CacheService,
-     private bidsService: BidsService,
-     private notificationsService: NotificationsService
+    private bidsService: BidsService,
+    private notificationsService: NotificationsService,
   ) {}
 
   async create(createTaskDto: CreateTaskDto, userId: string) {
@@ -35,7 +38,7 @@ export class TasksService {
       const savedTask = await task.save();
       await this.cacheService.del(this.tasksCacheKey);
       return savedTask;
-    } catch (error) {
+    } catch (error:any) {
       throw new BadRequestException(`Failed to create task: ${error.message}`);
     }
   }
@@ -48,9 +51,13 @@ export class TasksService {
       }
 
       const tasks = await this.taskModel.find().lean().exec();
-      await this.cacheService.set(this.tasksCacheKey, JSON.stringify(tasks), 300);
+      await this.cacheService.set(
+        this.tasksCacheKey,
+        JSON.stringify(tasks),
+        300,
+      );
       return tasks;
-    } catch (error) {
+    } catch (error:any) {
       throw new BadRequestException(`Failed to fetch tasks: ${error.message}`);
     }
   }
@@ -63,7 +70,7 @@ export class TasksService {
         throw new NotFoundException('Task not found');
       }
       return task;
-    } catch (error) {
+    } catch (error:any) {
       if (error instanceof NotFoundException) throw error;
       throw new BadRequestException(`Failed to fetch task: ${error.message}`);
     }
@@ -71,11 +78,9 @@ export class TasksService {
 
   async update(id: string, dto: UpdateTaskDto) {
     try {
-      const task = await this.taskModel.findByIdAndUpdate(
-        id,
-        dto,
-        { new: true },
-      );
+      const task = await this.taskModel.findByIdAndUpdate(id, dto, {
+        new: true,
+      });
 
       if (!task) {
         throw new NotFoundException('Task not found');
@@ -83,7 +88,7 @@ export class TasksService {
 
       await this.cacheService.del(this.tasksCacheKey);
       return task;
-    } catch (error) {
+    } catch (error:any) {
       if (error instanceof NotFoundException) throw error;
       throw new BadRequestException(`Failed to update task: ${error.message}`);
     }
@@ -99,7 +104,7 @@ export class TasksService {
 
       await this.cacheService.del(this.tasksCacheKey);
       return { message: 'Task deleted' };
-    } catch (error) {
+    } catch (error:any) {
       if (error instanceof NotFoundException) throw error;
       throw new BadRequestException(`Failed to delete task: ${error.message}`);
     }
@@ -127,11 +132,11 @@ export class TasksService {
       this.notificationsService.sendNotification('task.assigned', {
         taskId: task._id,
         freelancerId: DEMO_USER_ID,
-        clientId: task.clientId
+        clientId: task.clientId,
       });
 
       return task;
-    } catch (error) {
+    } catch (error:any) {
       if (error instanceof NotFoundException) throw error;
       throw new BadRequestException(`Failed to assign task: ${error.message}`);
     }
@@ -152,28 +157,30 @@ export class TasksService {
         this.notificationsService.sendNotification('task.assigned', {
           taskId: task._id,
           freelancerId: dto.developerId,
-          clientId: task.clientId
+          clientId: task.clientId,
         });
       } else if (dto.status === TaskStatus.COMPLETED && dto.developerId) {
         task.completedBy = dto.developerId;
         this.notificationsService.sendNotification('task.completed', {
           taskId: task._id,
           developerId: dto.developerId,
-          clientId: task.clientId
+          clientId: task.clientId,
         });
       } else if (dto.status === TaskStatus.CLOSED) {
         this.notificationsService.sendNotification('task.closed', {
           taskId: task._id,
-          clientId: task.clientId
+          clientId: task.clientId,
         });
       }
 
       await task.save();
       await this.cacheService.del(this.tasksCacheKey);
       return task;
-    } catch (error) {
+    } catch (error:any) {
       if (error instanceof NotFoundException) throw error;
-      throw new BadRequestException(`Failed to update task status: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to update task status: ${error.message}`,
+      );
     }
   }
 
@@ -184,8 +191,10 @@ export class TasksService {
         .lean()
         .exec();
       return tasks;
-    } catch (error) {
-      throw new BadRequestException(`Failed to fetch tasks by category: ${error.message}`);
+    } catch (error:any) {
+      throw new BadRequestException(
+        `Failed to fetch tasks by category: ${error.message}`,
+      );
     }
   }
 
@@ -196,19 +205,24 @@ export class TasksService {
         .lean()
         .exec();
       return tasks;
-    } catch (error) {
-      throw new BadRequestException(`Failed to fetch tasks by sub-category: ${error.message}`);
+    } catch (error:any) {
+      throw new BadRequestException(
+        `Failed to fetch tasks by sub-category: ${error.message}`,
+      );
     }
   }
 
-  async findByCategoryAndSubCategory(categoryId: string, subCategoryId: string) {
+  async findByCategoryAndSubCategory(
+    categoryId: string,
+    subCategoryId: string,
+  ) {
     try {
       const tasks = await this.taskModel
         .find({ categoryId, subCategoryId, status: TaskStatus.OPEN })
         .lean()
         .exec();
       return tasks;
-    } catch (error) {
+    } catch (error:any) {
       throw new BadRequestException(`Failed to fetch tasks: ${error.message}`);
     }
   }
@@ -220,8 +234,10 @@ export class TasksService {
         .lean()
         .exec();
       return tasks;
-    } catch (error) {
-      throw new BadRequestException(`Failed to fetch assigned tasks: ${error.message}`);
+    } catch (error:any) {
+      throw new BadRequestException(
+        `Failed to fetch assigned tasks: ${error.message}`,
+      );
     }
   }
 
@@ -232,27 +248,34 @@ export class TasksService {
         .lean()
         .exec();
       return tasks;
-    } catch (error) {
-      throw new BadRequestException(`Failed to fetch completed tasks: ${error.message}`);
+    } catch (error:any) {
+      throw new BadRequestException(
+        `Failed to fetch completed tasks: ${error.message}`,
+      );
     }
   }
 
-  async matchTasksWithDeveloper(developerId: string, userCategory: string, userSubCategories: string[], userSkills: string[]) {
+  async matchTasksWithDeveloper(
+    developerId: string,
+    userCategory: string,
+    userSubCategories: string[],
+    userSkills: string[],
+  ) {
     try {
       const tasks = await this.taskModel
         .find({
           $or: [
             { categoryId: userCategory },
             { subCategoryId: { $in: userSubCategories } },
-            { requiredSkills: { $in: userSkills } }
+            { requiredSkills: { $in: userSkills } },
           ],
-          status: TaskStatus.OPEN
+          status: TaskStatus.OPEN,
         })
         .lean()
         .exec();
 
       return tasks;
-    } catch (error) {
+    } catch (error:any) {
       throw new BadRequestException(`Failed to match tasks: ${error.message}`);
     }
   }

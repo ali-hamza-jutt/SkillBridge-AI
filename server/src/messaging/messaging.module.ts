@@ -12,7 +12,12 @@ import { MessagingService } from './messaging.service';
         useFactory: (configService: ConfigService) => ({
           transport: Transport.RMQ,
           options: {
-            urls: [configService.get<string>('RABBITMQ_URL', 'amqp://localhost:5672')],
+            urls: [
+              configService.get<string>(
+                'RABBITMQ_URL',
+                'amqp://localhost:5672',
+              ),
+            ],
             queue: 'main_queue',
             queueOptions: {
               durable: false,

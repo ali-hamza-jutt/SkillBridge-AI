@@ -1,12 +1,21 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Category, CategoryDocument, SubCategory, SubCategoryDocument } from './schemas/category.schema';
+import {
+  Category,
+  CategoryDocument,
+  SubCategory,
+  SubCategoryDocument,
+} from './schemas/category.schema';
 import { CreateCategoryDto, CreateSubCategoryDto } from './dto/category.dto';
 
 @Injectable()
 export class CategoryService {
-
   constructor(
     @InjectModel(Category.name)
     private categoryModel: Model<CategoryDocument>,
@@ -23,17 +32,21 @@ export class CategoryService {
 
       const category = new this.categoryModel(dto);
       return await category.save();
-    } catch (error) {
+    } catch (error:any) {
       if (error instanceof ConflictException) throw error;
-      throw new BadRequestException(`Failed to create category: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to create category: ${error.message}`,
+      );
     }
   }
 
   async getAllCategories() {
     try {
       return await this.categoryModel.find().lean().exec();
-    } catch (error) {
-      throw new BadRequestException(`Failed to fetch categories: ${error.message}`);
+    } catch (error:any) {
+      throw new BadRequestException(
+        `Failed to fetch categories: ${error.message}`,
+      );
     }
   }
 
@@ -44,9 +57,11 @@ export class CategoryService {
         throw new NotFoundException('Category not found');
       }
       return category;
-    } catch (error) {
+    } catch (error:any) {
       if (error instanceof NotFoundException) throw error;
-      throw new BadRequestException(`Failed to fetch category: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to fetch category: ${error.message}`,
+      );
     }
   }
 
@@ -59,9 +74,11 @@ export class CategoryService {
 
       const subCategory = new this.subCategoryModel(dto);
       return await subCategory.save();
-    } catch (error) {
+    } catch (error:any) {
       if (error instanceof NotFoundException) throw error;
-      throw new BadRequestException(`Failed to create sub-category: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to create sub-category: ${error.message}`,
+      );
     }
   }
 
@@ -73,9 +90,11 @@ export class CategoryService {
       }
 
       return await this.subCategoryModel.find({ categoryId }).lean().exec();
-    } catch (error) {
+    } catch (error:any) {
       if (error instanceof NotFoundException) throw error;
-      throw new BadRequestException(`Failed to fetch sub-categories: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to fetch sub-categories: ${error.message}`,
+      );
     }
   }
 
@@ -86,10 +105,11 @@ export class CategoryService {
         throw new NotFoundException('SubCategory not found');
       }
       return subCategory;
-    } catch (error) {
+    } catch (error:any) {
       if (error instanceof NotFoundException) throw error;
-      throw new BadRequestException(`Failed to fetch sub-category: ${error.message}`);
+      throw new BadRequestException(
+        `Failed to fetch sub-category: ${error.message}`,
+      );
     }
   }
-
 }

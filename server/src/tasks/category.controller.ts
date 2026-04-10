@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Param,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Param } from '@nestjs/common';
 import { ApiParam, ApiTags } from '@nestjs/swagger';
 import { CategoryService } from './category.service';
 import { CreateCategoryDto, CreateSubCategoryDto } from './dto/category.dto';
@@ -12,7 +6,6 @@ import { CreateCategoryDto, CreateSubCategoryDto } from './dto/category.dto';
 @ApiTags('Categories')
 @Controller('categories')
 export class CategoryController {
-
   constructor(private categoryService: CategoryService) {}
 
   @Post()
@@ -52,5 +45,4 @@ export class CategoryController {
   getSubCategoryById(@Param('id') id: string) {
     return this.categoryService.getSubCategoryById(id);
   }
-
 }
