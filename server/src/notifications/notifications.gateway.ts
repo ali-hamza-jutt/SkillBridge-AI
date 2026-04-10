@@ -3,7 +3,7 @@ import {
   WebSocketServer,
   SubscribeMessage,
   ConnectedSocket,
-  MessageBody
+  MessageBody,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
@@ -17,7 +17,7 @@ export class NotificationsGateway {
   private readonly logger = new Logger(NotificationsGateway.name);
 
   @WebSocketServer()
-  server: Server;
+  server!: Server;
 
   // Store userId -> socket mapping
   private users = new Map<string, string>();
@@ -48,7 +48,7 @@ export class NotificationsGateway {
   @SubscribeMessage('register')
   handleRegister(
     @MessageBody() userId: string,
-    @ConnectedSocket() client: Socket
+    @ConnectedSocket() client: Socket,
   ) {
     try {
       this.users.set(userId, client.id);

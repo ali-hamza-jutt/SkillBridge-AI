@@ -3,7 +3,7 @@ import {
   WebSocketServer,
   SubscribeMessage,
   ConnectedSocket,
-  MessageBody
+  MessageBody,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 
@@ -13,9 +13,8 @@ import { Server, Socket } from 'socket.io';
   },
 })
 export class NotificationsGateway {
-
   @WebSocketServer()
-  server: Server;
+  server!: Server;
 
   // Store userId -> socket mapping
   private users = new Map<string, string>();
@@ -38,7 +37,7 @@ export class NotificationsGateway {
   @SubscribeMessage('register')
   handleRegister(
     @MessageBody() userId: string,
-    @ConnectedSocket() client: Socket
+    @ConnectedSocket() client: Socket,
   ) {
     this.users.set(userId, client.id);
     console.log(`User ${userId} registered with socket ${client.id}`);
