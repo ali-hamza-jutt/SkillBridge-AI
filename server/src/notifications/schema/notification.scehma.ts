@@ -5,16 +5,14 @@ export type NotificationDocument = Notification & Document;
 
 @Schema({ timestamps: true })
 export class Notification {
+  @Prop({ required: true })
+  userId!: string;
 
   @Prop({ required: true })
-  userId: string;
-
-  @Prop({ required: true })
-  message: string;
+  message!: string;
 
   @Prop({ default: false })
-  isRead: boolean;
-
+  isRead!: boolean;
 }
 
 export const NotificationSchema = SchemaFactory.createForClass(Notification);

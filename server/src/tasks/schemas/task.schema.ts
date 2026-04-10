@@ -3,8 +3,6 @@ import { Document } from 'mongoose';
 
 export type TaskDocument = Task & Document;
 
-
-
 export enum BudgetType {
   HOURLY = 'hourly',
   FIXED = 'fixed',
@@ -30,49 +28,47 @@ export enum ExperienceLevel {
 
 @Schema({ timestamps: true })
 export class Task {
+  @Prop({ required: true })
+  title!: string;
 
   @Prop({ required: true })
-  title: string;
+  description!: string;
 
   @Prop({ required: true })
-  description: string;
+  budget!: number;
 
   @Prop({ required: true })
-  budget: number;
-
-  @Prop({ required: true })
-  maxBudget?: number;
+  maxBudget!: number;
 
   @Prop({ required: true, enum: BudgetType })
-  budgetType: BudgetType;
+  budgetType!: BudgetType;
 
   @Prop({ enum: TaskStatus, default: TaskStatus.OPEN })
-  status: TaskStatus;
+  status!: TaskStatus;
 
   @Prop({ required: true, enum: ProjectType })
-  projectType: ProjectType;
+  projectType!: ProjectType;
 
   @Prop({ required: true })
-  categoryId: string;
+  categoryId!: string;
 
   @Prop({ required: true })
-  subCategoryId: string;
+  subCategoryId!: string;
 
   @Prop({ type: [String], default: [] })
-  requiredSkills: string[];
+  requiredSkills!: string[];
 
   @Prop({ required: true, enum: ExperienceLevel })
-  experienceLevel: ExperienceLevel;
+  experienceLevel!: ExperienceLevel;
 
   @Prop({ required: true })
-  clientId: string;
+  clientId!: string;
 
   @Prop()
   assignedFreelancer?: string;
 
   @Prop()
   completedBy?: string;
-
 }
 
 export const TaskSchema = SchemaFactory.createForClass(Task);

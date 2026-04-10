@@ -1,8 +1,17 @@
-import { IsOptional, IsString, IsNumber, IsEnum, IsArray } from 'class-validator';
-import { BudgetType, ProjectType, ExperienceLevel } from '../schemas/task.schema';
+import {
+  IsOptional,
+  IsString,
+  IsNumber,
+  IsEnum,
+  IsArray,
+} from 'class-validator';
+import {
+  BudgetType,
+  ProjectType,
+  ExperienceLevel,
+} from '../schemas/task.schema';
 
 export class UpdateTaskDto {
-
   @IsOptional()
   @IsString()
   title?: string;
@@ -43,5 +52,4 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsEnum(ExperienceLevel)
   experienceLevel?: ExperienceLevel;
-
 }

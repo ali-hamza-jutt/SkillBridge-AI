@@ -11,32 +11,30 @@ export type UserDocument = User & Document;
 
 @Schema({ timestamps: true })
 export class User {
-
   @Prop({ required: true })
-  name: string;
+  name!: string;
 
   @Prop({ required: true, unique: true })
-  email: string;
+  email!: string;
 
   @Prop({ required: true })
-  password: string;
+  password!: string;
 
   @Prop()
   refreshTokenHash?: string;
 
   @Prop({ type: [String], default: [] })
-  skills: string[];
+  skills!: string[];
 
   @Prop({ default: 0 })
-  rating: number;
+  rating!: number;
 
   @Prop({
     type: String,
     enum: UserRole,
     default: UserRole.FREELANCER,
   })
-  role: UserRole;
-
+  role!: UserRole;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

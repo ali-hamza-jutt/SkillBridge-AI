@@ -5,13 +5,11 @@ export type CategoryDocument = Category & Document;
 
 @Schema({ timestamps: true })
 export class Category {
-
   @Prop({ required: true, unique: true })
-  name: string;
+  name!: string;
 
   @Prop()
   description?: string;
-
 }
 
 export const CategorySchema = SchemaFactory.createForClass(Category);
@@ -20,16 +18,14 @@ export type SubCategoryDocument = SubCategory & Document;
 
 @Schema({ timestamps: true })
 export class SubCategory {
-
   @Prop({ required: true, type: Types.ObjectId, ref: 'Category' })
-  categoryId: Types.ObjectId;
+  categoryId!: Types.ObjectId;
 
   @Prop({ required: true })
-  name: string;
+  name!: string;
 
   @Prop()
   description?: string;
-
 }
 
 export const SubCategorySchema = SchemaFactory.createForClass(SubCategory);

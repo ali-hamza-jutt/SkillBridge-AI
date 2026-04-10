@@ -5,19 +5,17 @@ export type BidDocument = Bid & Document;
 
 @Schema({ timestamps: true })
 export class Bid {
+  @Prop({ required: true })
+  taskId!: string;
 
   @Prop({ required: true })
-  taskId: string;
+  freelancerId!: string;
 
   @Prop({ required: true })
-  freelancerId: string;
-
-  @Prop({ required: true })
-  bidAmount: number;
+  bidAmount!: number;
 
   @Prop()
-  message: string;
-
+  message!: string;
 }
 
 export const BidSchema = SchemaFactory.createForClass(Bid);
