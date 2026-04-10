@@ -25,6 +25,20 @@ export default tseslint.config(
     },
   },
   {
+    files: ['src/**/dto/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            'PropertyDefinition[value=null][optional=false][definite=false]',
+          message:
+            'DTO class properties must be initialized or marked with ? (optional) / ! (definite assignment).',
+        },
+      ],
+    },
+  },
+  {
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-floating-promises': 'warn',
