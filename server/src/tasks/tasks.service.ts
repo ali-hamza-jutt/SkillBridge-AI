@@ -11,7 +11,7 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { UpdateTaskStatusDto } from './dto/update-task-status.dto';
 import { CacheService } from '../cache/cache.service';
-import { BidsService } from 'src/bids/bids.service';
+import { BidsService } from '../bids/bids.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
 const DEMO_USER_ID = 'DEMO_USER_1';

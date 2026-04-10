@@ -13,8 +13,8 @@ import {
   SubCategorySchema,
 } from './schemas/category.schema';
 import { CacheModule } from '../cache/cache.module';
-import { BidsModule } from 'src/bids/bids.module';
-import { NotificationsModule } from 'src/notifications/notifications.module';
+import { BidsModule } from '../bids/bids.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [

@@ -12,7 +12,7 @@ import { BidsService } from './bids.service';
 import { CreateBidDto } from './dto/create-bid.dto';
 
 import { ApiTags } from '@nestjs/swagger';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @ApiTags('Bids')
 @UseGuards(JwtAuthGuard)

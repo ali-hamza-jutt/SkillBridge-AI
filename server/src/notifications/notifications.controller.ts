@@ -14,7 +14,7 @@ import {
   Notification,
   NotificationDocument,
 } from './schema/notification.scehma';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { NotificationsService } from './notifications.service';
 import { NotificationsGateway } from './notifications.gateway';
 
