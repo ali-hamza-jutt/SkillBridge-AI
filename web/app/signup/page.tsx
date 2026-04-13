@@ -5,8 +5,8 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   useAuthControllerLoginMutation,
-  useUsersControllerCreateMutation,
-} from "@/lib/features/auth/authApi";
+  useAuthControllerSignupMutation,
+} from "@/lib/api";
 import { setCredentials } from "@/lib/features/auth/authSlice";
 import { useAppDispatch } from "@/lib/hooks";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
@@ -19,9 +19,10 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [skillsText, setSkillsText] = useState("");
+  const [role, setRole] = useState<"FREELANCER" | "HIRER">("FREELANCER");
   const [status, setStatus] = useState<string | null>(null);
 
-  const [signup, { isLoading: isSigningUp }] = useUsersControllerCreateMutation();
+  const [signup, { isLoading: isSigningUp }] = useAuthControllerSignupMutation();
   const [login, { isLoading: isLoggingIn }] = useAuthControllerLoginMutation();
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -35,11 +36,12 @@ export default function SignupPage() {
 
     try {
       await signup({
-        createUserDto: {
+        signupDto: {
           name,
           email,
           password,
-          skills,
+          role,
+          ...(role === "FREELANCER" ? { skills } : {}),
         },
       }).unwrap();
 
@@ -144,6 +146,20 @@ export default function SignupPage() {
                 </div>
 
                 <div>
+                  <label className="field-label" htmlFor="role">Account Type</label>
+                  <select
+                    id="role"
+                    required
+                    value={role}
+                    onChange={(e) => setRole(e.target.value as "FREELANCER" | "HIRER")}
+                    className="field-input"
+                  >
+                    <option value="FREELANCER">Freelancer</option>
+                    <option value="HIRER">Job Giver</option>
+                  </select>
+                </div>
+
+                <div>
                   <label className="field-label" htmlFor="skills">Skills (comma separated)</label>
                   <input
                     id="skills"
@@ -151,8 +167,12 @@ export default function SignupPage() {
                     value={skillsText}
                     onChange={(e) => setSkillsText(e.target.value)}
                     className="field-input"
+                    disabled={role !== "FREELANCER"}
                     placeholder="Node.js, Redis, NestJS"
                   />
+                  {role !== "FREELANCER" ? (
+                    <p className="muted-copy mt-2">Skills are optional for job giver accounts.</p>
+                  ) : null}
                 </div>
 
                 {status ? <p className="status-error">{status}</p> : null}

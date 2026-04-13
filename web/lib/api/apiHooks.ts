@@ -7,6 +7,16 @@ const injectedRtkApi = api.injectEndpoints({
     >({
       query: () => ({ url: `/` }),
     }),
+    authControllerSignup: build.mutation<
+      AuthControllerSignupApiResponse,
+      AuthControllerSignupApiArg
+    >({
+      query: (queryArg) => ({
+        url: `/auth/signup`,
+        method: "POST",
+        body: queryArg.signupDto,
+      }),
+    }),
     authControllerLogin: build.mutation<
       AuthControllerLoginApiResponse,
       AuthControllerLoginApiArg
@@ -265,6 +275,10 @@ const injectedRtkApi = api.injectEndpoints({
 export { injectedRtkApi as apiHooks };
 export type AppControllerGetHelloApiResponse = unknown;
 export type AppControllerGetHelloApiArg = void;
+export type AuthControllerSignupApiResponse = unknown;
+export type AuthControllerSignupApiArg = {
+  signupDto: SignupDto;
+};
 export type AuthControllerLoginApiResponse = unknown;
 export type AuthControllerLoginApiArg = {
   loginDto: LoginDto;
@@ -390,6 +404,13 @@ export type NotificationsControllerMarkAsReadApiResponse = unknown;
 export type NotificationsControllerMarkAsReadApiArg = {
   id: string;
 };
+export type SignupDto = {
+  name: string;
+  email: string;
+  password: string;
+  skills?: string[];
+  role: "FREELANCER" | "HIRER" | "ADMIN";
+};
 export type LoginDto = {
   email: string;
   password: string;
@@ -402,6 +423,7 @@ export type CreateUserDto = {
   email: string;
   password: string;
   skills: string[];
+  role?: "FREELANCER" | "HIRER" | "ADMIN";
 };
 export type UpdateUserDto = {};
 export type BudgetType = "hourly" | "fixed";
@@ -444,6 +466,7 @@ export type CreateBidDto = {
 };
 export const {
   useAppControllerGetHelloQuery,
+  useAuthControllerSignupMutation,
   useAuthControllerLoginMutation,
   useAuthControllerRefreshMutation,
   useUsersControllerCreateMutation,
