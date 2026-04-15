@@ -8,13 +8,26 @@ import { Model } from 'mongoose';
 
 import { Bid, BidDocument } from './schemas/bid.schema';
 import { BidPayoutType, CreateBidDto } from './dto/create-bid.dto';
+import { BidAttachmentsStorageService } from './bid-attachments.storage';
 
 @Injectable()
 export class BidsService {
   constructor(
     @InjectModel(Bid.name)
     private bidModel: Model<BidDocument>,
+    private bidAttachmentsStorageService: BidAttachmentsStorageService,
   ) {}
+
+  async uploadAttachments(files: Express.Multer.File[]) {
+    try {
+      return this.bidAttachmentsStorageService.uploadMany(files);
+    } catch (error: any) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(`Failed to upload attachments: ${error.message}`);
+    }
+  }
 
   async create(dto: CreateBidDto, freelancerId: string) {
     try {
