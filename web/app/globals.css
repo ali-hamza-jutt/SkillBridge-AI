@@ -44,6 +44,12 @@ body {
   font-size: var(--fs-body);
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 .app-root {
   min-height: 100vh;
   background:
@@ -557,6 +563,7 @@ body {
 
 .field-input {
   width: 100%;
+  box-sizing: border-box;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--color-surface) 94%, var(--color-surface-tint));
@@ -757,6 +764,10 @@ body {
   display: grid;
   gap: 0.9rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.hirer-form-grid > div {
+  min-width: 0;
 }
 
 .hirer-status {
