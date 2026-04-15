@@ -229,16 +229,46 @@ export default function DashboardPage() {
     return status;
   };
 
+  const getStatusClassName = (status: string) => {
+    if (status === "OPEN") {
+      return "border-[color-mix(in_srgb,var(--color-brand)_35%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_70%,var(--color-surface))] text-[var(--color-brand-strong)]";
+    }
+    if (status === "ASSIGNED") {
+      return "border-[color-mix(in_srgb,var(--color-accent)_35%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-accent-soft)_72%,var(--color-surface))] text-[color-mix(in_srgb,var(--color-text-main)_90%,#3b2f12)]";
+    }
+    return "border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_86%,transparent)] text-[var(--color-text-muted)]";
+  };
+
+  const inputClassName =
+    "mt-1 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm text-[var(--color-text-main)] outline-none transition placeholder:text-[color-mix(in_srgb,var(--color-text-muted)_86%,transparent)] focus:border-[color-mix(in_srgb,var(--color-brand)_58%,var(--color-border))] focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-brand-soft)_75%,transparent)]";
+  const labelClassName = "text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]";
+
   if (!token) {
     return (
-      <main className="app-root py-10">
-        <div className="site-shell">
-          <section className="surface-card hero-panel">
-            <h1 className="section-title">Dashboard Access Requires Login</h1>
-            <p className="muted-copy mt-3">Please log in first to access your personalized dashboard.</p>
-            <div className="mt-6 flex gap-3">
-              <Link href="/login" className="btn btn-primary">Go to Login</Link>
-              <Link href="/signup" className="btn btn-secondary">Create Account</Link>
+      <main
+        className="min-h-screen py-10"
+        style={{
+          background:
+            "radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--color-brand-soft) 58%, transparent), transparent 34%), linear-gradient(165deg, var(--color-bg), color-mix(in srgb, var(--color-surface-strong) 84%, var(--color-bg)))",
+        }}
+      >
+        <div className="mx-auto w-[min(100%-2rem,980px)]">
+          <section className="rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_92%,transparent)] p-6 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)] backdrop-blur-md md:p-8">
+            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-main)]">Dashboard Access Requires Login</h1>
+            <p className="mt-3 text-sm text-[var(--color-text-muted)]">Please log in first to access your personalized dashboard.</p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link
+                href="/login"
+                className="inline-flex items-center justify-center rounded-full border border-transparent bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] px-5 py-2.5 text-sm font-semibold text-white no-underline"
+              >
+                Go to Login
+              </Link>
+              <Link
+                href="/signup"
+                className="inline-flex items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_88%,var(--color-brand-soft))] px-5 py-2.5 text-sm font-semibold text-[var(--color-text-main)] no-underline"
+              >
+                Create Account
+              </Link>
             </div>
           </section>
         </div>
@@ -248,16 +278,33 @@ export default function DashboardPage() {
 
   if (role && role !== "HIRER") {
     return (
-      <main className="app-root py-10">
-        <div className="site-shell">
-          <section className="surface-card hero-panel">
-            <h1 className="section-title">Freelancer Dashboard</h1>
-            <p className="muted-copy mt-3">
+      <main
+        className="min-h-screen py-10"
+        style={{
+          background:
+            "radial-gradient(circle at 88% 0%, color-mix(in srgb, var(--color-accent-soft) 50%, transparent), transparent 34%), linear-gradient(165deg, var(--color-bg), color-mix(in srgb, var(--color-surface-strong) 84%, var(--color-bg)))",
+        }}
+      >
+        <div className="mx-auto w-[min(100%-2rem,980px)]">
+          <section className="rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_92%,transparent)] p-6 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)] backdrop-blur-md md:p-8">
+            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-main)]">Freelancer Dashboard</h1>
+            <p className="mt-3 text-sm text-[var(--color-text-muted)]">
               This dashboard section is for hirers to manage posted jobs. You are signed in as a freelancer.
             </p>
-            <div className="mt-6 flex gap-3">
-              <Link href="/" className="btn btn-primary">Go Home</Link>
-              <button onClick={signOut} className="btn btn-secondary" type="button">Log Out</button>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link
+                href="/"
+                className="inline-flex items-center justify-center rounded-full border border-transparent bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] px-5 py-2.5 text-sm font-semibold text-white no-underline"
+              >
+                Go Home
+              </Link>
+              <button
+                onClick={signOut}
+                className="inline-flex items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_88%,var(--color-brand-soft))] px-5 py-2.5 text-sm font-semibold text-[var(--color-text-main)]"
+                type="button"
+              >
+                Log Out
+              </button>
             </div>
           </section>
         </div>
@@ -266,14 +313,22 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="app-root hirer-root">
-      <header className="hirer-nav-wrap">
-        <div className="site-shell hirer-nav">
-          <Link href="/" className="site-brand brand-mark">SkillBridge</Link>
-          <div className="hirer-nav-actions">
+    <main
+      className="min-h-screen"
+      style={{
+        background:
+          "radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--color-brand-soft) 50%, transparent), transparent 34%), radial-gradient(circle at 96% 8%, color-mix(in srgb, var(--color-accent-soft) 42%, transparent), transparent 44%), linear-gradient(160deg, var(--color-bg), color-mix(in srgb, var(--color-surface-strong) 86%, var(--color-bg)))",
+      }}
+    >
+      <header className="sticky top-0 z-20 border-b border-[color-mix(in_srgb,var(--color-border)_88%,transparent)] bg-[color-mix(in_srgb,var(--color-bg)_84%,transparent)] backdrop-blur-xl">
+        <div className="mx-auto flex w-[min(100%-2rem,1200px)] items-center justify-between gap-3 py-3">
+          <Link href="/" className="text-lg font-bold tracking-tight text-[var(--color-text-main)] no-underline">
+            SkillBridge
+          </Link>
+          <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
-              className="btn btn-primary"
+              className="inline-flex items-center justify-center rounded-full border border-transparent bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-brand-strong)_92%,#0d7000),var(--color-brand))]"
               onClick={() => {
                 setFormError(null);
                 setFormStatus(null);
@@ -282,74 +337,100 @@ export default function DashboardPage() {
             >
               Post a Job
             </button>
-            <button onClick={signOut} className="btn btn-secondary" type="button">Log Out</button>
+            <button
+              onClick={signOut}
+              className="inline-flex items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_88%,var(--color-brand-soft))] px-5 py-2.5 text-sm font-semibold text-[var(--color-text-main)] transition hover:bg-[color-mix(in_srgb,var(--color-surface)_75%,var(--color-brand-soft))]"
+              type="button"
+            >
+              Log Out
+            </button>
           </div>
         </div>
       </header>
 
-      <div className="site-shell hirer-main">
-        <section className="hirer-filters surface-card">
-          <p className="hirer-filter-label">My Jobs</p>
-          <div className="hirer-filter-row">
-            <button
-              type="button"
-              className={`hirer-filter-pill ${activeFilter === "ALL" ? "is-active" : ""}`}
-              onClick={() => setActiveFilter("ALL")}
-            >
-              All Jobs
-            </button>
-            <button
-              type="button"
-              className={`hirer-filter-pill ${activeFilter === "OPEN" ? "is-active" : ""}`}
-              onClick={() => setActiveFilter("OPEN")}
-            >
-              Open Jobs
-            </button>
-            <button
-              type="button"
-              className={`hirer-filter-pill ${activeFilter === "ONGOING" ? "is-active" : ""}`}
-              onClick={() => setActiveFilter("ONGOING")}
-            >
-              Ongoing Jobs
-            </button>
+      <div className="mx-auto grid w-[min(100%-2rem,1200px)] gap-5 py-5">
+        <section className="rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_92%,transparent)] p-4 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)] backdrop-blur-md md:p-5">
+          <p className="m-0 text-xs font-bold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">My Jobs</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(["ALL", "OPEN", "ONGOING"] as JobFilter[]).map((filter) => {
+              const isActive = activeFilter === filter;
+              return (
+                <button
+                  key={filter}
+                  type="button"
+                  className={`inline-flex items-center justify-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                    isActive
+                      ? "border-[color-mix(in_srgb,var(--color-brand)_30%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_78%,var(--color-surface))] text-[var(--color-brand-strong)]"
+                      : "border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_86%,transparent)] text-[var(--color-text-main)] hover:bg-[color-mix(in_srgb,var(--color-surface)_72%,var(--color-brand-soft))]"
+                  }`}
+                  onClick={() => setActiveFilter(filter)}
+                >
+                  {filter === "ALL" ? "All Jobs" : filter === "OPEN" ? "Open Jobs" : "Ongoing Jobs"}
+                </button>
+              );
+            })}
           </div>
         </section>
 
-        <section className="hirer-jobs-grid">
-          {isLoadingMyTasks ? <p className="muted-copy">Loading your jobs...</p> : null}
+        <section className="grid gap-4">
+          {isLoadingMyTasks ? <p className="text-sm text-[var(--color-text-muted)]">Loading your jobs...</p> : null}
+
           {!isLoadingMyTasks && filteredTasks.length === 0 ? (
-            <article className="surface-card hirer-empty">
-              <p className="hirer-empty-icon" aria-hidden="true">○</p>
-              <h2 className="section-title">No jobs in this view</h2>
-              <p className="muted-copy mt-2">Use Post a Job to create your first listing.</p>
-              <button type="button" className="btn btn-primary mt-6" onClick={() => setIsPostJobOpen(true)}>
+            <article className="rounded-3xl border border-dashed border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] p-8 text-center shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)]">
+              <p className="m-0 text-3xl text-[var(--color-text-muted)]" aria-hidden="true">○</p>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight text-[var(--color-text-main)]">No jobs in this view</h2>
+              <p className="mt-2 text-sm text-[var(--color-text-muted)]">Use Post a Job to create your first listing.</p>
+              <button
+                type="button"
+                className="mt-6 inline-flex items-center justify-center rounded-full border border-transparent bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] px-5 py-2.5 text-sm font-semibold text-white"
+                onClick={() => setIsPostJobOpen(true)}
+              >
                 Post Your First Job
               </button>
             </article>
           ) : null}
 
           {filteredTasks.map((task) => (
-            <article key={task._id} className="surface-card hirer-job-card">
-              <div className="hirer-job-top">
-                <h3 className="hirer-job-title">{task.title}</h3>
-                <span className={`hirer-status hirer-status-${task.status.toLowerCase()}`}>
+            <article
+              key={task._id}
+              className="w-full rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_94%,transparent)] p-5 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)]"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <h3 className="m-0 text-xl font-bold tracking-tight text-[var(--color-text-main)]">{task.title}</h3>
+                <span
+                  className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-[0.08em] ${getStatusClassName(task.status)}`}
+                >
                   {formatStatusLabel(task.status)}
                 </span>
               </div>
 
-              <p className="hirer-job-desc">{task.description}</p>
+              <p className="mt-3 line-clamp-2 text-sm leading-6 text-[var(--color-text-muted)]">{task.description}</p>
 
-              <div className="hirer-meta-row">
-                <span>{task.budgetType === "hourly" ? "Hourly" : "Fixed"}</span>
-                <span>${task.budget}{typeof task.maxBudget === "number" ? ` - $${task.maxBudget}` : ""}</span>
-                <span>{task.projectType === "one_time" ? "One-time" : "Ongoing"}</span>
-                <span>{task.experienceLevel}</span>
+              <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                <span className="rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] px-2.5 py-1 text-[var(--color-text-main)]">
+                  {task.budgetType === "hourly" ? "Hourly" : "Fixed"}
+                </span>
+                <span className="rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] px-2.5 py-1 text-[var(--color-text-main)]">
+                  ${task.budget}
+                  {typeof task.maxBudget === "number" ? ` - $${task.maxBudget}` : ""}
+                </span>
+                <span className="rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] px-2.5 py-1 text-[var(--color-text-main)]">
+                  {task.projectType === "one_time" ? "One-time" : "Ongoing"}
+                </span>
+                <span className="rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] px-2.5 py-1 text-[var(--color-text-main)] capitalize">
+                  {task.experienceLevel}
+                </span>
               </div>
 
               {task.requiredSkills?.length ? (
-                <div className="hirer-skill-row">
+                <div className="mt-4 flex flex-wrap gap-2">
                   {task.requiredSkills.map((skill) => (
-                    <span key={`${task._id}-${skill}`} className="hirer-skill-chip">{skill}</span>
+                    <span
+                      key={`${task._id}-${skill}`}
+                      className="rounded-full border border-[color-mix(in_srgb,var(--color-brand)_24%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_68%,var(--color-surface))] px-2.5 py-1 text-xs font-semibold text-[color-mix(in_srgb,var(--color-brand-strong)_88%,var(--color-text-main))]"
+                    >
+                      {skill}
+                    </span>
                   ))}
                 </div>
               ) : null}
@@ -359,90 +440,101 @@ export default function DashboardPage() {
       </div>
 
       {isPostJobOpen ? (
-        <div className="hirer-modal-backdrop" role="dialog" aria-modal="true" aria-label="Post a job">
-          <div className="hirer-modal surface-card">
-            <div className="hirer-modal-head">
-              <h2 className="section-title">Post a Job</h2>
+        <div
+          className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-[color-mix(in_srgb,var(--color-bg)_38%,#000)] px-4 py-8 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Post a job"
+        >
+          <div className="w-full max-w-3xl rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_95%,transparent)] p-5 shadow-[0_26px_56px_-36px_rgba(15,23,42,0.4)] md:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-2xl font-bold tracking-tight text-[var(--color-text-main)]">Post a Job</h2>
               <button
                 type="button"
-                className="hirer-close"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_90%,transparent)] text-lg text-[var(--color-text-main)] transition hover:bg-[color-mix(in_srgb,var(--color-surface)_72%,var(--color-brand-soft))]"
                 onClick={() => setIsPostJobOpen(false)}
                 aria-label="Close post job form"
               >
-                ×
+                x
               </button>
             </div>
 
-            <form className="field-stack mt-4" onSubmit={handleSubmit(onCreateTask)}>
+            <form className="mt-4 grid gap-4" onSubmit={handleSubmit(onCreateTask)}>
               <div>
-                <label className="field-label" htmlFor="title">Title</label>
-                <input id="title" className="field-input" {...register("title")} placeholder="Build a Next.js admin panel" />
-                {errors.title ? <p className="status-error">{errors.title.message}</p> : null}
+                <label className={labelClassName} htmlFor="title">Title</label>
+                <input id="title" className={inputClassName} {...register("title")} placeholder="Build a Next.js admin panel" />
+                {errors.title ? <p className="mt-1 text-sm text-[var(--color-danger)]">{errors.title.message}</p> : null}
               </div>
 
               <div>
-                <label className="field-label" htmlFor="description">Description</label>
-                <textarea id="description" className="field-input" rows={4} {...register("description")} placeholder="Describe scope, timelines, and deliverables" />
-                {errors.description ? <p className="status-error">{errors.description.message}</p> : null}
+                <label className={labelClassName} htmlFor="description">Description</label>
+                <textarea
+                  id="description"
+                  className={inputClassName}
+                  rows={4}
+                  {...register("description")}
+                  placeholder="Describe scope, timelines, and deliverables"
+                />
+                {errors.description ? <p className="mt-1 text-sm text-[var(--color-danger)]">{errors.description.message}</p> : null}
               </div>
 
-              <div className="hirer-form-grid">
+              <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="field-label" htmlFor="budget">Budget</label>
-                  <input id="budget" type="number" className="field-input" {...register("budget")} />
-                  {errors.budget ? <p className="status-error">{errors.budget.message}</p> : null}
+                  <label className={labelClassName} htmlFor="budget">Budget</label>
+                  <input id="budget" type="number" className={inputClassName} {...register("budget")} />
+                  {errors.budget ? <p className="mt-1 text-sm text-[var(--color-danger)]">{errors.budget.message}</p> : null}
                 </div>
                 <div>
-                  <label className="field-label" htmlFor="maxBudget">Max Budget (optional)</label>
-                  <input id="maxBudget" type="number" className="field-input" {...register("maxBudget")} />
-                  {errors.maxBudget ? <p className="status-error">{errors.maxBudget.message}</p> : null}
+                  <label className={labelClassName} htmlFor="maxBudget">Max Budget (optional)</label>
+                  <input id="maxBudget" type="number" className={inputClassName} {...register("maxBudget")} />
+                  {errors.maxBudget ? <p className="mt-1 text-sm text-[var(--color-danger)]">{errors.maxBudget.message}</p> : null}
                 </div>
               </div>
 
-              <div className="hirer-form-grid">
+              <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="field-label" htmlFor="budgetType">Budget Type</label>
-                  <select id="budgetType" className="field-input" {...register("budgetType")}>
+                  <label className={labelClassName} htmlFor="budgetType">Budget Type</label>
+                  <select id="budgetType" className={inputClassName} {...register("budgetType")}>
                     <option value="fixed">Fixed</option>
                     <option value="hourly">Hourly</option>
                   </select>
                 </div>
                 <div>
-                  <label className="field-label" htmlFor="projectType">Project Type</label>
-                  <select id="projectType" className="field-input" {...register("projectType")}>
+                  <label className={labelClassName} htmlFor="projectType">Project Type</label>
+                  <select id="projectType" className={inputClassName} {...register("projectType")}>
                     <option value="one_time">One Time</option>
                     <option value="ongoing">Ongoing</option>
                   </select>
                 </div>
               </div>
 
-              <div className="hirer-form-grid">
+              <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="field-label" htmlFor="categoryId">Category</label>
-                  <select id="categoryId" className="field-input" {...register("categoryId")}>
+                  <label className={labelClassName} htmlFor="categoryId">Category</label>
+                  <select id="categoryId" className={inputClassName} {...register("categoryId")}>
                     <option value="">Select category</option>
                     {categories.map((category) => (
                       <option key={category._id} value={category._id}>{category.name}</option>
                     ))}
                   </select>
-                  {errors.categoryId ? <p className="status-error">{errors.categoryId.message}</p> : null}
+                  {errors.categoryId ? <p className="mt-1 text-sm text-[var(--color-danger)]">{errors.categoryId.message}</p> : null}
                 </div>
 
                 <div>
-                  <label className="field-label" htmlFor="subCategoryId">Sub-category</label>
-                  <select id="subCategoryId" className="field-input" {...register("subCategoryId")}>
+                  <label className={labelClassName} htmlFor="subCategoryId">Sub-category</label>
+                  <select id="subCategoryId" className={inputClassName} {...register("subCategoryId")}>
                     <option value="">Select sub-category</option>
                     {subCategories.map((subCategory) => (
                       <option key={subCategory._id} value={subCategory._id}>{subCategory.name}</option>
                     ))}
                   </select>
-                  {errors.subCategoryId ? <p className="status-error">{errors.subCategoryId.message}</p> : null}
+                  {errors.subCategoryId ? <p className="mt-1 text-sm text-[var(--color-danger)]">{errors.subCategoryId.message}</p> : null}
                 </div>
               </div>
 
               <div>
-                <label className="field-label" htmlFor="experienceLevel">Experience Level</label>
-                <select id="experienceLevel" className="field-input" {...register("experienceLevel")}>
+                <label className={labelClassName} htmlFor="experienceLevel">Experience Level</label>
+                <select id="experienceLevel" className={inputClassName} {...register("experienceLevel")}>
                   <option value="entry">Entry</option>
                   <option value="intermediate">Intermediate</option>
                   <option value="expert">Expert</option>
@@ -450,23 +542,39 @@ export default function DashboardPage() {
               </div>
 
               <div>
-                <label className="field-label" htmlFor="requiredSkills">Required Skills (comma separated)</label>
+                <label className={labelClassName} htmlFor="requiredSkills">Required Skills (comma separated)</label>
                 <input
                   id="requiredSkills"
-                  className="field-input"
+                  className={inputClassName}
                   {...register("requiredSkills")}
                   placeholder="React, Next.js, TypeScript"
                 />
               </div>
 
-              {formError ? <p className="status-error">{formError}</p> : null}
-              {formStatus ? <p className="hirer-success">{formStatus}</p> : null}
+              {formError ? (
+                <p className="rounded-xl border border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-danger-soft)_80%,var(--color-surface))] px-3 py-2 text-sm text-[var(--color-danger)]">
+                  {formError}
+                </p>
+              ) : null}
+              {formStatus ? (
+                <p className="rounded-xl border border-[color-mix(in_srgb,var(--color-brand)_32%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_72%,var(--color-surface))] px-3 py-2 text-sm text-[var(--color-brand-strong)]">
+                  {formStatus}
+                </p>
+              ) : null}
 
-              <div className="hirer-modal-actions">
-                <button className="btn btn-primary" type="submit" disabled={isCreatingTask}>
+              <div className="mt-1 flex flex-wrap justify-end gap-2">
+                <button
+                  className="inline-flex items-center justify-center rounded-full border border-transparent bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-70"
+                  type="submit"
+                  disabled={isCreatingTask}
+                >
                   {isCreatingTask ? "Posting..." : "Post Job"}
                 </button>
-                <button type="button" className="btn btn-secondary" onClick={() => setIsPostJobOpen(false)}>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_88%,var(--color-brand-soft))] px-5 py-2.5 text-sm font-semibold text-[var(--color-text-main)]"
+                  onClick={() => setIsPostJobOpen(false)}
+                >
                   Cancel
                 </button>
               </div>
