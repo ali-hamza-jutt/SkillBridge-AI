@@ -29,6 +29,25 @@ body {
   font-family: var(--font-geist-sans), "Segoe UI", sans-serif;
 }
 
+a[href],
+button,
+label[for],
+summary,
+select,
+input[type="button"],
+input[type="submit"],
+input[type="reset"] {
+  cursor: pointer;
+}
+
+button:disabled,
+select:disabled,
+input:disabled,
+textarea:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
 @keyframes riseIn {
   from {
     opacity: 0;
