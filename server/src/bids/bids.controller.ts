@@ -5,6 +5,7 @@ import {
   Delete,
   Body,
   Param,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 
@@ -21,8 +22,8 @@ export class BidsController {
   constructor(private bidsService: BidsService) {}
 
   @Post()
-  create(@Body() dto: CreateBidDto) {
-    return this.bidsService.create(dto, 'FREELANCER_ID');
+  create(@Body() dto: CreateBidDto, @Req() req) {
+    return this.bidsService.create(dto, req.user.userId);
   }
 
   @Get('task/:taskId')

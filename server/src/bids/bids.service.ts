@@ -7,7 +7,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
 import { Bid, BidDocument } from './schemas/bid.schema';
-import { CreateBidDto } from './dto/create-bid.dto';
+import { BidPayoutType, CreateBidDto } from './dto/create-bid.dto';
 
 @Injectable()
 export class BidsService {
@@ -18,6 +18,21 @@ export class BidsService {
 
   async create(dto: CreateBidDto, freelancerId: string) {
     try {
+      if (dto.payoutType === BidPayoutType.WHOLE && dto.modules?.length) {
+        throw new BadRequestException(
+          'Modules should not be provided when payoutType is whole.',
+        );
+      }
+
+      if (
+        dto.payoutType === BidPayoutType.MODULE_BASED &&
+        (!dto.modules || dto.modules.length === 0)
+      ) {
+        throw new BadRequestException(
+          'At least one module is required when payoutType is module_based.',
+        );
+      }
+
       const bid = new this.bidModel({
         ...dto,
         freelancerId,
