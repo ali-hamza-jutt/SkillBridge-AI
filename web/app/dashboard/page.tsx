@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -12,7 +12,7 @@ import {
   useCategoryControllerGetAllCategoriesQuery,
   useCategoryControllerGetSubCategoriesQuery,
   useTasksControllerCreateMutation,
-  useTasksControllerGetMyOpenTasksQuery,
+  useTasksControllerFindAllQuery,
 } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 
@@ -33,6 +33,7 @@ type SubCategory = {
 
 type Task = {
   _id: string;
+  clientId: string;
   title: string;
   description: string;
   budget: number;
@@ -56,6 +57,8 @@ type CreateTaskFormValues = {
   requiredSkills: string;
   experienceLevel: ExperienceLevel;
 };
+
+type JobFilter = "ALL" | "OPEN" | "ONGOING";
 
 const createTaskSchema: yup.ObjectSchema<CreateTaskFormValues> = yup
   .object({
@@ -90,7 +93,11 @@ const createTaskSchema: yup.ObjectSchema<CreateTaskFormValues> = yup
 export default function DashboardPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const { token, email, role } = useAppSelector((state) => state.auth);
+  const { token, role, userId } = useAppSelector((state) => state.auth);
+  const [activeFilter, setActiveFilter] = useState<JobFilter>("ALL");
+  const [isPostJobOpen, setIsPostJobOpen] = useState(false);
+  const [formStatus, setFormStatus] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const {
     register,
@@ -117,10 +124,10 @@ export default function DashboardPage() {
   const selectedCategoryId = watch("categoryId");
 
   const {
-    data: myOpenTasksRaw,
+    data: allTasksRaw,
     isFetching: isLoadingMyTasks,
     refetch: refetchMyTasks,
-  } = useTasksControllerGetMyOpenTasksQuery(undefined, {
+  } = useTasksControllerFindAllQuery(undefined, {
     skip: !token || role !== "HIRER",
   });
 
@@ -137,12 +144,26 @@ export default function DashboardPage() {
 
   const categories = categoriesRaw as Category[];
   const subCategories = subCategoriesRaw as SubCategory[];
-  const myOpenTasks = (myOpenTasksRaw as Task[] | undefined) ?? [];
+  const allTasks = (allTasksRaw as Task[] | undefined) ?? [];
 
-  const openTasksCount = useMemo(
-    () => myOpenTasks.filter((task) => task.status === "OPEN").length,
-    [myOpenTasks],
-  );
+  const myTasks = useMemo(() => {
+    if (!userId) {
+      return [] as Task[];
+    }
+    return allTasks
+      .filter((task) => task.clientId === userId)
+      .sort((a, b) => (a._id > b._id ? -1 : 1));
+  }, [allTasks, userId]);
+
+  const filteredTasks = useMemo(() => {
+    if (activeFilter === "OPEN") {
+      return myTasks.filter((task) => task.status === "OPEN");
+    }
+    if (activeFilter === "ONGOING") {
+      return myTasks.filter((task) => task.status === "ASSIGNED");
+    }
+    return myTasks;
+  }, [activeFilter, myTasks]);
 
   const signOut = () => {
     localStorage.removeItem("auth_token");
@@ -156,6 +177,8 @@ export default function DashboardPage() {
 
   const onCreateTask = async (values: CreateTaskFormValues) => {
     try {
+      setFormError(null);
+      setFormStatus(null);
       const requiredSkills = values.requiredSkills
         .split(",")
         .map((skill) => skill.trim())
@@ -189,9 +212,21 @@ export default function DashboardPage() {
         experienceLevel: "entry",
       });
       refetchMyTasks();
+      setFormStatus("Job posted successfully.");
+      setTimeout(() => {
+        setIsPostJobOpen(false);
+        setFormStatus(null);
+      }, 900);
     } catch (error) {
-      window.alert(getApiErrorMessage(error, "Failed to create task. Please try again."));
+      setFormError(getApiErrorMessage(error, "Failed to create task. Please try again."));
     }
+  };
+
+  const formatStatusLabel = (status: string) => {
+    if (status === "ASSIGNED") {
+      return "ONGOING";
+    }
+    return status;
   };
 
   if (!token) {
@@ -231,37 +266,114 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="app-root py-8">
-      <div className="site-shell">
-        <nav className="site-nav">
-          <Link href="/" className="site-brand">Skill Bridge</Link>
-          <button onClick={signOut} className="btn btn-secondary" type="button">Log Out</button>
-        </nav>
-
-        <section className="surface-card hero-panel mt-4">
-          <h1 className="section-title">Hirer Dashboard</h1>
-          <p className="muted-copy mt-2">Signed in as <strong>{email ?? "User"}</strong></p>
-
-          <div className="dashboard-grid mt-7">
-            <article className="metric-card">
-              <p className="metric-label">My Open Jobs</p>
-              <p className="metric-value">{openTasksCount}</p>
-            </article>
-            <article className="metric-card">
-              <p className="metric-label">Total Posted Tasks</p>
-              <p className="metric-value">{myOpenTasks.length}</p>
-            </article>
-            <article className="metric-card">
-              <p className="metric-label">Create Status</p>
-              <p className="metric-value">{isCreatingTask ? "Saving" : "Ready"}</p>
-            </article>
+    <main className="app-root hirer-root">
+      <header className="hirer-nav-wrap">
+        <div className="site-shell hirer-nav">
+          <Link href="/" className="site-brand brand-mark">SkillBridge</Link>
+          <div className="hirer-nav-actions">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                setFormError(null);
+                setFormStatus(null);
+                setIsPostJobOpen(true);
+              }}
+            >
+              Post a Job
+            </button>
+            <button onClick={signOut} className="btn btn-secondary" type="button">Log Out</button>
           </div>
+        </div>
+      </header>
 
-          <section className="mt-8">
-            <h2 className="section-title">Post New Task</h2>
-            <p className="muted-copy mt-2">Create a new job and it will appear in your open jobs list.</p>
+      <div className="site-shell hirer-main">
+        <section className="hirer-filters surface-card">
+          <p className="hirer-filter-label">My Jobs</p>
+          <div className="hirer-filter-row">
+            <button
+              type="button"
+              className={`hirer-filter-pill ${activeFilter === "ALL" ? "is-active" : ""}`}
+              onClick={() => setActiveFilter("ALL")}
+            >
+              All Jobs
+            </button>
+            <button
+              type="button"
+              className={`hirer-filter-pill ${activeFilter === "OPEN" ? "is-active" : ""}`}
+              onClick={() => setActiveFilter("OPEN")}
+            >
+              Open Jobs
+            </button>
+            <button
+              type="button"
+              className={`hirer-filter-pill ${activeFilter === "ONGOING" ? "is-active" : ""}`}
+              onClick={() => setActiveFilter("ONGOING")}
+            >
+              Ongoing Jobs
+            </button>
+          </div>
+        </section>
 
-            <form className="field-stack mt-6" onSubmit={handleSubmit(onCreateTask)}>
+        <section className="hirer-jobs-grid">
+          {isLoadingMyTasks ? <p className="muted-copy">Loading your jobs...</p> : null}
+          {!isLoadingMyTasks && filteredTasks.length === 0 ? (
+            <article className="surface-card hirer-empty">
+              <p className="hirer-empty-icon" aria-hidden="true">○</p>
+              <h2 className="section-title">No jobs in this view</h2>
+              <p className="muted-copy mt-2">Use Post a Job to create your first listing.</p>
+              <button type="button" className="btn btn-primary mt-6" onClick={() => setIsPostJobOpen(true)}>
+                Post Your First Job
+              </button>
+            </article>
+          ) : null}
+
+          {filteredTasks.map((task) => (
+            <article key={task._id} className="surface-card hirer-job-card">
+              <div className="hirer-job-top">
+                <h3 className="hirer-job-title">{task.title}</h3>
+                <span className={`hirer-status hirer-status-${task.status.toLowerCase()}`}>
+                  {formatStatusLabel(task.status)}
+                </span>
+              </div>
+
+              <p className="hirer-job-desc">{task.description}</p>
+
+              <div className="hirer-meta-row">
+                <span>{task.budgetType === "hourly" ? "Hourly" : "Fixed"}</span>
+                <span>${task.budget}{typeof task.maxBudget === "number" ? ` - $${task.maxBudget}` : ""}</span>
+                <span>{task.projectType === "one_time" ? "One-time" : "Ongoing"}</span>
+                <span>{task.experienceLevel}</span>
+              </div>
+
+              {task.requiredSkills?.length ? (
+                <div className="hirer-skill-row">
+                  {task.requiredSkills.map((skill) => (
+                    <span key={`${task._id}-${skill}`} className="hirer-skill-chip">{skill}</span>
+                  ))}
+                </div>
+              ) : null}
+            </article>
+          ))}
+        </section>
+      </div>
+
+      {isPostJobOpen ? (
+        <div className="hirer-modal-backdrop" role="dialog" aria-modal="true" aria-label="Post a job">
+          <div className="hirer-modal surface-card">
+            <div className="hirer-modal-head">
+              <h2 className="section-title">Post a Job</h2>
+              <button
+                type="button"
+                className="hirer-close"
+                onClick={() => setIsPostJobOpen(false)}
+                aria-label="Close post job form"
+              >
+                ×
+              </button>
+            </div>
+
+            <form className="field-stack mt-4" onSubmit={handleSubmit(onCreateTask)}>
               <div>
                 <label className="field-label" htmlFor="title">Title</label>
                 <input id="title" className="field-input" {...register("title")} placeholder="Build a Next.js admin panel" />
@@ -347,38 +459,21 @@ export default function DashboardPage() {
                 />
               </div>
 
-              <button className="btn btn-primary" type="submit" disabled={isCreatingTask}>
-                {isCreatingTask ? "Posting Task..." : "Post Task"}
-              </button>
-            </form>
-          </section>
+              {formError ? <p className="status-error">{formError}</p> : null}
+              {formStatus ? <p className="hirer-success">{formStatus}</p> : null}
 
-          <section className="mt-10">
-            <h2 className="section-title">My Open Jobs</h2>
-            {isLoadingMyTasks ? <p className="muted-copy mt-3">Loading your open jobs...</p> : null}
-            {!isLoadingMyTasks && myOpenTasks.length === 0 ? (
-              <p className="muted-copy mt-3">No open jobs posted yet.</p>
-            ) : null}
-            <div className="mt-5 grid-3">
-              {myOpenTasks.map((task) => (
-                <article key={task._id} className="feature-card">
-                  <h3 className="feature-title">{task.title}</h3>
-                  <p className="feature-text mt-2">{task.description}</p>
-                  <p className="muted-copy mt-3">
-                    Budget: {task.budgetType === "hourly" ? "$" : "$"}{task.budget}
-                    {typeof task.maxBudget === "number" ? ` - $${task.maxBudget}` : ""}
-                  </p>
-                  <p className="muted-copy mt-2">Project: {task.projectType.replace("_", " ")}</p>
-                  <p className="muted-copy mt-2">Level: {task.experienceLevel}</p>
-                  {task.requiredSkills?.length ? (
-                    <p className="muted-copy mt-2">Skills: {task.requiredSkills.join(", ")}</p>
-                  ) : null}
-                </article>
-              ))}
-            </div>
-          </section>
-        </section>
-      </div>
+              <div className="hirer-modal-actions">
+                <button className="btn btn-primary" type="submit" disabled={isCreatingTask}>
+                  {isCreatingTask ? "Posting..." : "Post Job"}
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsPostJobOpen(false)}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
