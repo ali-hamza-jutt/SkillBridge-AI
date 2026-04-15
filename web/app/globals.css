@@ -3,22 +3,22 @@
 @tailwind utilities;
 
 :root {
-  --color-bg: #f6f8fc;
+  --color-bg: #f4f8f3;
   --color-surface: #ffffff;
-  --color-surface-strong: #eef4ff;
-  --color-surface-tint: #eaf1ff;
-  --color-text-main: #0c1426;
-  --color-text-muted: #5a6577;
-  --color-brand: #0b5cff;
-  --color-brand-strong: #0846c7;
-  --color-brand-soft: #d8e6ff;
-  --color-accent: #00a5a5;
-  --color-accent-soft: #d7f5f4;
-  --color-border: #dce4f2;
+  --color-surface-strong: #eef5ee;
+  --color-surface-tint: #e7f2e6;
+  --color-text-main: #0f1720;
+  --color-text-muted: #5b675b;
+  --color-brand: #108a00;
+  --color-brand-strong: #0f7d00;
+  --color-brand-soft: #ddf0da;
+  --color-accent: #14a800;
+  --color-accent-soft: #e9f7e8;
+  --color-border: #dbe6da;
   --color-danger: #b42318;
-  --color-success: #067647;
-  --shadow-soft: 0 28px 55px -36px rgba(15, 23, 42, 0.35);
-  --shadow-card: 0 22px 44px -32px rgba(15, 23, 42, 0.34);
+  --color-success: #108a00;
+  --shadow-soft: 0 22px 44px -34px rgba(15, 23, 42, 0.34);
+  --shadow-card: 0 18px 36px -28px rgba(15, 23, 42, 0.3);
   --radius-lg: 24px;
   --radius-md: 16px;
   --radius-sm: 10px;
@@ -47,9 +47,9 @@ body {
 .app-root {
   min-height: 100vh;
   background:
-    radial-gradient(circle at 10% 8%, color-mix(in srgb, var(--color-brand) 18%, transparent), transparent 46%),
-    radial-gradient(circle at 90% 14%, color-mix(in srgb, var(--color-accent) 14%, transparent), transparent 48%),
-    linear-gradient(145deg, var(--color-bg), color-mix(in srgb, var(--color-surface-strong) 78%, var(--color-bg)));
+    radial-gradient(circle at 8% 7%, color-mix(in srgb, var(--color-brand) 10%, transparent), transparent 40%),
+    radial-gradient(circle at 92% 14%, color-mix(in srgb, var(--color-accent) 9%, transparent), transparent 46%),
+    linear-gradient(160deg, var(--color-bg), color-mix(in srgb, var(--color-surface-strong) 74%, var(--color-bg)));
 }
 
 .site-shell {
@@ -68,9 +68,9 @@ body {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: color-mix(in srgb, var(--color-bg) 84%, transparent);
+  background: color-mix(in srgb, var(--color-bg) 86%, transparent);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 74%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 88%, transparent);
 }
 
 .topbar {
@@ -136,8 +136,8 @@ body {
 }
 
 .surface-card {
-  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-border) 92%, transparent);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
   backdrop-filter: blur(8px);
@@ -302,23 +302,23 @@ body {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--color-brand), color-mix(in srgb, var(--color-brand-strong) 78%, var(--color-brand)));
+  background: linear-gradient(135deg, var(--color-brand), var(--color-brand-strong));
   color: #ffffff;
-  box-shadow: 0 14px 24px -18px color-mix(in srgb, var(--color-brand) 68%, transparent);
+  box-shadow: 0 14px 24px -18px color-mix(in srgb, var(--color-brand) 62%, transparent);
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, var(--color-brand-strong), var(--color-brand));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-brand-strong) 92%, #0d7000), var(--color-brand));
 }
 
 .btn-secondary {
-  background: color-mix(in srgb, var(--color-surface) 82%, var(--color-brand-soft));
+  background: color-mix(in srgb, var(--color-surface) 88%, var(--color-brand-soft));
   color: var(--color-text-main);
-  border-color: color-mix(in srgb, var(--color-border) 82%, transparent);
+  border-color: color-mix(in srgb, var(--color-border) 90%, transparent);
 }
 
 .btn-secondary:hover {
-  background: color-mix(in srgb, var(--color-surface) 68%, var(--color-brand-soft));
+  background: color-mix(in srgb, var(--color-surface) 72%, var(--color-brand-soft));
 }
 
 .chip-row {
@@ -340,8 +340,8 @@ body {
 .feature-card {
   padding: 1rem;
   border-radius: var(--radius-md);
-  border: 1px solid color-mix(in srgb, var(--color-border) 84%, transparent);
-  background: color-mix(in srgb, var(--color-surface) 82%, var(--color-surface-tint));
+  border: 1px solid color-mix(in srgb, var(--color-border) 90%, transparent);
+  background: color-mix(in srgb, var(--color-surface) 90%, var(--color-surface-tint));
   transition: transform 180ms ease, box-shadow 180ms ease;
 }
 
@@ -368,9 +368,9 @@ body {
 }
 
 .trusted-strip {
-  border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-border) 90%, transparent);
   border-radius: var(--radius-lg);
-  background: linear-gradient(165deg, color-mix(in srgb, var(--color-surface) 86%, var(--color-surface-tint)), color-mix(in srgb, var(--color-surface) 92%, transparent));
+  background: linear-gradient(165deg, color-mix(in srgb, var(--color-surface) 90%, var(--color-surface-tint)), color-mix(in srgb, var(--color-surface) 94%, transparent));
   padding: 1rem;
 }
 
@@ -518,8 +518,8 @@ body {
   padding: 1.6rem;
   border-right: 1px solid var(--color-border);
   background:
-    radial-gradient(circle at 10% 5%, color-mix(in srgb, var(--color-brand-soft) 82%, transparent), transparent 54%),
-    linear-gradient(180deg, color-mix(in srgb, var(--color-surface-tint) 45%, var(--color-surface)), var(--color-surface));
+    radial-gradient(circle at 10% 5%, color-mix(in srgb, var(--color-brand-soft) 68%, transparent), transparent 54%),
+    linear-gradient(180deg, color-mix(in srgb, var(--color-surface-tint) 38%, var(--color-surface)), var(--color-surface));
 }
 
 .auth-form {
@@ -559,7 +559,7 @@ body {
   width: 100%;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-surface) 92%, var(--color-surface-tint));
+  background: color-mix(in srgb, var(--color-surface) 94%, var(--color-surface-tint));
   color: var(--color-text-main);
   padding: 0.72rem 0.9rem;
   outline: none;
