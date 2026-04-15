@@ -386,7 +386,7 @@ export default function DashboardPage() {
                 {errors.description ? <p className="status-error">{errors.description.message}</p> : null}
               </div>
 
-              <div className="dashboard-grid">
+              <div className="hirer-form-grid">
                 <div>
                   <label className="field-label" htmlFor="budget">Budget</label>
                   <input id="budget" type="number" className="field-input" {...register("budget")} />
@@ -399,7 +399,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="dashboard-grid">
+              <div className="hirer-form-grid">
                 <div>
                   <label className="field-label" htmlFor="budgetType">Budget Type</label>
                   <select id="budgetType" className="field-input" {...register("budgetType")}>
@@ -416,7 +416,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="dashboard-grid">
+              <div className="hirer-form-grid">
                 <div>
                   <label className="field-label" htmlFor="categoryId">Category</label>
                   <select id="categoryId" className="field-input" {...register("categoryId")}>

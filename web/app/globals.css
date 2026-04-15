@@ -710,9 +710,9 @@ body {
 
 .hirer-jobs-grid {
   margin-top: 1rem;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
 }
 
 .hirer-job-card {
@@ -721,6 +721,7 @@ body {
   border: 1px solid #dbe6da;
   background: #fff;
   box-shadow: 0 10px 30px -26px rgba(15, 23, 42, 0.45);
+  width: 100%;
 }
 
 .hirer-job-card:hover {
@@ -746,6 +747,16 @@ body {
   color: #5b675b;
   font-size: 0.9rem;
   line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.hirer-form-grid {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .hirer-status {
@@ -951,6 +962,10 @@ body {
   .hirer-nav-actions {
     width: 100%;
     justify-content: flex-end;
+  }
+
+  .hirer-form-grid {
+    grid-template-columns: 1fr;
   }
 }
 

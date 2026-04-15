@@ -37,8 +37,8 @@ export class Task {
   @Prop({ required: true })
   budget!: number;
 
-  @Prop({ required: true })
-  maxBudget!: number;
+  @Prop()
+  maxBudget?: number;
 
   @Prop({ required: true, enum: BudgetType })
   budgetType!: BudgetType;
