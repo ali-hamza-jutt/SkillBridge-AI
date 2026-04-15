@@ -23,6 +23,8 @@ export default function LoginPage() {
     localStorage.removeItem("auth_email");
     localStorage.removeItem("auth_user_id");
     localStorage.removeItem("auth_role");
+    localStorage.removeItem("auth_category_id");
+    localStorage.removeItem("auth_skills");
     dispatch(logout());
   }, [dispatch]);
 
@@ -50,17 +52,27 @@ export default function LoginPage() {
       const response = rawResponse as {
         access_token: string;
         refresh_token: string;
-        user?: { id?: string; email?: string; role?: "FREELANCER" | "HIRER" | "ADMIN" };
+        user?: {
+          id?: string;
+          email?: string;
+          role?: "FREELANCER" | "HIRER" | "ADMIN";
+          categoryId?: string | null;
+          skills?: string[];
+        };
       };
 
       const userEmail = response.user?.email ?? submittedEmail;
       const userId = response.user?.id ?? null;
       const role = response.user?.role ?? null;
+      const categoryId = response.user?.categoryId ?? null;
+      const skills = response.user?.skills ?? [];
 
       dispatch(
         setCredentials({
           userId,
           role,
+          categoryId,
+          skills,
           token: response.access_token,
           refreshToken: response.refresh_token,
           email: userEmail,
@@ -76,6 +88,10 @@ export default function LoginPage() {
       if (role) {
         localStorage.setItem("auth_role", role);
       }
+      if (categoryId) {
+        localStorage.setItem("auth_category_id", categoryId);
+      }
+      localStorage.setItem("auth_skills", JSON.stringify(skills));
 
       router.push("/dashboard");
     } catch (error) {

@@ -26,6 +26,9 @@ export class User {
   @Prop({ type: [String], default: [] })
   skills!: string[];
 
+  @Prop()
+  categoryId?: string;
+
   @Prop({ default: 0 })
   rating!: number;
 

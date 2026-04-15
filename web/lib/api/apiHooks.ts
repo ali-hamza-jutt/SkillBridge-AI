@@ -129,24 +129,24 @@ const injectedRtkApi = api.injectEndpoints({
         url: `/tasks/developer/${queryArg.developerId}/completed`,
       }),
     }),
-    tasksControllerMatchTasksWithDeveloper: build.query<
-      TasksControllerMatchTasksWithDeveloperApiResponse,
-      TasksControllerMatchTasksWithDeveloperApiArg
-    >({
-      query: (queryArg) => ({
-        url: `/tasks/developer/${queryArg.developerId}/matches`,
-        params: {
-          category: queryArg.category,
-          subCategories: queryArg.subCategories,
-          skills: queryArg.skills,
-        },
-      }),
-    }),
     tasksControllerGetMyOpenTasks: build.query<
       TasksControllerGetMyOpenTasksApiResponse,
       TasksControllerGetMyOpenTasksApiArg
     >({
       query: () => ({ url: `/tasks/my-open` }),
+    }),
+    tasksControllerGetMatches: build.query<
+      TasksControllerGetMatchesApiResponse,
+      TasksControllerGetMatchesApiArg
+    >({
+      query: (queryArg) => ({
+        url: `/tasks/matches`,
+        params: {
+          categoryId: queryArg.categoryId,
+          subCategories: queryArg.subCategories,
+          skills: queryArg.skills,
+        },
+      }),
     }),
     tasksControllerFindOne: build.query<
       TasksControllerFindOneApiResponse,
@@ -217,9 +217,27 @@ const injectedRtkApi = api.injectEndpoints({
       CategoryControllerCreateSubCategoryApiArg
     >({
       query: (queryArg) => ({
-        url: `/categories/${queryArg.categoryId}/sub-categories`,
+        url: `/categories/sub-categories`,
         method: "POST",
         body: queryArg.createSubCategoryDto,
+      }),
+    }),
+    categoryControllerUpdateSubCategoryName: build.mutation<
+      CategoryControllerUpdateSubCategoryNameApiResponse,
+      CategoryControllerUpdateSubCategoryNameApiArg
+    >({
+      query: (queryArg) => ({
+        url: `/categories/sub-categories/${queryArg.id}`,
+        method: "PATCH",
+        body: queryArg.updateSubCategoryNameDto,
+      }),
+    }),
+    categoryControllerGetSubCategoryById: build.query<
+      CategoryControllerGetSubCategoryByIdApiResponse,
+      CategoryControllerGetSubCategoryByIdApiArg
+    >({
+      query: (queryArg) => ({
+        url: `/categories/sub-categories/${queryArg.id}`,
       }),
     }),
     categoryControllerGetSubCategories: build.query<
@@ -230,12 +248,14 @@ const injectedRtkApi = api.injectEndpoints({
         url: `/categories/${queryArg.categoryId}/sub-categories`,
       }),
     }),
-    categoryControllerGetSubCategoryById: build.query<
-      CategoryControllerGetSubCategoryByIdApiResponse,
-      CategoryControllerGetSubCategoryByIdApiArg
+    bidsControllerUploadAttachments: build.mutation<
+      BidsControllerUploadAttachmentsApiResponse,
+      BidsControllerUploadAttachmentsApiArg
     >({
       query: (queryArg) => ({
-        url: `/categories/sub-categories/${queryArg.id}`,
+        url: `/bids/attachments/upload`,
+        method: "POST",
+        body: queryArg.body,
       }),
     }),
     bidsControllerCreate: build.mutation<
@@ -339,15 +359,14 @@ export type TasksControllerGetTaskCompletedByDeveloperApiResponse = unknown;
 export type TasksControllerGetTaskCompletedByDeveloperApiArg = {
   developerId: string;
 };
-export type TasksControllerMatchTasksWithDeveloperApiResponse = unknown;
-export type TasksControllerMatchTasksWithDeveloperApiArg = {
-  developerId: string;
-  category: string;
+export type TasksControllerGetMyOpenTasksApiResponse = unknown;
+export type TasksControllerGetMyOpenTasksApiArg = void;
+export type TasksControllerGetMatchesApiResponse = unknown;
+export type TasksControllerGetMatchesApiArg = {
+  categoryId: string;
   subCategories: string;
   skills: string;
 };
-export type TasksControllerGetMyOpenTasksApiResponse = unknown;
-export type TasksControllerGetMyOpenTasksApiArg = void;
 export type TasksControllerFindOneApiResponse = unknown;
 export type TasksControllerFindOneApiArg = {
   id: string;
@@ -383,16 +402,26 @@ export type CategoryControllerGetCategoryByIdApiArg = {
 };
 export type CategoryControllerCreateSubCategoryApiResponse = unknown;
 export type CategoryControllerCreateSubCategoryApiArg = {
-  categoryId: string;
   createSubCategoryDto: CreateSubCategoryDto;
+};
+export type CategoryControllerUpdateSubCategoryNameApiResponse = unknown;
+export type CategoryControllerUpdateSubCategoryNameApiArg = {
+  id: string;
+  updateSubCategoryNameDto: UpdateSubCategoryNameDto;
+};
+export type CategoryControllerGetSubCategoryByIdApiResponse = unknown;
+export type CategoryControllerGetSubCategoryByIdApiArg = {
+  id: string;
 };
 export type CategoryControllerGetSubCategoriesApiResponse = unknown;
 export type CategoryControllerGetSubCategoriesApiArg = {
   categoryId: string;
 };
-export type CategoryControllerGetSubCategoryByIdApiResponse = unknown;
-export type CategoryControllerGetSubCategoryByIdApiArg = {
-  id: string;
+export type BidsControllerUploadAttachmentsApiResponse = unknown;
+export type BidsControllerUploadAttachmentsApiArg = {
+  body: {
+    files?: Blob[];
+  };
 };
 export type BidsControllerCreateApiResponse = unknown;
 export type BidsControllerCreateApiArg = {
@@ -417,6 +446,8 @@ export type SignupDto = {
   email: string;
   password: string;
   skills?: string[];
+  /** Required for freelancer signups. */
+  categoryId?: string;
   role: "FREELANCER" | "HIRER" | "ADMIN";
 };
 export type LoginDto = {
@@ -431,6 +462,7 @@ export type CreateUserDto = {
   email: string;
   password: string;
   skills: string[];
+  categoryId?: string;
   role?: "FREELANCER" | "HIRER" | "ADMIN";
 };
 export type UpdateUserDto = {};
@@ -460,17 +492,38 @@ export type AssignTaskDto = {
 };
 export type CreateCategoryDto = {
   name: string;
-  description?: string;
 };
 export type CreateSubCategoryDto = {
-  categoryId?: string;
+  categoryId: string;
   name: string;
-  description?: string;
+};
+export type UpdateSubCategoryNameDto = {
+  name: string;
+};
+export type BidAttachmentType = "photo" | "video" | "pdf" | "word";
+export type BidAttachmentDto = {
+  fileName: string;
+  type: BidAttachmentType;
+  url: string;
+  /** Attachment size in MB. Maximum allowed is 100 MB per file. */
+  sizeMb: number;
+};
+export type BidPayoutType = "whole" | "module_based";
+export type BidMilestoneDto = {
+  title: string;
+  details: string;
+  amount: number;
 };
 export type CreateBidDto = {
   taskId: string;
   bidAmount: number;
-  message: string;
+  /** Freelancer cover letter for this bid. */
+  coverLetter: string;
+  /** Optional supporting files. Max 10 attachments, each up to 100 MB. */
+  attachments?: BidAttachmentDto[];
+  payoutType: BidPayoutType;
+  /** Required when payoutType is module_based. Include each module detail and payment amount. */
+  modules?: BidMilestoneDto[];
 };
 export const {
   useAppControllerGetHelloQuery,
@@ -489,8 +542,8 @@ export const {
   useTasksControllerFindByCategoryAndSubCategoryQuery,
   useTasksControllerGetTaskAssignedToDeveloperQuery,
   useTasksControllerGetTaskCompletedByDeveloperQuery,
-  useTasksControllerMatchTasksWithDeveloperQuery,
   useTasksControllerGetMyOpenTasksQuery,
+  useTasksControllerGetMatchesQuery,
   useTasksControllerFindOneQuery,
   useTasksControllerUpdateMutation,
   useTasksControllerDeleteMutation,
@@ -500,8 +553,10 @@ export const {
   useCategoryControllerGetAllCategoriesQuery,
   useCategoryControllerGetCategoryByIdQuery,
   useCategoryControllerCreateSubCategoryMutation,
-  useCategoryControllerGetSubCategoriesQuery,
+  useCategoryControllerUpdateSubCategoryNameMutation,
   useCategoryControllerGetSubCategoryByIdQuery,
+  useCategoryControllerGetSubCategoriesQuery,
+  useBidsControllerUploadAttachmentsMutation,
   useBidsControllerCreateMutation,
   useBidsControllerFindByTaskQuery,
   useBidsControllerDeleteMutation,

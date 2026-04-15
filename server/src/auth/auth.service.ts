@@ -51,6 +51,7 @@ export class AuthService {
         email: signupDto.email,
         password: signupDto.password,
         skills: signupDto.skills ?? [],
+        categoryId: signupDto.categoryId,
         role: signupDto.role,
       });
 
@@ -69,6 +70,8 @@ export class AuthService {
           name: createdUser.name,
           email: createdUser.email,
           role: createdUser.role,
+          categoryId: createdUser.categoryId,
+          skills: createdUser.skills,
         },
       };
     } catch (error) {
@@ -114,6 +117,8 @@ export class AuthService {
           name: existingUser.name,
           email: existingUser.email,
           role: existingUser.role,
+          categoryId: existingUser.categoryId,
+          skills: existingUser.skills,
         },
       };
     } catch (error) {
@@ -168,6 +173,8 @@ export class AuthService {
           name: user.name,
           email: user.email,
           role: user.role,
+          categoryId: user.categoryId,
+          skills: user.skills,
         },
       };
     } catch (error) {

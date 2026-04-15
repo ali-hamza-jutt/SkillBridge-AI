@@ -15,6 +15,7 @@ import {
 import { CacheModule } from '../cache/cache.module';
 import { BidsModule } from '../bids/bids.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       { name: SubCategory.name, schema: SubCategorySchema },
     ]),
     CacheModule,
+    UsersModule,
     BidsModule,
     NotificationsModule,
   ],

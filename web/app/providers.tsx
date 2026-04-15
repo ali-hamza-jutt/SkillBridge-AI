@@ -11,14 +11,25 @@ function AuthBootstrap() {
     const refreshToken = localStorage.getItem("auth_refresh_token");
     const email = localStorage.getItem("auth_email");
     const userId = localStorage.getItem("auth_user_id");
+    const categoryId = localStorage.getItem("auth_category_id");
+    const skillsRaw = localStorage.getItem("auth_skills");
     const role = localStorage.getItem("auth_role") as
       | "FREELANCER"
       | "HIRER"
       | "ADMIN"
       | null;
+    let skills: string[] = [];
+
+    if (skillsRaw) {
+      try {
+        skills = JSON.parse(skillsRaw) as string[];
+      } catch {
+        skills = [];
+      }
+    }
 
     if (token && refreshToken) {
-      store.dispatch(setCredentials({ token, refreshToken, email, userId, role }));
+      store.dispatch(setCredentials({ token, refreshToken, email, userId, role, categoryId, skills }));
     }
   }, []);
 

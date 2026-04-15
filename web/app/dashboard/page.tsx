@@ -12,6 +12,7 @@ import {
   useCategoryControllerGetAllCategoriesQuery,
   useCategoryControllerGetSubCategoriesQuery,
   useTasksControllerCreateMutation,
+  useTasksControllerGetMatchesQuery,
   useTasksControllerFindAllQuery,
 } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
@@ -93,7 +94,7 @@ const createTaskSchema: yup.ObjectSchema<CreateTaskFormValues> = yup
 export default function DashboardPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const { token, role, userId } = useAppSelector((state) => state.auth);
+  const { token, role, userId, categoryId, skills } = useAppSelector((state) => state.auth);
   const [activeFilter, setActiveFilter] = useState<JobFilter>("ALL");
   const [isPostJobOpen, setIsPostJobOpen] = useState(false);
   const [formStatus, setFormStatus] = useState<string | null>(null);
@@ -123,6 +124,22 @@ export default function DashboardPage() {
 
   const selectedCategoryId = watch("categoryId");
 
+  const matchQuery =
+    role === "FREELANCER" && categoryId
+      ? {
+          categoryId,
+          subCategories: "",
+          skills: skills.join(","),
+        }
+      : undefined;
+
+  const {
+    data: matchedTasksRaw,
+    isFetching: isLoadingMatchedTasks,
+  } = useTasksControllerGetMatchesQuery(matchQuery as never, {
+    skip: !token || role !== "FREELANCER" || !matchQuery,
+  });
+
   const {
     data: allTasksRaw,
     isFetching: isLoadingMyTasks,
@@ -131,9 +148,7 @@ export default function DashboardPage() {
     skip: !token || role !== "HIRER",
   });
 
-  const { data: categoriesRaw = [] } = useCategoryControllerGetAllCategoriesQuery(undefined, {
-    skip: role !== "HIRER",
-  });
+  const { data: categoriesRaw = [] } = useCategoryControllerGetAllCategoriesQuery();
 
   const { data: subCategoriesRaw = [] } = useCategoryControllerGetSubCategoriesQuery(
     { categoryId: selectedCategoryId },
@@ -145,6 +160,7 @@ export default function DashboardPage() {
   const categories = categoriesRaw as Category[];
   const subCategories = subCategoriesRaw as SubCategory[];
   const allTasks = (allTasksRaw as Task[] | undefined) ?? [];
+  const matchedTasks = (matchedTasksRaw as Task[] | undefined) ?? [];
 
   const myTasks = useMemo(() => {
     if (!userId) {
@@ -277,6 +293,8 @@ export default function DashboardPage() {
   }
 
   if (role && role !== "HIRER") {
+    const matchedCategoryName = categories.find((category) => category._id === categoryId)?.name ?? "your selected category";
+
     return (
       <main
         className="min-h-screen py-10"
@@ -285,27 +303,103 @@ export default function DashboardPage() {
             "radial-gradient(circle at 88% 0%, color-mix(in srgb, var(--color-accent-soft) 50%, transparent), transparent 34%), linear-gradient(165deg, var(--color-bg), color-mix(in srgb, var(--color-surface-strong) 84%, var(--color-bg)))",
         }}
       >
-        <div className="mx-auto w-[min(100%-2rem,980px)]">
+        <div className="mx-auto grid w-[min(100%-2rem,1120px)] gap-5">
           <section className="rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_92%,transparent)] p-6 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)] backdrop-blur-md md:p-8">
-            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-main)]">Freelancer Dashboard</h1>
-            <p className="mt-3 text-sm text-[var(--color-text-muted)]">
-              This dashboard section is for hirers to manage posted jobs. You are signed in as a freelancer.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link
-                href="/"
-                className="inline-flex items-center justify-center rounded-full border border-transparent bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] px-5 py-2.5 text-sm font-semibold text-white no-underline"
-              >
-                Go Home
-              </Link>
-              <button
-                onClick={signOut}
-                className="inline-flex items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_88%,var(--color-brand-soft))] px-5 py-2.5 text-sm font-semibold text-[var(--color-text-main)]"
-                type="button"
-              >
-                Log Out
-              </button>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="m-0 text-xs font-bold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Freelancer Dashboard</p>
+                <h1 className="mt-2 text-3xl font-bold tracking-tight text-[var(--color-text-main)]">Matched Jobs</h1>
+                <p className="mt-3 text-sm text-[var(--color-text-muted)]">
+                  Jobs shown here match {matchedCategoryName} and your overlapping skills.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  href="/"
+                  className="inline-flex items-center justify-center rounded-full border border-transparent bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] px-5 py-2.5 text-sm font-semibold text-white no-underline"
+                >
+                  Go Home
+                </Link>
+                <button
+                  onClick={signOut}
+                  className="inline-flex items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_88%,var(--color-brand-soft))] px-5 py-2.5 text-sm font-semibold text-[var(--color-text-main)]"
+                  type="button"
+                >
+                  Log Out
+                </button>
+              </div>
             </div>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              <span className="rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-brand-soft)_64%,var(--color-surface))] px-3 py-1 text-xs font-semibold text-[var(--color-brand-strong)]">
+                Category: {matchedCategoryName}
+              </span>
+              {skills.length ? (
+                skills.map((skill) => (
+                  <span key={skill} className="rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_88%,transparent)] px-3 py-1 text-xs font-semibold text-[var(--color-text-main)]">
+                    {skill}
+                  </span>
+                ))
+              ) : (
+                <span className="rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_88%,transparent)] px-3 py-1 text-xs font-semibold text-[var(--color-text-main)]">
+                  No skills saved
+                </span>
+              )}
+            </div>
+          </section>
+
+          <section className="grid gap-4">
+            {isLoadingMatchedTasks ? <p className="text-sm text-[var(--color-text-muted)]">Loading matched jobs...</p> : null}
+            {!isLoadingMatchedTasks && matchedTasks.length === 0 ? (
+              <article className="rounded-3xl border border-dashed border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] p-8 text-center shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)]">
+                <h2 className="text-2xl font-bold tracking-tight text-[var(--color-text-main)]">No matched jobs yet</h2>
+                <p className="mt-2 text-sm text-[var(--color-text-muted)]">
+                  Add more skills or update your freelancer category to get better recommendations.
+                </p>
+              </article>
+            ) : null}
+
+            {matchedTasks.map((task) => (
+              <article
+                key={task._id}
+                className="w-full rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_94%,transparent)] p-5 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)]"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <h3 className="m-0 text-xl font-bold tracking-tight text-[var(--color-text-main)]">{task.title}</h3>
+                  <span className="inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--color-brand)_35%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_70%,var(--color-surface))] px-3 py-1 text-xs font-bold uppercase tracking-[0.08em] text-[var(--color-brand-strong)]">
+                    MATCHED
+                  </span>
+                </div>
+
+                <p className="mt-3 line-clamp-2 text-sm leading-6 text-[var(--color-text-muted)]">{task.description}</p>
+
+                <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                  <span className="rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] px-2.5 py-1 text-[var(--color-text-main)]">
+                    {task.budgetType === "hourly" ? "Hourly" : "Fixed"}
+                  </span>
+                  <span className="rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] px-2.5 py-1 text-[var(--color-text-main)]">
+                    ${task.budget}
+                    {typeof task.maxBudget === "number" ? ` - $${task.maxBudget}` : ""}
+                  </span>
+                  <span className="rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] px-2.5 py-1 text-[var(--color-text-main)]">
+                    {task.projectType === "one_time" ? "One-time" : "Ongoing"}
+                  </span>
+                </div>
+
+                {task.requiredSkills?.length ? (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {task.requiredSkills.map((skill) => (
+                      <span
+                        key={`${task._id}-${skill}`}
+                        className="rounded-full border border-[color-mix(in_srgb,var(--color-brand)_24%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_68%,var(--color-surface))] px-2.5 py-1 text-xs font-semibold text-[color-mix(in_srgb,var(--color-brand-strong)_88%,var(--color-text-main))]"
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+              </article>
+            ))}
           </section>
         </div>
       </main>

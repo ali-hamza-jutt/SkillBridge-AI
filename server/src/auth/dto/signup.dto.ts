@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsString,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { UserRole } from '../../users/schemas/user.schema';
 
@@ -27,6 +28,11 @@ export class SignupDto {
   @IsOptional()
   @IsArray()
   skills?: string[];
+
+  @ApiProperty({ required: false, description: 'Required for freelancer signups.' })
+  @ValidateIf((dto: SignupDto) => dto.role === UserRole.FREELANCER)
+  @IsString()
+  categoryId?: string;
 
   @ApiProperty({ enum: UserRole, default: UserRole.FREELANCER })
   @IsOptional()

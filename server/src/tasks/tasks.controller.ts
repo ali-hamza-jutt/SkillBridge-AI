@@ -67,27 +67,25 @@ export class TasksController {
     return this.tasksService.getTaskCompletedByDeveloper(developerId);
   }
 
-  @Get('developer/:developerId/matches')
-  matchTasksWithDeveloper(
-    @Param('developerId') developerId: string,
-    @Query('category') category: string,
-    @Query('subCategories') subCategories: string,
-    @Query('skills') skills: string,
-  ) {
-    const subCategoriesArray = subCategories ? subCategories.split(',') : [];
-    const skillsArray = skills ? skills.split(',') : [];
-    return this.tasksService.matchTasksWithDeveloper(
-      developerId,
-      category,
-      subCategoriesArray,
-      skillsArray,
-    );
-  }
-
   @UseGuards(JwtAuthGuard)
   @Get('my-open')
   getMyOpenTasks(@Req() req) {
     return this.tasksService.getOpenTasksByClient(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('matches')
+  getMatches(
+    @Req() req,
+    @Query('categoryId') categoryId?: string,
+    @Query('subCategories') subCategories?: string,
+    @Query('skills') skills?: string,
+  ) {
+    return this.tasksService.matchTasksForUser(req.user.userId, {
+      categoryId,
+      subCategoryIds: subCategories ? subCategories.split(',') : [],
+      skills: skills ? skills.split(',') : [],
+    });
   }
 
   @Get(':id')

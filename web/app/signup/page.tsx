@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  useCategoryControllerGetAllCategoriesQuery,
   useAuthControllerLoginMutation,
   useAuthControllerSignupMutation,
 } from "@/lib/api";
@@ -19,8 +20,11 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [skillsText, setSkillsText] = useState("");
+  const [categoryId, setCategoryId] = useState("");
   const [role, setRole] = useState<"FREELANCER" | "HIRER">("FREELANCER");
   const [status, setStatus] = useState<string | null>(null);
+
+  const { data: categoriesRaw = [] } = useCategoryControllerGetAllCategoriesQuery();
 
   const [signup, { isLoading: isSigningUp }] = useAuthControllerSignupMutation();
   const [login, { isLoading: isLoggingIn }] = useAuthControllerLoginMutation();
@@ -34,6 +38,11 @@ export default function SignupPage() {
       .map((skill) => skill.trim())
       .filter(Boolean);
 
+    if (role === "FREELANCER" && !categoryId) {
+      setStatus("Please select a category for your freelancer profile.");
+      return;
+    }
+
     try {
       await signup({
         signupDto: {
@@ -41,7 +50,7 @@ export default function SignupPage() {
           email,
           password,
           role,
-          ...(role === "FREELANCER" ? { skills } : {}),
+          ...(role === "FREELANCER" ? { skills, categoryId } : {}),
         },
       }).unwrap();
 
@@ -55,17 +64,27 @@ export default function SignupPage() {
       const loginResponse = rawLoginResponse as {
         access_token: string;
         refresh_token: string;
-        user?: { id?: string; email?: string; role?: "FREELANCER" | "HIRER" | "ADMIN" };
+        user?: {
+          id?: string;
+          email?: string;
+          role?: "FREELANCER" | "HIRER" | "ADMIN";
+          categoryId?: string | null;
+          skills?: string[];
+        };
       };
 
       const userEmail = loginResponse.user?.email ?? email;
       const userId = loginResponse.user?.id ?? null;
       const roleValue = loginResponse.user?.role ?? role;
+      const userCategoryId = loginResponse.user?.categoryId ?? (role === "FREELANCER" ? categoryId : null);
+      const userSkills = loginResponse.user?.skills ?? skills;
 
       dispatch(
         setCredentials({
           userId,
           role: roleValue,
+          categoryId: userCategoryId,
+          skills: userSkills,
           token: loginResponse.access_token,
           refreshToken: loginResponse.refresh_token,
           email: userEmail,
@@ -81,6 +100,10 @@ export default function SignupPage() {
       if (roleValue) {
         localStorage.setItem("auth_role", roleValue);
       }
+      if (userCategoryId) {
+        localStorage.setItem("auth_category_id", userCategoryId);
+      }
+      localStorage.setItem("auth_skills", JSON.stringify(userSkills));
 
       router.push("/dashboard");
     } catch (error) {
@@ -189,13 +212,41 @@ export default function SignupPage() {
                     id="role"
                     required
                     value={role}
-                    onChange={(e) => setRole(e.target.value as "FREELANCER" | "HIRER")}
+                    onChange={(e) => {
+                      const nextRole = e.target.value as "FREELANCER" | "HIRER";
+                      setRole(nextRole);
+                      if (nextRole !== "FREELANCER") {
+                        setCategoryId("");
+                      }
+                    }}
                     className={inputClassName}
                   >
                     <option value="FREELANCER">Freelancer</option>
                     <option value="HIRER">Job Giver</option>
                   </select>
                 </div>
+
+                {role === "FREELANCER" ? (
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]" htmlFor="categoryId">
+                      Freelancer Category
+                    </label>
+                    <select
+                      id="categoryId"
+                      required
+                      value={categoryId}
+                      onChange={(e) => setCategoryId(e.target.value)}
+                      className={inputClassName}
+                    >
+                      <option value="">Select a category</option>
+                      {(categoriesRaw as Array<{ _id: string; name: string }>).map((category) => (
+                        <option key={category._id} value={category._id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
 
                 <div>
                   <label className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]" htmlFor="skills">

@@ -13,6 +13,7 @@ import { UpdateTaskStatusDto } from './dto/update-task-status.dto';
 import { CacheService } from '../cache/cache.service';
 import { BidsService } from '../bids/bids.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { UsersService } from '../users/users.service';
 
 const DEMO_USER_ID = 'DEMO_USER_1';
 
@@ -26,6 +27,7 @@ export class TasksService {
     private readonly cacheService: CacheService,
     private bidsService: BidsService,
     private notificationsService: NotificationsService,
+    private usersService: UsersService,
   ) {}
 
   async create(createTaskDto: CreateTaskDto, userId: string) {
@@ -270,28 +272,47 @@ export class TasksService {
     }
   }
 
-  async matchTasksWithDeveloper(
-    developerId: string,
-    userCategory: string,
-    userSubCategories: string[],
-    userSkills: string[],
+  async matchTasksForUser(
+    userId: string,
+    overrideCriteria?: {
+      categoryId?: string;
+      subCategoryIds?: string[];
+      skills?: string[];
+    },
   ) {
     try {
-      const tasks = await this.taskModel
-        .find({
-          $or: [
-            { categoryId: userCategory },
-            { subCategoryId: { $in: userSubCategories } },
-            { requiredSkills: { $in: userSkills } },
-          ],
-          status: TaskStatus.OPEN,
-        })
-        .lean()
-        .exec();
+      const user = await this.usersService.findAuthById(userId);
 
-      return tasks;
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      const categoryId = overrideCriteria?.categoryId ?? user.categoryId;
+      const subCategoryIds = overrideCriteria?.subCategoryIds ?? [];
+      const skills = overrideCriteria?.skills ?? user.skills ?? [];
+
+      if (!categoryId) {
+        return [];
+      }
+
+      const query: Record<string, unknown> = {
+        status: TaskStatus.OPEN,
+      };
+
+      query.categoryId = categoryId;
+
+      if (subCategoryIds.length > 0) {
+        query.subCategoryId = { $in: subCategoryIds };
+      }
+
+      if (skills.length > 0) {
+        query.requiredSkills = { $in: skills };
+      }
+
+      return await this.taskModel.find(query).sort({ createdAt: -1 }).lean().exec();
     } catch (error:any) {
-      throw new BadRequestException(`Failed to match tasks: ${error.message}`);
+      if (error instanceof NotFoundException) throw error;
+      throw new BadRequestException(`Failed to match tasks for user: ${error.message}`);
     }
   }
 }
