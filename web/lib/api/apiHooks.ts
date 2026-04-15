@@ -142,6 +142,12 @@ const injectedRtkApi = api.injectEndpoints({
         },
       }),
     }),
+    tasksControllerGetMyOpenTasks: build.query<
+      TasksControllerGetMyOpenTasksApiResponse,
+      TasksControllerGetMyOpenTasksApiArg
+    >({
+      query: () => ({ url: `/tasks/my-open` }),
+    }),
     tasksControllerFindOne: build.query<
       TasksControllerFindOneApiResponse,
       TasksControllerFindOneApiArg
@@ -340,6 +346,8 @@ export type TasksControllerMatchTasksWithDeveloperApiArg = {
   subCategories: string;
   skills: string;
 };
+export type TasksControllerGetMyOpenTasksApiResponse = unknown;
+export type TasksControllerGetMyOpenTasksApiArg = void;
 export type TasksControllerFindOneApiResponse = unknown;
 export type TasksControllerFindOneApiArg = {
   id: string;
@@ -482,6 +490,7 @@ export const {
   useTasksControllerGetTaskAssignedToDeveloperQuery,
   useTasksControllerGetTaskCompletedByDeveloperQuery,
   useTasksControllerMatchTasksWithDeveloperQuery,
+  useTasksControllerGetMyOpenTasksQuery,
   useTasksControllerFindOneQuery,
   useTasksControllerUpdateMutation,
   useTasksControllerDeleteMutation,

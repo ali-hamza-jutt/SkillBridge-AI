@@ -11,12 +11,15 @@
     "codegen:watch": "cross-env TS_NODE_PROJECT=./tsconfig.codegen.json rtk-query-codegen-openapi ./openapi/api.codegen.ts --watch"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
     "@reduxjs/toolkit": "^2.11.2",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-hook-form": "^7.72.1",
     "react-redux": "^9.2.0",
-    "socket.io-client": "^4.8.3"
+    "socket.io-client": "^4.8.3",
+    "yup": "^1.7.1"
   },
   "devDependencies": {
     "@rtk-query/codegen-openapi": "^2.2.0",
