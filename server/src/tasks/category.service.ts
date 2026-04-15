@@ -67,10 +67,7 @@ export class CategoryService {
 
   async createSubCategory(dto: CreateSubCategoryDto) {
     try {
-      const category = await this.categoryModel.findById(dto.categoryId);
-      if (!category) {
-        throw new NotFoundException('Category not found');
-      }
+      await this.ensureCategoryExists(dto.categoryId);
 
       const subCategory = new this.subCategoryModel(dto);
       return await subCategory.save();
@@ -84,10 +81,7 @@ export class CategoryService {
 
   async getSubCategoriesByCategory(categoryId: string) {
     try {
-      const category = await this.categoryModel.findById(categoryId);
-      if (!category) {
-        throw new NotFoundException('Category not found');
-      }
+      await this.ensureCategoryExists(categoryId);
 
       return await this.subCategoryModel.find({ categoryId }).lean().exec();
     } catch (error:any) {
@@ -132,5 +126,13 @@ export class CategoryService {
         `Failed to update sub-category: ${error.message}`,
       );
     }
+  }
+
+  async ensureCategoryExists(categoryId: string) {
+    const category = await this.categoryModel.findById(categoryId).lean();
+    if (!category) {
+      throw new NotFoundException('Category not found');
+    }
+    return category;
   }
 }

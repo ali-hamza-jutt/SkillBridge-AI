@@ -53,6 +53,22 @@ const injectedRtkApi = api.injectEndpoints({
     >({
       query: () => ({ url: `/users` }),
     }),
+    usersControllerFindMe: build.query<
+      UsersControllerFindMeApiResponse,
+      UsersControllerFindMeApiArg
+    >({
+      query: () => ({ url: `/users/me` }),
+    }),
+    usersControllerUpdateMyProfile: build.mutation<
+      UsersControllerUpdateMyProfileApiResponse,
+      UsersControllerUpdateMyProfileApiArg
+    >({
+      query: (queryArg) => ({
+        url: `/users/me/profile`,
+        method: "PATCH",
+        body: queryArg.updateUserDto,
+      }),
+    }),
     usersControllerFindOne: build.query<
       UsersControllerFindOneApiResponse,
       UsersControllerFindOneApiArg
@@ -74,6 +90,38 @@ const injectedRtkApi = api.injectEndpoints({
       UsersControllerDeleteApiArg
     >({
       query: (queryArg) => ({ url: `/users/${queryArg.id}`, method: "DELETE" }),
+    }),
+    skillsControllerGetAll: build.query<
+      SkillsControllerGetAllApiResponse,
+      SkillsControllerGetAllApiArg
+    >({
+      query: () => ({ url: `/skills` }),
+    }),
+    skillsControllerCreate: build.mutation<
+      SkillsControllerCreateApiResponse,
+      SkillsControllerCreateApiArg
+    >({
+      query: (queryArg) => ({
+        url: `/skills`,
+        method: "POST",
+        body: queryArg.createSkillDto,
+      }),
+    }),
+    skillsControllerGetByCategory: build.query<
+      SkillsControllerGetByCategoryApiResponse,
+      SkillsControllerGetByCategoryApiArg
+    >({
+      query: (queryArg) => ({ url: `/skills/category/${queryArg.categoryId}` }),
+    }),
+    skillsControllerCreateBulk: build.mutation<
+      SkillsControllerCreateBulkApiResponse,
+      SkillsControllerCreateBulkApiArg
+    >({
+      query: (queryArg) => ({
+        url: `/skills/bulk`,
+        method: "POST",
+        body: queryArg.createSkillsBulkDto,
+      }),
     }),
     tasksControllerCreate: build.mutation<
       TasksControllerCreateApiResponse,
@@ -319,6 +367,12 @@ export type UsersControllerCreateApiArg = {
 };
 export type UsersControllerFindAllApiResponse = unknown;
 export type UsersControllerFindAllApiArg = void;
+export type UsersControllerFindMeApiResponse = unknown;
+export type UsersControllerFindMeApiArg = void;
+export type UsersControllerUpdateMyProfileApiResponse = unknown;
+export type UsersControllerUpdateMyProfileApiArg = {
+  updateUserDto: UpdateUserDto;
+};
 export type UsersControllerFindOneApiResponse = unknown;
 export type UsersControllerFindOneApiArg = {
   id: string;
@@ -331,6 +385,20 @@ export type UsersControllerUpdateApiArg = {
 export type UsersControllerDeleteApiResponse = unknown;
 export type UsersControllerDeleteApiArg = {
   id: string;
+};
+export type SkillsControllerGetAllApiResponse = unknown;
+export type SkillsControllerGetAllApiArg = void;
+export type SkillsControllerCreateApiResponse = unknown;
+export type SkillsControllerCreateApiArg = {
+  createSkillDto: CreateSkillDto;
+};
+export type SkillsControllerGetByCategoryApiResponse = unknown;
+export type SkillsControllerGetByCategoryApiArg = {
+  categoryId: string;
+};
+export type SkillsControllerCreateBulkApiResponse = unknown;
+export type SkillsControllerCreateBulkApiArg = {
+  createSkillsBulkDto: CreateSkillsBulkDto;
 };
 export type TasksControllerCreateApiResponse = unknown;
 export type TasksControllerCreateApiArg = {
@@ -465,7 +533,19 @@ export type CreateUserDto = {
   categoryId?: string;
   role?: "FREELANCER" | "HIRER" | "ADMIN";
 };
-export type UpdateUserDto = {};
+export type UpdateUserDto = {
+  name?: string;
+  categoryId?: string;
+  skills?: string[];
+};
+export type CreateSkillDto = {
+  categoryId: string;
+  name: string;
+};
+export type CreateSkillsBulkDto = {
+  categoryId: string;
+  names: string[];
+};
 export type BudgetType = "hourly" | "fixed";
 export type ProjectType = "ongoing" | "one_time";
 export type ExperienceLevel = "entry" | "intermediate" | "expert";
@@ -532,9 +612,15 @@ export const {
   useAuthControllerRefreshMutation,
   useUsersControllerCreateMutation,
   useUsersControllerFindAllQuery,
+  useUsersControllerFindMeQuery,
+  useUsersControllerUpdateMyProfileMutation,
   useUsersControllerFindOneQuery,
   useUsersControllerUpdateMutation,
   useUsersControllerDeleteMutation,
+  useSkillsControllerGetAllQuery,
+  useSkillsControllerCreateMutation,
+  useSkillsControllerGetByCategoryQuery,
+  useSkillsControllerCreateBulkMutation,
   useTasksControllerCreateMutation,
   useTasksControllerFindAllQuery,
   useTasksControllerFindByCategoryQuery,

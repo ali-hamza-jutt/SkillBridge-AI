@@ -2,18 +2,21 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import { logout } from "@/lib/features/auth/authSlice";
+import { logout, setCredentials } from "@/lib/features/auth/authSlice";
 import { useAppDispatch, useAppSelector } from "@/lib/hooks";
 import {
   useCategoryControllerGetAllCategoriesQuery,
   useCategoryControllerGetSubCategoriesQuery,
+  useSkillsControllerGetByCategoryQuery,
   useTasksControllerCreateMutation,
-  useTasksControllerGetMatchesQuery,
   useTasksControllerFindAllQuery,
+  useTasksControllerGetMatchesQuery,
+  useUsersControllerFindMeQuery,
+  useUsersControllerUpdateMyProfileMutation,
 } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 
@@ -30,6 +33,21 @@ type SubCategory = {
   _id: string;
   name: string;
   categoryId: string;
+};
+
+type Skill = {
+  _id?: string;
+  name: string;
+  categoryId: string;
+};
+
+type UserProfile = {
+  _id: string;
+  name: string;
+  email: string;
+  role: "FREELANCER" | "HIRER" | "ADMIN";
+  categoryId?: string;
+  skills?: string[];
 };
 
 type Task = {
@@ -55,7 +73,6 @@ type CreateTaskFormValues = {
   projectType: ProjectType;
   categoryId: string;
   subCategoryId: string;
-  requiredSkills: string;
   experienceLevel: ExperienceLevel;
 };
 
@@ -83,7 +100,6 @@ const createTaskSchema: yup.ObjectSchema<CreateTaskFormValues> = yup
     projectType: yup.mixed<ProjectType>().oneOf(["ongoing", "one_time"]).required("Project type is required"),
     categoryId: yup.string().required("Category is required"),
     subCategoryId: yup.string().required("Sub-category is required"),
-    requiredSkills: yup.string().default(""),
     experienceLevel: yup
       .mixed<ExperienceLevel>()
       .oneOf(["entry", "intermediate", "expert"])
@@ -94,11 +110,21 @@ const createTaskSchema: yup.ObjectSchema<CreateTaskFormValues> = yup
 export default function DashboardPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const { token, role, userId, categoryId, skills } = useAppSelector((state) => state.auth);
+  const { token, role, userId, categoryId, skills, email } = useAppSelector((state) => state.auth);
+
   const [activeFilter, setActiveFilter] = useState<JobFilter>("ALL");
   const [isPostJobOpen, setIsPostJobOpen] = useState(false);
   const [formStatus, setFormStatus] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [taskSkillInput, setTaskSkillInput] = useState("");
+  const [selectedTaskSkills, setSelectedTaskSkills] = useState<string[]>([]);
+
+  const [profileName, setProfileName] = useState("");
+  const [profileCategoryId, setProfileCategoryId] = useState("");
+  const [profileSkills, setProfileSkills] = useState<string[]>([]);
+  const [profileSkillInput, setProfileSkillInput] = useState("");
+  const [profileStatus, setProfileStatus] = useState<string | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
 
   const {
     register,
@@ -117,7 +143,6 @@ export default function DashboardPage() {
       projectType: "one_time",
       categoryId: "",
       subCategoryId: "",
-      requiredSkills: "",
       experienceLevel: "entry",
     },
   });
@@ -133,12 +158,12 @@ export default function DashboardPage() {
         }
       : undefined;
 
-  const {
-    data: matchedTasksRaw,
-    isFetching: isLoadingMatchedTasks,
-  } = useTasksControllerGetMatchesQuery(matchQuery as never, {
-    skip: !token || role !== "FREELANCER" || !matchQuery,
-  });
+  const { data: matchedTasksRaw, isFetching: isLoadingMatchedTasks } = useTasksControllerGetMatchesQuery(
+    matchQuery as never,
+    {
+      skip: !token || role !== "FREELANCER" || !matchQuery,
+    },
+  );
 
   const {
     data: allTasksRaw,
@@ -155,12 +180,45 @@ export default function DashboardPage() {
     { skip: !selectedCategoryId || role !== "HIRER" },
   );
 
+  const { data: taskSkillsRaw = [] } = useSkillsControllerGetByCategoryQuery(
+    { categoryId: selectedCategoryId },
+    { skip: !selectedCategoryId || role !== "HIRER" },
+  );
+
+  const { data: myProfileRaw } = useUsersControllerFindMeQuery(undefined, {
+    skip: !token,
+  });
+
+  const { data: profileSkillsRaw = [] } = useSkillsControllerGetByCategoryQuery(
+    { categoryId: profileCategoryId },
+    { skip: !token || role !== "FREELANCER" || !profileCategoryId },
+  );
+
   const [createTask, { isLoading: isCreatingTask }] = useTasksControllerCreateMutation();
+  const [updateUserProfile, { isLoading: isUpdatingProfile }] = useUsersControllerUpdateMyProfileMutation();
 
   const categories = categoriesRaw as Category[];
   const subCategories = subCategoriesRaw as SubCategory[];
   const allTasks = (allTasksRaw as Task[] | undefined) ?? [];
   const matchedTasks = (matchedTasksRaw as Task[] | undefined) ?? [];
+  const suggestedTaskSkills = (taskSkillsRaw as Skill[]).map((skill) => skill.name);
+  const suggestedProfileSkills = (profileSkillsRaw as Skill[]).map((skill) => skill.name);
+  const myProfile = (myProfileRaw as UserProfile | undefined) ?? undefined;
+
+  useEffect(() => {
+    if (!myProfile || role !== "FREELANCER") {
+      return;
+    }
+
+    setProfileName(myProfile.name ?? "");
+    setProfileCategoryId(myProfile.categoryId ?? "");
+    setProfileSkills(myProfile.skills ?? []);
+  }, [myProfile, role]);
+
+  useEffect(() => {
+    setSelectedTaskSkills([]);
+    setTaskSkillInput("");
+  }, [selectedCategoryId]);
 
   const myTasks = useMemo(() => {
     if (!userId) {
@@ -181,24 +239,62 @@ export default function DashboardPage() {
     return myTasks;
   }, [activeFilter, myTasks]);
 
+  const filteredTaskSkillSuggestions = useMemo(() => {
+    const query = taskSkillInput.trim().toLowerCase();
+    return suggestedTaskSkills.filter(
+      (skill) =>
+        !selectedTaskSkills.includes(skill) &&
+        (query.length === 0 || skill.toLowerCase().includes(query)),
+    );
+  }, [selectedTaskSkills, suggestedTaskSkills, taskSkillInput]);
+
+  const filteredProfileSkillSuggestions = useMemo(() => {
+    const query = profileSkillInput.trim().toLowerCase();
+    return suggestedProfileSkills.filter(
+      (skill) =>
+        !profileSkills.includes(skill) &&
+        (query.length === 0 || skill.toLowerCase().includes(query)),
+    );
+  }, [profileSkillInput, profileSkills, suggestedProfileSkills]);
+
   const signOut = () => {
     localStorage.removeItem("auth_token");
     localStorage.removeItem("auth_refresh_token");
     localStorage.removeItem("auth_email");
     localStorage.removeItem("auth_user_id");
     localStorage.removeItem("auth_role");
+    localStorage.removeItem("auth_category_id");
+    localStorage.removeItem("auth_skills");
     dispatch(logout());
     router.push("/login");
+  };
+
+  const addEmployerSkill = (skill: string) => {
+    if (!selectedTaskSkills.includes(skill)) {
+      setSelectedTaskSkills((prev) => [...prev, skill]);
+    }
+    setTaskSkillInput("");
+  };
+
+  const removeEmployerSkill = (skill: string) => {
+    setSelectedTaskSkills((prev) => prev.filter((s) => s !== skill));
+  };
+
+  const addProfileSkill = (skill: string) => {
+    if (!profileSkills.includes(skill)) {
+      setProfileSkills((prev) => [...prev, skill]);
+    }
+    setProfileSkillInput("");
+  };
+
+  const removeProfileSkill = (skill: string) => {
+    setProfileSkills((prev) => prev.filter((s) => s !== skill));
   };
 
   const onCreateTask = async (values: CreateTaskFormValues) => {
     try {
       setFormError(null);
       setFormStatus(null);
-      const requiredSkills = values.requiredSkills
-        .split(",")
-        .map((skill) => skill.trim())
-        .filter(Boolean);
 
       await createTask({
         createTaskDto: {
@@ -210,7 +306,7 @@ export default function DashboardPage() {
           projectType: values.projectType,
           categoryId: values.categoryId,
           subCategoryId: values.subCategoryId,
-          requiredSkills,
+          requiredSkills: selectedTaskSkills,
           experienceLevel: values.experienceLevel,
         },
       }).unwrap();
@@ -224,9 +320,10 @@ export default function DashboardPage() {
         projectType: "one_time",
         categoryId: "",
         subCategoryId: "",
-        requiredSkills: "",
         experienceLevel: "entry",
       });
+      setSelectedTaskSkills([]);
+      setTaskSkillInput("");
       refetchMyTasks();
       setFormStatus("Job posted successfully.");
       setTimeout(() => {
@@ -235,6 +332,47 @@ export default function DashboardPage() {
       }, 900);
     } catch (error) {
       setFormError(getApiErrorMessage(error, "Failed to create task. Please try again."));
+    }
+  };
+
+  const onSaveFreelancerProfile = async () => {
+    if (!userId || !token) {
+      return;
+    }
+
+    try {
+      setProfileError(null);
+      setProfileStatus(null);
+
+      await updateUserProfile({
+        updateUserDto: {
+          name: profileName,
+          categoryId: profileCategoryId,
+          skills: profileSkills,
+        },
+      }).unwrap();
+
+      dispatch(
+        setCredentials({
+          userId,
+          role,
+          categoryId: profileCategoryId,
+          skills: profileSkills,
+          token,
+          email,
+        }),
+      );
+
+      if (profileCategoryId) {
+        localStorage.setItem("auth_category_id", profileCategoryId);
+      } else {
+        localStorage.removeItem("auth_category_id");
+      }
+      localStorage.setItem("auth_skills", JSON.stringify(profileSkills));
+
+      setProfileStatus("Profile updated successfully.");
+    } catch (error) {
+      setProfileError(getApiErrorMessage(error, "Failed to update profile."));
     }
   };
 
@@ -292,70 +430,48 @@ export default function DashboardPage() {
     );
   }
 
-  if (role && role !== "HIRER") {
-    const matchedCategoryName = categories.find((category) => category._id === categoryId)?.name ?? "your selected category";
-
+  if (role === "FREELANCER") {
     return (
       <main
-        className="min-h-screen py-10"
+        className="min-h-screen"
         style={{
           background:
             "radial-gradient(circle at 88% 0%, color-mix(in srgb, var(--color-accent-soft) 50%, transparent), transparent 34%), linear-gradient(165deg, var(--color-bg), color-mix(in srgb, var(--color-surface-strong) 84%, var(--color-bg)))",
         }}
       >
-        <div className="mx-auto grid w-[min(100%-2rem,1120px)] gap-5">
-          <section className="rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_92%,transparent)] p-6 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)] backdrop-blur-md md:p-8">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <p className="m-0 text-xs font-bold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Freelancer Dashboard</p>
-                <h1 className="mt-2 text-3xl font-bold tracking-tight text-[var(--color-text-main)]">Matched Jobs</h1>
-                <p className="mt-3 text-sm text-[var(--color-text-muted)]">
-                  Jobs shown here match {matchedCategoryName} and your overlapping skills.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-3">
-                <Link
-                  href="/"
-                  className="inline-flex items-center justify-center rounded-full border border-transparent bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] px-5 py-2.5 text-sm font-semibold text-white no-underline"
-                >
-                  Go Home
-                </Link>
-                <button
-                  onClick={signOut}
-                  className="inline-flex items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_88%,var(--color-brand-soft))] px-5 py-2.5 text-sm font-semibold text-[var(--color-text-main)]"
-                  type="button"
-                >
-                  Log Out
-                </button>
-              </div>
+        <header className="sticky top-0 z-20 border-b border-[color-mix(in_srgb,var(--color-border)_88%,transparent)] bg-[color-mix(in_srgb,var(--color-bg)_84%,transparent)] backdrop-blur-xl">
+          <div className="mx-auto flex w-[min(100%-2rem,1200px)] items-center justify-between gap-3 py-3">
+            <Link href="/" className="text-lg font-bold tracking-tight text-[var(--color-text-main)] no-underline">
+              SkillBridge
+            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <button className="rounded-full border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-brand-soft)_66%,var(--color-surface))] px-4 py-2 text-sm font-semibold text-[var(--color-brand-strong)]" type="button">
+                Jobs
+              </button>
+              <button className="rounded-full border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_88%,transparent)] px-4 py-2 text-sm font-semibold text-[var(--color-text-main)]" type="button">
+                Messages
+              </button>
+              <button className="rounded-full border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_88%,transparent)] px-4 py-2 text-sm font-semibold text-[var(--color-text-main)]" type="button">
+                Profile
+              </button>
+              <button
+                onClick={signOut}
+                className="inline-flex items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_88%,var(--color-brand-soft))] px-5 py-2.5 text-sm font-semibold text-[var(--color-text-main)]"
+                type="button"
+              >
+                Log Out
+              </button>
             </div>
+          </div>
+        </header>
 
-            <div className="mt-5 flex flex-wrap gap-2">
-              <span className="rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-brand-soft)_64%,var(--color-surface))] px-3 py-1 text-xs font-semibold text-[var(--color-brand-strong)]">
-                Category: {matchedCategoryName}
-              </span>
-              {skills.length ? (
-                skills.map((skill) => (
-                  <span key={skill} className="rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_88%,transparent)] px-3 py-1 text-xs font-semibold text-[var(--color-text-main)]">
-                    {skill}
-                  </span>
-                ))
-              ) : (
-                <span className="rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_88%,transparent)] px-3 py-1 text-xs font-semibold text-[var(--color-text-main)]">
-                  No skills saved
-                </span>
-              )}
-            </div>
-          </section>
-
+        <div className="mx-auto grid w-[min(100%-2rem,1200px)] gap-5 py-5 md:grid-cols-[1.6fr_1fr]">
           <section className="grid gap-4">
-            {isLoadingMatchedTasks ? <p className="text-sm text-[var(--color-text-muted)]">Loading matched jobs...</p> : null}
+            {isLoadingMatchedTasks ? <p className="text-sm text-[var(--color-text-muted)]">Loading jobs...</p> : null}
             {!isLoadingMatchedTasks && matchedTasks.length === 0 ? (
               <article className="rounded-3xl border border-dashed border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] p-8 text-center shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)]">
-                <h2 className="text-2xl font-bold tracking-tight text-[var(--color-text-main)]">No matched jobs yet</h2>
-                <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-                  Add more skills or update your freelancer category to get better recommendations.
-                </p>
+                <h2 className="text-2xl font-bold tracking-tight text-[var(--color-text-main)]">No jobs available yet</h2>
+                <p className="mt-2 text-sm text-[var(--color-text-muted)]">Update your profile skills to improve job recommendations.</p>
               </article>
             ) : null}
 
@@ -366,8 +482,10 @@ export default function DashboardPage() {
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <h3 className="m-0 text-xl font-bold tracking-tight text-[var(--color-text-main)]">{task.title}</h3>
-                  <span className="inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--color-brand)_35%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_70%,var(--color-surface))] px-3 py-1 text-xs font-bold uppercase tracking-[0.08em] text-[var(--color-brand-strong)]">
-                    MATCHED
+                  <span
+                    className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-[0.08em] ${getStatusClassName(task.status)}`}
+                  >
+                    {formatStatusLabel(task.status)}
                   </span>
                 </div>
 
@@ -385,22 +503,111 @@ export default function DashboardPage() {
                     {task.projectType === "one_time" ? "One-time" : "Ongoing"}
                   </span>
                 </div>
+              </article>
+            ))}
+          </section>
 
-                {task.requiredSkills?.length ? (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {task.requiredSkills.map((skill) => (
-                      <span
-                        key={`${task._id}-${skill}`}
-                        className="rounded-full border border-[color-mix(in_srgb,var(--color-brand)_24%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_68%,var(--color-surface))] px-2.5 py-1 text-xs font-semibold text-[color-mix(in_srgb,var(--color-brand-strong)_88%,var(--color-text-main))]"
+          <aside className="rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_94%,transparent)] p-5 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)]">
+            <h2 className="text-xl font-bold tracking-tight text-[var(--color-text-main)]">Profile</h2>
+            <p className="mt-2 text-sm text-[var(--color-text-muted)]">Keep your category and skills updated to get better job matches.</p>
+
+            <div className="mt-4 grid gap-4">
+              <div>
+                <label className={labelClassName} htmlFor="profileName">Name</label>
+                <input
+                  id="profileName"
+                  value={profileName}
+                  onChange={(e) => setProfileName(e.target.value)}
+                  className={inputClassName}
+                  placeholder="Your name"
+                />
+              </div>
+
+              <div>
+                <label className={labelClassName} htmlFor="profileCategory">Category</label>
+                <select
+                  id="profileCategory"
+                  value={profileCategoryId}
+                  onChange={(e) => {
+                    setProfileCategoryId(e.target.value);
+                    setProfileSkills([]);
+                    setProfileSkillInput("");
+                  }}
+                  className={inputClassName}
+                >
+                  <option value="">Select category</option>
+                  {categories.map((category) => (
+                    <option key={category._id} value={category._id}>{category.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className={labelClassName} htmlFor="profileSkills">Skills</label>
+                <input
+                  id="profileSkills"
+                  className={inputClassName}
+                  value={profileSkillInput}
+                  onChange={(e) => setProfileSkillInput(e.target.value)}
+                  placeholder="Type to search e.g. React"
+                  disabled={!profileCategoryId}
+                />
+
+                {profileCategoryId && filteredProfileSkillSuggestions.length > 0 ? (
+                  <div className="mt-2 flex max-h-40 flex-wrap gap-2 overflow-auto">
+                    {filteredProfileSkillSuggestions.slice(0, 20).map((skill) => (
+                      <button
+                        key={skill}
+                        type="button"
+                        className="rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_88%,transparent)] px-3 py-1 text-xs font-semibold text-[var(--color-text-main)]"
+                        onClick={() => addProfileSkill(skill)}
                       >
                         {skill}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+
+                {profileSkills.length ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {profileSkills.map((skill) => (
+                      <span key={skill} className="inline-flex items-center gap-1 rounded-full border border-[color-mix(in_srgb,var(--color-brand)_24%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_68%,var(--color-surface))] px-2.5 py-1 text-xs font-semibold text-[color-mix(in_srgb,var(--color-brand-strong)_88%,var(--color-text-main))]">
+                        {skill}
+                        <button
+                          type="button"
+                          className="rounded-full px-1 text-[var(--color-brand-strong)]"
+                          onClick={() => removeProfileSkill(skill)}
+                          aria-label={`Remove ${skill}`}
+                        >
+                          x
+                        </button>
                       </span>
                     ))}
                   </div>
                 ) : null}
-              </article>
-            ))}
-          </section>
+              </div>
+
+              {profileError ? (
+                <p className="rounded-xl border border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-danger-soft)_80%,var(--color-surface))] px-3 py-2 text-sm text-[var(--color-danger)]">
+                  {profileError}
+                </p>
+              ) : null}
+              {profileStatus ? (
+                <p className="rounded-xl border border-[color-mix(in_srgb,var(--color-brand)_32%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_72%,var(--color-surface))] px-3 py-2 text-sm text-[var(--color-brand-strong)]">
+                  {profileStatus}
+                </p>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={onSaveFreelancerProfile}
+                disabled={isUpdatingProfile}
+                className="inline-flex items-center justify-center rounded-full border border-transparent bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isUpdatingProfile ? "Saving..." : "Save Profile"}
+              </button>
+            </div>
+          </aside>
         </div>
       </main>
     );
@@ -471,7 +678,7 @@ export default function DashboardPage() {
 
           {!isLoadingMyTasks && filteredTasks.length === 0 ? (
             <article className="rounded-3xl border border-dashed border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] p-8 text-center shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)]">
-              <p className="m-0 text-3xl text-[var(--color-text-muted)]" aria-hidden="true">○</p>
+              <p className="m-0 text-3xl text-[var(--color-text-muted)]" aria-hidden="true">o</p>
               <h2 className="mt-2 text-2xl font-bold tracking-tight text-[var(--color-text-main)]">No jobs in this view</h2>
               <p className="mt-2 text-sm text-[var(--color-text-muted)]">Use Post a Job to create your first listing.</p>
               <button
@@ -627,22 +834,57 @@ export default function DashboardPage() {
               </div>
 
               <div>
+                <label className={labelClassName} htmlFor="requiredSkills">Required Skills</label>
+                <input
+                  id="requiredSkills"
+                  className={inputClassName}
+                  value={taskSkillInput}
+                  onChange={(e) => setTaskSkillInput(e.target.value)}
+                  placeholder="Type to search e.g. React"
+                  disabled={!selectedCategoryId}
+                />
+
+                {selectedCategoryId && filteredTaskSkillSuggestions.length > 0 ? (
+                  <div className="mt-2 flex max-h-40 flex-wrap gap-2 overflow-auto">
+                    {filteredTaskSkillSuggestions.slice(0, 25).map((skill) => (
+                      <button
+                        key={skill}
+                        type="button"
+                        className="rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_88%,transparent)] px-3 py-1 text-xs font-semibold text-[var(--color-text-main)]"
+                        onClick={() => addEmployerSkill(skill)}
+                      >
+                        {skill}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+
+                {selectedTaskSkills.length ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {selectedTaskSkills.map((skill) => (
+                      <span key={skill} className="inline-flex items-center gap-1 rounded-full border border-[color-mix(in_srgb,var(--color-brand)_24%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_68%,var(--color-surface))] px-2.5 py-1 text-xs font-semibold text-[color-mix(in_srgb,var(--color-brand-strong)_88%,var(--color-text-main))]">
+                        {skill}
+                        <button
+                          type="button"
+                          className="rounded-full px-1 text-[var(--color-brand-strong)]"
+                          onClick={() => removeEmployerSkill(skill)}
+                          aria-label={`Remove ${skill}`}
+                        >
+                          x
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+
+              <div>
                 <label className={labelClassName} htmlFor="experienceLevel">Experience Level</label>
                 <select id="experienceLevel" className={inputClassName} {...register("experienceLevel")}>
                   <option value="entry">Entry</option>
                   <option value="intermediate">Intermediate</option>
                   <option value="expert">Expert</option>
                 </select>
-              </div>
-
-              <div>
-                <label className={labelClassName} htmlFor="requiredSkills">Required Skills (comma separated)</label>
-                <input
-                  id="requiredSkills"
-                  className={inputClassName}
-                  {...register("requiredSkills")}
-                  placeholder="React, Next.js, TypeScript"
-                />
               </div>
 
               {formError ? (

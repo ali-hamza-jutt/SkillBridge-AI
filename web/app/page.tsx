@@ -16,7 +16,7 @@ export default function Home() {
           </Link>
 
           <nav className="flex flex-wrap justify-center gap-3 max-[640px]:justify-start" aria-label="Primary Navigation">
-            <Link href="#" className="rounded-full px-2 py-1 text-sm font-semibold text-[var(--color-text-main)] no-underline transition hover:bg-[color-mix(in_srgb,var(--color-brand-soft)_70%,var(--color-surface))] hover:text-[var(--color-brand-strong)]">Hire Freelancers</Link>
+            <Link href="#" className="rounded-full px-2 py-1 text-sm font-semibold text-[var(--color-text-main)] no-underline transition hover:bg-[color-mix(in_srgb,var(--color-brand-soft)_70%,var(--color-surface))] hover:text-[var(--color-brand-strong)]">For Employers</Link>
             <Link href="#" className="rounded-full px-2 py-1 text-sm font-semibold text-[var(--color-text-main)] no-underline transition hover:bg-[color-mix(in_srgb,var(--color-brand-soft)_70%,var(--color-surface))] hover:text-[var(--color-brand-strong)]">Find Work</Link>
             <Link href="#" className="rounded-full px-2 py-1 text-sm font-semibold text-[var(--color-text-main)] no-underline transition hover:bg-[color-mix(in_srgb,var(--color-brand-soft)_70%,var(--color-surface))] hover:text-[var(--color-brand-strong)]">Why SkillBridge</Link>
             <Link href="/login" className="rounded-full px-2 py-1 text-sm font-semibold text-[var(--color-text-main)] no-underline transition hover:bg-[color-mix(in_srgb,var(--color-brand-soft)_70%,var(--color-surface))] hover:text-[var(--color-brand-strong)]">Login</Link>
@@ -40,7 +40,7 @@ export default function Home() {
               </p>
 
               <div className="mt-6 flex flex-wrap gap-3">
-                <Link href="/signup" className="inline-flex items-center justify-center rounded-full border border-transparent bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] px-5 py-2.5 text-sm font-semibold text-white no-underline shadow-[0_14px_24px_-18px_color-mix(in_srgb,var(--color-brand)_62%,transparent)] transition hover:bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-brand-strong)_92%,#0d7000),var(--color-brand))]">I Need Freelancer</Link>
+                <Link href="/signup" className="inline-flex items-center justify-center rounded-full border border-transparent bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] px-5 py-2.5 text-sm font-semibold text-white no-underline shadow-[0_14px_24px_-18px_color-mix(in_srgb,var(--color-brand)_62%,transparent)] transition hover:bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-brand-strong)_92%,#0d7000),var(--color-brand))]">I am an Employer</Link>
                 <Link href="/signup" className="inline-flex items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_88%,var(--color-brand-soft))] px-5 py-2.5 text-sm font-semibold text-[var(--color-text-main)] no-underline transition hover:bg-[color-mix(in_srgb,var(--color-surface)_72%,var(--color-brand-soft))]">I Need Work</Link>
               </div>
 

@@ -11,21 +11,44 @@ import * as bcrypt from 'bcrypt';
 import { User, UserDocument } from './schemas/user.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update.dto.user';
+import { SkillsService } from '../skills/skills.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name)
     private userModel: Model<UserDocument>,
+    private readonly skillsService: SkillsService,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
     try {
       const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
 
+      const role = createUserDto.role;
+      const isFreelancer = role === 'FREELANCER';
+
+      let validatedSkills: string[] = [];
+      let categoryId = createUserDto.categoryId;
+
+      if (isFreelancer) {
+        if (!categoryId) {
+          throw new BadRequestException('Freelancer category is required.');
+        }
+
+        validatedSkills = await this.skillsService.validateSkillsForCategory(
+          categoryId,
+          createUserDto.skills ?? [],
+        );
+      } else {
+        categoryId = undefined;
+      }
+
       const user = new this.userModel({
         ...createUserDto,
-        role: createUserDto.role,
+        role,
+        categoryId,
+        skills: validatedSkills,
         password: hashedPassword,
       });
 
@@ -89,20 +112,60 @@ export class UsersService {
     }
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto) {
+  async updateMyProfile(id: string, dto: UpdateUserDto) {
     try {
-      const user = await this.userModel.findByIdAndUpdate(id, updateUserDto, {
-        new: true,
-      });
+      const user = await this.userModel.findById(id);
 
       if (!user) {
         throw new NotFoundException('User not found');
       }
 
-      return user;
+      if (typeof dto.name !== 'undefined') {
+        user.name = dto.name;
+      }
+
+      if (user.role !== 'FREELANCER') {
+        if (typeof dto.categoryId !== 'undefined' || typeof dto.skills !== 'undefined') {
+          throw new BadRequestException(
+            'Only freelancers can update category and skills.',
+          );
+        }
+      } else {
+        if (typeof dto.categoryId !== 'undefined') {
+          user.categoryId = dto.categoryId;
+        }
+
+        if (typeof dto.skills !== 'undefined') {
+          if (!user.categoryId) {
+            throw new BadRequestException(
+              'Freelancer category is required before updating skills.',
+            );
+          }
+
+          user.skills = await this.skillsService.validateSkillsForCategory(
+            user.categoryId,
+            dto.skills,
+          );
+        }
+      }
+
+      const updated = await user.save();
+      const userObject = updated.toObject() as unknown as {
+        password?: string;
+        refreshTokenHash?: string;
+        [key: string]: unknown;
+      };
+      const { password: _password, refreshTokenHash: _refreshTokenHash, ...safeUser } =
+        userObject;
+      return safeUser;
     } catch (error:any) {
-      if (error instanceof NotFoundException) throw error;
-      throw new BadRequestException(`Failed to update user: ${error.message}`);
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+      throw new BadRequestException(`Failed to update profile: ${error.message}`);
     }
   }
 

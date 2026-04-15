@@ -14,6 +14,7 @@ import { CacheService } from '../cache/cache.service';
 import { BidsService } from '../bids/bids.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { UsersService } from '../users/users.service';
+import { SkillsService } from '../skills/skills.service';
 
 const DEMO_USER_ID = 'DEMO_USER_1';
 
@@ -28,12 +29,19 @@ export class TasksService {
     private bidsService: BidsService,
     private notificationsService: NotificationsService,
     private usersService: UsersService,
+    private skillsService: SkillsService,
   ) {}
 
   async create(createTaskDto: CreateTaskDto, userId: string) {
     try {
+      const validatedSkills = await this.skillsService.validateSkillsForCategory(
+        createTaskDto.categoryId,
+        createTaskDto.requiredSkills ?? [],
+      );
+
       const task = new this.taskModel({
         ...createTaskDto,
+        requiredSkills: validatedSkills,
         clientId: userId,
       });
 
@@ -80,6 +88,20 @@ export class TasksService {
 
   async update(id: string, dto: UpdateTaskDto) {
     try {
+      if (dto.requiredSkills) {
+        const existingTask = await this.taskModel.findById(id).lean().exec();
+
+        if (!existingTask) {
+          throw new NotFoundException('Task not found');
+        }
+
+        const categoryForValidation = dto.categoryId ?? existingTask.categoryId;
+        dto.requiredSkills = await this.skillsService.validateSkillsForCategory(
+          categoryForValidation,
+          dto.requiredSkills,
+        );
+      }
+
       const task = await this.taskModel.findByIdAndUpdate(id, dto, {
         new: true,
       });

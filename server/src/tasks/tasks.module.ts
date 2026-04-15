@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { TasksController } from './tasks.controller';
 import { CategoryService } from './category.service';
@@ -16,6 +16,7 @@ import { CacheModule } from '../cache/cache.module';
 import { BidsModule } from '../bids/bids.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { UsersModule } from '../users/users.module';
+import { SkillsModule } from '../skills/skills.module';
 
 @Module({
   imports: [
@@ -25,7 +26,8 @@ import { UsersModule } from '../users/users.module';
       { name: SubCategory.name, schema: SubCategorySchema },
     ]),
     CacheModule,
-    UsersModule,
+    forwardRef(() => UsersModule),
+    forwardRef(() => SkillsModule),
     BidsModule,
     NotificationsModule,
   ],

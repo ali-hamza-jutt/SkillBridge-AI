@@ -8,6 +8,7 @@ import { TasksModule } from './tasks/tasks.module';
 import { UsersModule } from './users/users.module';
 import { BidsModule } from './bids/bids.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { SkillsModule } from './skills/skills.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     AuthModule,
     TasksModule,
     UsersModule,
+    SkillsModule,
     BidsModule,
     NotificationsModule,
   ],
