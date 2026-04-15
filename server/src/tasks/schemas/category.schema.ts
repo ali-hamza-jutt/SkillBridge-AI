@@ -7,9 +7,6 @@ export type CategoryDocument = Category & Document;
 export class Category {
   @Prop({ required: true, unique: true })
   name!: string;
-
-  @Prop()
-  description?: string;
 }
 
 export const CategorySchema = SchemaFactory.createForClass(Category);
@@ -23,9 +20,6 @@ export class SubCategory {
 
   @Prop({ required: true })
   name!: string;
-
-  @Prop()
-  description?: string;
 }
 
 export const SubCategorySchema = SchemaFactory.createForClass(SubCategory);

@@ -1,7 +1,11 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
-import { ApiParam, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Post, Patch, Body, Param } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { CategoryService } from './category.service';
-import { CreateCategoryDto, CreateSubCategoryDto } from './dto/category.dto';
+import {
+  CreateCategoryDto,
+  CreateSubCategoryDto,
+  UpdateSubCategoryNameDto,
+} from './dto/category.dto';
 
 @ApiTags('Categories')
 @Controller('categories')
@@ -23,20 +27,20 @@ export class CategoryController {
     return this.categoryService.getCategoryById(id);
   }
 
-  @Post(':categoryId/sub-categories')
-  @ApiParam({ name: 'categoryId', type: String })
-  createSubCategory(
-    @Param('categoryId') categoryId: string,
-    @Body() dto: CreateSubCategoryDto,
+  @Post('sub-categories')
+  createSubCategory(@Body() dto: CreateSubCategoryDto) {
+    return this.categoryService.createSubCategory(dto);
+  }
+
+  @Patch('sub-categories/:id')
+  updateSubCategoryName(
+    @Param('id') id: string,
+    @Body() dto: UpdateSubCategoryNameDto,
   ) {
-    return this.categoryService.createSubCategory({
-      ...dto,
-      categoryId,
-    });
+    return this.categoryService.updateSubCategoryName(id, dto.name);
   }
 
   @Get(':categoryId/sub-categories')
-  @ApiParam({ name: 'categoryId', type: String })
   getSubCategories(@Param('categoryId') categoryId: string) {
     return this.categoryService.getSubCategoriesByCategory(categoryId);
   }

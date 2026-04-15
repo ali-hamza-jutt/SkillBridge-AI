@@ -112,4 +112,25 @@ export class CategoryService {
       );
     }
   }
+
+  async updateSubCategoryName(id: string, name: string) {
+    try {
+      const subCategory = await this.subCategoryModel.findByIdAndUpdate(
+        id,
+        { name },
+        { new: true },
+      );
+
+      if (!subCategory) {
+        throw new NotFoundException('SubCategory not found');
+      }
+
+      return subCategory;
+    } catch (error:any) {
+      if (error instanceof NotFoundException) throw error;
+      throw new BadRequestException(
+        `Failed to update sub-category: ${error.message}`,
+      );
+    }
+  }
 }
