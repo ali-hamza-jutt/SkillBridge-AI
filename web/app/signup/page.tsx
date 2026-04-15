@@ -19,7 +19,6 @@ export default function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [skillsText, setSkillsText] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [role, setRole] = useState<"FREELANCER" | "HIRER">("FREELANCER");
   const [status, setStatus] = useState<string | null>(null);
@@ -33,11 +32,6 @@ export default function SignupPage() {
     event.preventDefault();
     setStatus(null);
 
-    const skills = skillsText
-      .split(",")
-      .map((skill) => skill.trim())
-      .filter(Boolean);
-
     if (role === "FREELANCER" && !categoryId) {
       setStatus("Please select a category for your freelancer profile.");
       return;
@@ -50,7 +44,7 @@ export default function SignupPage() {
           email,
           password,
           role,
-          ...(role === "FREELANCER" ? { skills, categoryId } : {}),
+          ...(role === "FREELANCER" ? { skills: [], categoryId } : {}),
         },
       }).unwrap();
 
@@ -77,7 +71,7 @@ export default function SignupPage() {
       const userId = loginResponse.user?.id ?? null;
       const roleValue = loginResponse.user?.role ?? role;
       const userCategoryId = loginResponse.user?.categoryId ?? (role === "FREELANCER" ? categoryId : null);
-      const userSkills = loginResponse.user?.skills ?? skills;
+      const userSkills = loginResponse.user?.skills ?? [];
 
       dispatch(
         setCredentials({
@@ -222,7 +216,7 @@ export default function SignupPage() {
                     className={inputClassName}
                   >
                     <option value="FREELANCER">Freelancer</option>
-                    <option value="HIRER">Job Giver</option>
+                    <option value="HIRER">Employer</option>
                   </select>
                 </div>
 
@@ -247,24 +241,6 @@ export default function SignupPage() {
                     </select>
                   </div>
                 ) : null}
-
-                <div>
-                  <label className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]" htmlFor="skills">
-                    Skills (comma separated)
-                  </label>
-                  <input
-                    id="skills"
-                    type="text"
-                    value={skillsText}
-                    onChange={(e) => setSkillsText(e.target.value)}
-                    className={inputClassName}
-                    disabled={role !== "FREELANCER"}
-                    placeholder="Node.js, Redis, NestJS"
-                  />
-                  {role !== "FREELANCER" ? (
-                    <p className="mt-2 text-xs text-[var(--color-text-muted)]">Skills are optional for job giver accounts.</p>
-                  ) : null}
-                </div>
 
                 {status ? (
                   <p className="rounded-xl border border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-danger-soft)_80%,var(--color-surface))] px-3 py-2 text-sm text-[var(--color-danger)]">
