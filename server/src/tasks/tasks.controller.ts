@@ -7,6 +7,8 @@ import {
   Body,
   Param,
   Query,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 
 import { TasksService } from './tasks.service';
@@ -16,15 +18,17 @@ import { UpdateTaskStatusDto } from './dto/update-task-status.dto';
 
 import { ApiTags } from '@nestjs/swagger';
 import { AssignTaskDto } from './dto/assign-task.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @ApiTags('Tasks')
 @Controller('tasks')
 export class TasksController {
   constructor(private tasksService: TasksService) {}
 
+  @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Body() dto: CreateTaskDto) {
-    return this.tasksService.create(dto, 'USER_ID');
+  create(@Body() dto: CreateTaskDto, @Req() req) {
+    return this.tasksService.create(dto, req.user.userId);
   }
 
   @Get()
@@ -78,6 +82,12 @@ export class TasksController {
       subCategoriesArray,
       skillsArray,
     );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('my-open')
+  getMyOpenTasks(@Req() req) {
+    return this.tasksService.getOpenTasksByClient(req.user.userId);
   }
 
   @Get(':id')

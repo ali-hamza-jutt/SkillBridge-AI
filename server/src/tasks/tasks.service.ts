@@ -255,6 +255,21 @@ export class TasksService {
     }
   }
 
+  async getOpenTasksByClient(clientId: string) {
+    try {
+      const tasks = await this.taskModel
+        .find({ clientId, status: TaskStatus.OPEN })
+        .sort({ createdAt: -1 })
+        .lean()
+        .exec();
+      return tasks;
+    } catch (error:any) {
+      throw new BadRequestException(
+        `Failed to fetch open tasks for client: ${error.message}`,
+      );
+    }
+  }
+
   async matchTasksWithDeveloper(
     developerId: string,
     userCategory: string,
