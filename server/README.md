@@ -44,6 +44,49 @@ $ npm run start:dev
 $ npm run start:prod
 ```
 
+## Bid Attachments: Real File Uploads
+
+The bids module now supports real multipart uploads and stores only attachment URLs in MongoDB.
+
+### Endpoint
+
+- `POST /bids/attachments/upload`
+- Auth: Bearer token required
+- Content-Type: `multipart/form-data`
+- Field name: `files`
+- Max files: `10`
+- Max size per file: `100 MB`
+- Allowed file types:
+  - Photos: jpg, jpeg, png, webp, gif
+  - Videos: mp4, webm, mov
+  - Documents: pdf, doc, docx
+
+Response returns normalized attachment metadata (`fileName`, `type`, `url`, `sizeMb`) to use in `CreateBidDto.attachments`.
+
+### Storage Setup (Cloudinary Free Tier)
+
+Recommended free platform: Cloudinary (free plan). It supports images, videos, and raw files (pdf/doc/docx).
+
+Add these env variables in `server/.env`:
+
+```bash
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+# optional
+CLOUDINARY_BID_ATTACHMENTS_FOLDER=skill-bridge/bid-attachments
+```
+
+### Suggested Flow
+
+1. Upload files via `POST /bids/attachments/upload`.
+2. Receive uploaded file URLs in response.
+3. Submit bid via `POST /bids` with:
+   - `coverLetter`
+   - `attachments` (from step 2)
+   - `payoutType` (`whole` or `module_based`)
+   - `modules` (required for `module_based`)
+
 ## Run tests
 
 ```bash
