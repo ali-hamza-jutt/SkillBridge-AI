@@ -10,9 +10,15 @@ function AuthBootstrap() {
     const token = localStorage.getItem("auth_token");
     const refreshToken = localStorage.getItem("auth_refresh_token");
     const email = localStorage.getItem("auth_email");
+    const userId = localStorage.getItem("auth_user_id");
+    const role = localStorage.getItem("auth_role") as
+      | "FREELANCER"
+      | "HIRER"
+      | "ADMIN"
+      | null;
 
     if (token && refreshToken) {
-      store.dispatch(setCredentials({ token, refreshToken, email }));
+      store.dispatch(setCredentials({ token, refreshToken, email, userId, role }));
     }
   }, []);
 

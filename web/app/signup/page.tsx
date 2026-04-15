@@ -55,13 +55,17 @@ export default function SignupPage() {
       const loginResponse = rawLoginResponse as {
         access_token: string;
         refresh_token: string;
-        user?: { email?: string };
+        user?: { id?: string; email?: string; role?: "FREELANCER" | "HIRER" | "ADMIN" };
       };
 
       const userEmail = loginResponse.user?.email ?? email;
+      const userId = loginResponse.user?.id ?? null;
+      const roleValue = loginResponse.user?.role ?? role;
 
       dispatch(
         setCredentials({
+          userId,
+          role: roleValue,
           token: loginResponse.access_token,
           refreshToken: loginResponse.refresh_token,
           email: userEmail,
@@ -71,6 +75,12 @@ export default function SignupPage() {
       localStorage.setItem("auth_token", loginResponse.access_token);
       localStorage.setItem("auth_refresh_token", loginResponse.refresh_token);
       localStorage.setItem("auth_email", userEmail);
+      if (userId) {
+        localStorage.setItem("auth_user_id", userId);
+      }
+      if (roleValue) {
+        localStorage.setItem("auth_role", roleValue);
+      }
 
       router.push("/dashboard");
     } catch (error) {

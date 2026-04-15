@@ -21,6 +21,8 @@ export default function LoginPage() {
     localStorage.removeItem("auth_token");
     localStorage.removeItem("auth_refresh_token");
     localStorage.removeItem("auth_email");
+    localStorage.removeItem("auth_user_id");
+    localStorage.removeItem("auth_role");
     dispatch(logout());
   }, [dispatch]);
 
@@ -48,13 +50,17 @@ export default function LoginPage() {
       const response = rawResponse as {
         access_token: string;
         refresh_token: string;
-        user?: { email?: string };
+        user?: { id?: string; email?: string; role?: "FREELANCER" | "HIRER" | "ADMIN" };
       };
 
       const userEmail = response.user?.email ?? submittedEmail;
+      const userId = response.user?.id ?? null;
+      const role = response.user?.role ?? null;
 
       dispatch(
         setCredentials({
+          userId,
+          role,
           token: response.access_token,
           refreshToken: response.refresh_token,
           email: userEmail,
@@ -64,6 +70,12 @@ export default function LoginPage() {
       localStorage.setItem("auth_token", response.access_token);
       localStorage.setItem("auth_refresh_token", response.refresh_token);
       localStorage.setItem("auth_email", userEmail);
+      if (userId) {
+        localStorage.setItem("auth_user_id", userId);
+      }
+      if (role) {
+        localStorage.setItem("auth_role", role);
+      }
 
       router.push("/dashboard");
     } catch (error) {
