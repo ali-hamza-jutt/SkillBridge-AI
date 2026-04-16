@@ -9,6 +9,12 @@ export class UtilityService {
     }
   }
 
+  normalizeObjectId(value: string, fieldName: string) {
+    const normalizedValue = value.trim();
+    this.ensureObjectId(normalizedValue, fieldName);
+    return normalizedValue;
+  }
+
   normalize(value: string) {
     return value.trim().replace(/\s+/g, ' ');
   }

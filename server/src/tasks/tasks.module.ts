@@ -17,6 +17,7 @@ import { BidsModule } from '../bids/bids.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { UsersModule } from '../users/users.module';
 import { SkillsModule } from '../skills/skills.module';
+import { UtilityModule } from '../common/utility/utility.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { SkillsModule } from '../skills/skills.module';
     CacheModule,
     forwardRef(() => UsersModule),
     forwardRef(() => SkillsModule),
+    UtilityModule,
     BidsModule,
     NotificationsModule,
   ],

@@ -44,9 +44,4 @@ export class CategoryController {
   getSubCategories(@Param('categoryId') categoryId: string) {
     return this.categoryService.getSubCategoriesByCategory(categoryId);
   }
-
-  @Get('sub-categories/:id')
-  getSubCategoryById(@Param('id') id: string) {
-    return this.categoryService.getSubCategoryById(id);
-  }
 }

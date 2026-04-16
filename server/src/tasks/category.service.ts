@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import {
   Category,
   CategoryDocument,
@@ -13,6 +13,7 @@ import {
   SubCategoryDocument,
 } from './schemas/category.schema';
 import { CreateCategoryDto, CreateSubCategoryDto } from './dto/category.dto';
+import { UtilityService } from '../common/utility/utility.service';
 
 @Injectable()
 export class CategoryService {
@@ -21,6 +22,7 @@ export class CategoryService {
     private categoryModel: Model<CategoryDocument>,
     @InjectModel(SubCategory.name)
     private subCategoryModel: Model<SubCategoryDocument>,
+    private utilityService: UtilityService,
   ) {}
 
   async createCategory(dto: CreateCategoryDto) {
@@ -67,9 +69,16 @@ export class CategoryService {
 
   async createSubCategory(dto: CreateSubCategoryDto) {
     try {
-      await this.ensureCategoryExists(dto.categoryId);
+      const categoryId = this.utilityService.normalizeObjectId(
+        dto.categoryId,
+        'categoryId',
+      );
+      await this.ensureCategoryExists(categoryId);
 
-      const subCategory = new this.subCategoryModel(dto);
+      const subCategory = new this.subCategoryModel({
+        ...dto,
+        categoryId: new Types.ObjectId(categoryId),
+      });
       return await subCategory.save();
     } catch (error:any) {
       if (error instanceof NotFoundException) throw error;
@@ -81,9 +90,24 @@ export class CategoryService {
 
   async getSubCategoriesByCategory(categoryId: string) {
     try {
-      await this.ensureCategoryExists(categoryId);
+      const normalizedCategoryId = this.utilityService.normalizeObjectId(
+        categoryId,
+        'categoryId',
+      );
+      await this.ensureCategoryExists(normalizedCategoryId);
 
-      return await this.subCategoryModel.find({ categoryId }).lean().exec();
+      return await this.subCategoryModel
+        .aggregate([
+          {
+            $match: {
+              $expr: {
+                $eq: [{ $toString: '$categoryId' }, normalizedCategoryId],
+              },
+            },
+          },
+          { $sort: { name: 1 } },
+        ])
+        .exec();
     } catch (error:any) {
       if (error instanceof NotFoundException) throw error;
       throw new BadRequestException(
@@ -92,20 +116,7 @@ export class CategoryService {
     }
   }
 
-  async getSubCategoryById(id: string) {
-    try {
-      const subCategory = await this.subCategoryModel.findById(id);
-      if (!subCategory) {
-        throw new NotFoundException('SubCategory not found');
-      }
-      return subCategory;
-    } catch (error:any) {
-      if (error instanceof NotFoundException) throw error;
-      throw new BadRequestException(
-        `Failed to fetch sub-category: ${error.message}`,
-      );
-    }
-  }
+
 
   async updateSubCategoryName(id: string, name: string) {
     try {
@@ -129,7 +140,13 @@ export class CategoryService {
   }
 
   async ensureCategoryExists(categoryId: string) {
-    const category = await this.categoryModel.findById(categoryId).lean();
+    const normalizedCategoryId = this.utilityService.normalizeObjectId(
+      categoryId,
+      'categoryId',
+    );
+    const category = await this.categoryModel
+      .findById(normalizedCategoryId)
+      .lean();
     if (!category) {
       throw new NotFoundException('Category not found');
     }
