@@ -6,6 +6,7 @@ import { setCredentials } from "@/lib/features/auth/authSlice";
 import { useAppDispatch, useAppSelector } from "@/lib/hooks";
 import {
   useCategoryControllerGetAllCategoriesQuery,
+  useSkillsControllerGetAllQuery,
   useSkillsControllerGetByCategoryQuery,
   useUsersControllerFindMeQuery,
   useUsersControllerUpdateMyProfileMutation,
@@ -49,6 +50,8 @@ export default function DashboardProfilePage() {
     { categoryId: profileCategoryId },
     { skip: !token || role !== "FREELANCER" || !profileCategoryId },
   );
+
+  const { data: allSkillsRaw = [] } = useSkillsControllerGetAllQuery();
 
   const [updateUserProfile, { isLoading: isUpdatingProfile }] = useUsersControllerUpdateMyProfileMutation();
 
@@ -217,6 +220,7 @@ export default function DashboardProfilePage() {
                 onValueChange={setProfileSkillInput}
                 selectedSkills={profileSkills}
                 suggestions={profileSkillsRaw as Array<{ name?: unknown }>}
+                fallbackSuggestions={allSkillsRaw as Array<{ name?: unknown }>}
                 onAddSkill={addProfileSkill}
                 onRemoveSkill={removeProfileSkill}
                 placeholder="Type to search e.g. React"

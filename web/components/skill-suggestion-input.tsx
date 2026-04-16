@@ -9,6 +9,7 @@ type SkillSuggestionInputProps = {
   onValueChange: (value: string) => void;
   selectedSkills: string[];
   suggestions: Array<string | { name?: unknown }>;
+  fallbackSuggestions?: Array<string | { name?: unknown }>;
   onAddSkill: (skill: string) => void;
   onRemoveSkill: (skill: string) => void;
   placeholder: string;
@@ -65,6 +66,7 @@ export default function SkillSuggestionInput({
   onValueChange,
   selectedSkills,
   suggestions,
+  fallbackSuggestions,
   onAddSkill,
   onRemoveSkill,
   placeholder,
@@ -72,7 +74,14 @@ export default function SkillSuggestionInput({
   suggestionLimit = 20,
   noMatchesText = "No matching skills found.",
 }: SkillSuggestionInputProps) {
-  const normalizedSuggestions = useMemo(() => normalizeSuggestions(suggestions), [suggestions]);
+  const normalizedSuggestions = useMemo(() => {
+    const primarySuggestions = normalizeSuggestions(suggestions);
+    if (primarySuggestions.length > 0) {
+      return primarySuggestions;
+    }
+
+    return normalizeSuggestions(fallbackSuggestions ?? []);
+  }, [fallbackSuggestions, suggestions]);
   const filteredSuggestions = useMemo(
     () => filterSuggestions(normalizedSuggestions, selectedSkills, value),
     [normalizedSuggestions, selectedSkills, value],

@@ -569,7 +569,8 @@ export default function DashboardPage() {
                   value={taskSkillInput}
                   onValueChange={setTaskSkillInput}
                   selectedSkills={selectedTaskSkills}
-                  suggestions={selectedCategoryId ? (taskSkillsRaw as Array<{ name?: unknown }>) : (allSkillsRaw as Array<{ name?: unknown }>) }
+                  suggestions={taskSkillsRaw as Array<{ name?: unknown }>}
+                  fallbackSuggestions={allSkillsRaw as Array<{ name?: unknown }>}
                   onAddSkill={addEmployerSkill}
                   onRemoveSkill={removeEmployerSkill}
                   placeholder="Type to search e.g. React"
