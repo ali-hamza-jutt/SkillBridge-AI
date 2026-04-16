@@ -87,19 +87,8 @@ export class SkillsService {
       return [] as string[];
     }
 
-    const allowedSkills = await this.getByCategory(categoryId);
-    const allowedByLower = new Map(allowedSkills.map((skill) => [skill.name.toLowerCase(), skill.name]));
-
-    const invalid = normalizedRequested.filter(
-      (skill) => !allowedByLower.has(skill.toLowerCase()),
-    );
-
-    if (invalid.length > 0) {
-      throw new BadRequestException(
-        `Invalid skills for selected category: ${invalid.join(', ')}`,
-      );
-    }
-
-    return normalizedRequested.map((skill) => allowedByLower.get(skill.toLowerCase()) as string);
+    // Keep skill input flexible for task/profile flows by storing normalized values
+    // without enforcing category-bound skill membership.
+    return normalizedRequested;
   }
 }
