@@ -75,16 +75,6 @@ const injectedRtkApi = api.injectEndpoints({
     >({
       query: (queryArg) => ({ url: `/users/${queryArg.id}` }),
     }),
-    usersControllerUpdate: build.mutation<
-      UsersControllerUpdateApiResponse,
-      UsersControllerUpdateApiArg
-    >({
-      query: (queryArg) => ({
-        url: `/users/${queryArg.id}`,
-        method: "PATCH",
-        body: queryArg.updateUserDto,
-      }),
-    }),
     usersControllerDelete: build.mutation<
       UsersControllerDeleteApiResponse,
       UsersControllerDeleteApiArg
@@ -280,30 +270,12 @@ const injectedRtkApi = api.injectEndpoints({
         body: queryArg.updateSubCategoryNameDto,
       }),
     }),
-    categoryControllerGetSubCategoryById: build.query<
-      CategoryControllerGetSubCategoryByIdApiResponse,
-      CategoryControllerGetSubCategoryByIdApiArg
-    >({
-      query: (queryArg) => ({
-        url: `/categories/sub-categories/${queryArg.id}`,
-      }),
-    }),
     categoryControllerGetSubCategories: build.query<
       CategoryControllerGetSubCategoriesApiResponse,
       CategoryControllerGetSubCategoriesApiArg
     >({
       query: (queryArg) => ({
         url: `/categories/${queryArg.categoryId}/sub-categories`,
-      }),
-    }),
-    bidsControllerUploadAttachments: build.mutation<
-      BidsControllerUploadAttachmentsApiResponse,
-      BidsControllerUploadAttachmentsApiArg
-    >({
-      query: (queryArg) => ({
-        url: `/bids/attachments/upload`,
-        method: "POST",
-        body: queryArg.body,
       }),
     }),
     bidsControllerCreate: build.mutation<
@@ -376,11 +348,6 @@ export type UsersControllerUpdateMyProfileApiArg = {
 export type UsersControllerFindOneApiResponse = unknown;
 export type UsersControllerFindOneApiArg = {
   id: string;
-};
-export type UsersControllerUpdateApiResponse = unknown;
-export type UsersControllerUpdateApiArg = {
-  id: string;
-  updateUserDto: UpdateUserDto;
 };
 export type UsersControllerDeleteApiResponse = unknown;
 export type UsersControllerDeleteApiArg = {
@@ -477,19 +444,9 @@ export type CategoryControllerUpdateSubCategoryNameApiArg = {
   id: string;
   updateSubCategoryNameDto: UpdateSubCategoryNameDto;
 };
-export type CategoryControllerGetSubCategoryByIdApiResponse = unknown;
-export type CategoryControllerGetSubCategoryByIdApiArg = {
-  id: string;
-};
 export type CategoryControllerGetSubCategoriesApiResponse = unknown;
 export type CategoryControllerGetSubCategoriesApiArg = {
   categoryId: string;
-};
-export type BidsControllerUploadAttachmentsApiResponse = unknown;
-export type BidsControllerUploadAttachmentsApiArg = {
-  body: {
-    files?: Blob[];
-  };
 };
 export type BidsControllerCreateApiResponse = unknown;
 export type BidsControllerCreateApiArg = {
@@ -580,14 +537,6 @@ export type CreateSubCategoryDto = {
 export type UpdateSubCategoryNameDto = {
   name: string;
 };
-export type BidAttachmentType = "photo" | "video" | "pdf" | "word";
-export type BidAttachmentDto = {
-  fileName: string;
-  type: BidAttachmentType;
-  url: string;
-  /** Attachment size in MB. Maximum allowed is 100 MB per file. */
-  sizeMb: number;
-};
 export type BidPayoutType = "whole" | "module_based";
 export type BidMilestoneDto = {
   title: string;
@@ -599,8 +548,8 @@ export type CreateBidDto = {
   bidAmount: number;
   /** Freelancer cover letter for this bid. */
   coverLetter: string;
-  /** Optional supporting files. Max 10 attachments, each up to 100 MB. */
-  attachments?: BidAttachmentDto[];
+  /** Optional supporting file URLs. Max 10 attachment URLs. */
+  attachments?: string[];
   payoutType: BidPayoutType;
   /** Required when payoutType is module_based. Include each module detail and payment amount. */
   modules?: BidMilestoneDto[];
@@ -615,7 +564,6 @@ export const {
   useUsersControllerFindMeQuery,
   useUsersControllerUpdateMyProfileMutation,
   useUsersControllerFindOneQuery,
-  useUsersControllerUpdateMutation,
   useUsersControllerDeleteMutation,
   useSkillsControllerGetAllQuery,
   useSkillsControllerCreateMutation,
@@ -640,9 +588,7 @@ export const {
   useCategoryControllerGetCategoryByIdQuery,
   useCategoryControllerCreateSubCategoryMutation,
   useCategoryControllerUpdateSubCategoryNameMutation,
-  useCategoryControllerGetSubCategoryByIdQuery,
   useCategoryControllerGetSubCategoriesQuery,
-  useBidsControllerUploadAttachmentsMutation,
   useBidsControllerCreateMutation,
   useBidsControllerFindByTaskQuery,
   useBidsControllerDeleteMutation,

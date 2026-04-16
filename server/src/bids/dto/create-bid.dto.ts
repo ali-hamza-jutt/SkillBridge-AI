@@ -8,48 +8,15 @@ import {
   IsOptional,
   IsString,
   IsUrl,
-  Max,
   Min,
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export enum BidAttachmentType {
-  PHOTO = 'photo',
-  VIDEO = 'video',
-  PDF = 'pdf',
-  WORD = 'word',
-}
-
 export enum BidPayoutType {
   WHOLE = 'whole',
   MODULE_BASED = 'module_based',
-}
-
-export class BidAttachmentDto {
-  @ApiProperty({ example: 'portfolio-landing-page.jpg' })
-  @IsString()
-  fileName!: string;
-
-  @ApiProperty({ enum: BidAttachmentType, enumName: 'BidAttachmentType' })
-  @IsEnum(BidAttachmentType)
-  type!: BidAttachmentType;
-
-  @ApiProperty({
-    example: 'https://cdn.example.com/uploads/portfolio-landing-page.jpg',
-  })
-  @IsUrl()
-  url!: string;
-
-  @ApiProperty({
-    description: 'Attachment size in MB. Maximum allowed is 100 MB per file.',
-    example: 12.5,
-  })
-  @IsNumber()
-  @Min(0.01)
-  @Max(100)
-  sizeMb!: number;
 }
 
 export class BidMilestoneDto {
@@ -87,16 +54,15 @@ export class CreateBidDto {
   coverLetter!: string;
 
   @ApiPropertyOptional({
-    type: [BidAttachmentDto],
-    description:
-      'Optional supporting files. Max 10 attachments, each up to 100 MB.',
+    type: [String],
+    description: 'Optional supporting file URLs. Max 10 attachment URLs.',
+    example: ['https://res.cloudinary.com/demo/auto/upload/v1/skill-bridge/bid-attachments/sample.pdf'],
   })
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(10)
-  @ValidateNested({ each: true })
-  @Type(() => BidAttachmentDto)
-  attachments?: BidAttachmentDto[];
+  @IsUrl({}, { each: true })
+  attachments?: string[];
 
   @ApiProperty({ enum: BidPayoutType, enumName: 'BidPayoutType' })
   @IsEnum(BidPayoutType)

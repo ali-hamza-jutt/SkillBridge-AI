@@ -4,15 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import { useBidsControllerCreateMutation, useBidsControllerUploadAttachmentsMutation } from "@/lib/api";
+import { useBidsControllerCreateMutation } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
-
-type BidAttachment = {
-  fileName: string;
-  type: "photo" | "video" | "pdf" | "word";
-  url: string;
-  sizeMb: number;
-};
 
 type BidModule = {
   title: string;
@@ -66,21 +59,41 @@ const isAttachmentAccepted = (file: File) => {
   return false;
 };
 
-const inferAttachmentType = (file: File): BidAttachment["type"] => {
-  if (file.type.startsWith("image/")) {
-    return "photo";
+const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+const CLOUDINARY_UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+const uploadFileToCloudinary = async (file: File) => {
+  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
+    throw new Error(
+      "Cloudinary client upload is not configured. Set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME and NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET.",
+    );
   }
-  if (file.type.startsWith("video/")) {
-    return "video";
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+
+  const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to upload attachment to Cloudinary.");
   }
-  if (file.type === "application/pdf") {
-    return "pdf";
+
+  const result = (await response.json()) as {
+    secure_url?: string;
+  };
+
+  if (!result.secure_url) {
+    throw new Error("Cloudinary upload did not return a secure URL.");
   }
-  return "word";
+
+  return result.secure_url;
 };
 
 export default function BidApplicationForm({ taskId, defaultBidAmount }: BidApplicationFormProps) {
-  const [uploadAttachments] = useBidsControllerUploadAttachmentsMutation();
   const [createBid] = useBidsControllerCreateMutation();
   const [files, setFiles] = useState<File[]>([]);
   const [modules, setModules] = useState<ModuleDraft[]>([createEmptyModule()]);
@@ -182,21 +195,12 @@ export default function BidApplicationForm({ taskId, defaultBidAmount }: BidAppl
 
       const finalBidAmount = values.payoutType === "module_based" ? moduleTotal || Number(values.bidAmount) : Number(values.bidAmount);
 
-      let attachments: BidAttachment[] | undefined;
+      let attachments: string[] | undefined;
 
       if (files.length > 0) {
-        const uploadResponse = await uploadAttachments({ body: { files } }).unwrap();
-        attachments = (Array.isArray(uploadResponse) ? uploadResponse : []).map((item: unknown, index: number) => {
-          const file = files[index];
-          const typedItem = item as Partial<BidAttachment> & { fileName?: string; url?: string; sizeMb?: number };
-
-          return {
-            fileName: typedItem.fileName ?? file?.name ?? `attachment-${index + 1}`,
-            type: typedItem.type ?? inferAttachmentType(file),
-            url: typedItem.url ?? "",
-            sizeMb: typedItem.sizeMb ?? Number((file.size / (1024 * 1024)).toFixed(2)),
-          };
-        });
+        attachments = await Promise.all(
+          files.map(async (file) => uploadFileToCloudinary(file)),
+        );
       }
 
       await createBid({

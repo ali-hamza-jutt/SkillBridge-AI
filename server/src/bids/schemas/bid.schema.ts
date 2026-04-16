@@ -1,26 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
-import {
-  BidAttachmentType,
-  BidPayoutType,
-} from '../dto/create-bid.dto';
+import { BidPayoutType } from '../dto/create-bid.dto';
 
 export type BidDocument = Bid & Document;
-
-@Schema({ _id: false })
-export class BidAttachment {
-  @Prop({ required: true })
-  fileName!: string;
-
-  @Prop({ required: true, enum: Object.values(BidAttachmentType) })
-  type!: BidAttachmentType;
-
-  @Prop({ required: true })
-  url!: string;
-
-  @Prop({ required: true, min: 0.01, max: 100 })
-  sizeMb!: number;
-}
 
 @Schema({ _id: false })
 export class BidMilestone {
@@ -48,8 +30,8 @@ export class Bid {
   @Prop({ required: true })
   coverLetter!: string;
 
-  @Prop({ type: [BidAttachment], default: [] })
-  attachments!: BidAttachment[];
+  @Prop({ type: [String], default: [] })
+  attachments!: string[];
 
   @Prop({ required: true, enum: Object.values(BidPayoutType) })
   payoutType!: BidPayoutType;
