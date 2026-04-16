@@ -1,13 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { KeyboardEvent, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import { logout, setCredentials } from "@/lib/features/auth/authSlice";
-import { useAppDispatch, useAppSelector } from "@/lib/hooks";
+import { useAppSelector } from "@/lib/hooks";
 import {
   useCategoryControllerGetAllCategoriesQuery,
   useCategoryControllerGetSubCategoriesQuery,
@@ -16,10 +14,9 @@ import {
   useTasksControllerCreateMutation,
   useTasksControllerFindAllQuery,
   useTasksControllerGetMatchesQuery,
-  useUsersControllerFindMeQuery,
-  useUsersControllerUpdateMyProfileMutation,
 } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
+import DashboardNavbar from "@/components/dashboard-navbar";
 
 type BudgetType = "hourly" | "fixed";
 type ProjectType = "ongoing" | "one_time";
@@ -34,15 +31,6 @@ type SubCategory = {
   _id: string;
   name: string;
   categoryId: string;
-};
-
-type UserProfile = {
-  _id: string;
-  name: string;
-  email: string;
-  role: "FREELANCER" | "HIRER" | "ADMIN";
-  categoryId?: string;
-  skills?: string[];
 };
 
 type Task = {
@@ -140,9 +128,7 @@ const createTaskSchema: yup.ObjectSchema<CreateTaskFormValues> = yup
   .required();
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const dispatch = useAppDispatch();
-  const { token, role, userId, categoryId, skills, email } = useAppSelector((state) => state.auth);
+  const { token, role, userId, categoryId, skills } = useAppSelector((state) => state.auth);
 
   const [activeFilter, setActiveFilter] = useState<JobFilter>("ALL");
   const [isPostJobOpen, setIsPostJobOpen] = useState(false);
@@ -150,13 +136,6 @@ export default function DashboardPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [taskSkillInput, setTaskSkillInput] = useState("");
   const [selectedTaskSkills, setSelectedTaskSkills] = useState<string[]>([]);
-
-  const [profileName, setProfileName] = useState("");
-  const [profileCategoryId, setProfileCategoryId] = useState("");
-  const [profileSkills, setProfileSkills] = useState<string[]>([]);
-  const [profileSkillInput, setProfileSkillInput] = useState("");
-  const [profileStatus, setProfileStatus] = useState<string | null>(null);
-  const [profileError, setProfileError] = useState<string | null>(null);
 
   const {
     register,
@@ -220,17 +199,7 @@ export default function DashboardPage() {
 
   const { data: allSkillsRaw = [] } = useSkillsControllerGetAllQuery();
 
-  const { data: myProfileRaw } = useUsersControllerFindMeQuery(undefined, {
-    skip: !token,
-  });
-
-  const { data: profileSkillsRaw = [] } = useSkillsControllerGetByCategoryQuery(
-    { categoryId: profileCategoryId },
-    { skip: !token || role !== "FREELANCER" || !profileCategoryId },
-  );
-
   const [createTask, { isLoading: isCreatingTask }] = useTasksControllerCreateMutation();
-  const [updateUserProfile, { isLoading: isUpdatingProfile }] = useUsersControllerUpdateMyProfileMutation();
 
   const categories = categoriesRaw as Category[];
   const subCategories = subCategoriesRaw as SubCategory[];
@@ -239,18 +208,6 @@ export default function DashboardPage() {
   const categoryTaskSkills = toUniqueSkillNames(taskSkillsRaw);
   const allSkillNames = toUniqueSkillNames(allSkillsRaw);
   const suggestedTaskSkills = categoryTaskSkills.length > 0 ? categoryTaskSkills : allSkillNames;
-  const suggestedProfileSkills = toUniqueSkillNames(profileSkillsRaw);
-  const myProfile = (myProfileRaw as UserProfile | undefined) ?? undefined;
-
-  useEffect(() => {
-    if (!myProfile || role !== "FREELANCER") {
-      return;
-    }
-
-    setProfileName(myProfile.name ?? "");
-    setProfileCategoryId(myProfile.categoryId ?? "");
-    setProfileSkills(myProfile.skills ?? []);
-  }, [myProfile, role]);
 
   useEffect(() => {
     setSelectedTaskSkills([]);
@@ -281,22 +238,6 @@ export default function DashboardPage() {
     return filterSuggestions(suggestedTaskSkills, selectedTaskSkills, taskSkillInput);
   }, [selectedTaskSkills, suggestedTaskSkills, taskSkillInput]);
 
-  const filteredProfileSkillSuggestions = useMemo(() => {
-    return filterSuggestions(suggestedProfileSkills, profileSkills, profileSkillInput);
-  }, [profileSkillInput, profileSkills, suggestedProfileSkills]);
-
-  const signOut = () => {
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("auth_refresh_token");
-    localStorage.removeItem("auth_email");
-    localStorage.removeItem("auth_user_id");
-    localStorage.removeItem("auth_role");
-    localStorage.removeItem("auth_category_id");
-    localStorage.removeItem("auth_skills");
-    dispatch(logout());
-    router.push("/login");
-  };
-
   const addEmployerSkill = (skill: string) => {
     if (!selectedTaskSkills.includes(skill)) {
       setSelectedTaskSkills((prev) => [...prev, skill]);
@@ -323,34 +264,6 @@ export default function DashboardPage() {
 
     event.preventDefault();
     addMatchingTaskSkillFromInput();
-  };
-
-  const addProfileSkill = (skill: string) => {
-    if (!profileSkills.includes(skill)) {
-      setProfileSkills((prev) => [...prev, skill]);
-    }
-    setProfileSkillInput("");
-  };
-
-  const removeProfileSkill = (skill: string) => {
-    setProfileSkills((prev) => prev.filter((s) => s !== skill));
-  };
-
-  const addMatchingProfileSkillFromInput = () => {
-    const skillToAdd = pickMatchingSuggestion(profileSkillInput, filteredProfileSkillSuggestions);
-
-    if (skillToAdd) {
-      addProfileSkill(skillToAdd);
-    }
-  };
-
-  const onProfileSkillInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key !== "Enter") {
-      return;
-    }
-
-    event.preventDefault();
-    addMatchingProfileSkillFromInput();
   };
 
   const onCreateTask = async (values: CreateTaskFormValues) => {
@@ -394,47 +307,6 @@ export default function DashboardPage() {
       }, 900);
     } catch (error) {
       setFormError(getApiErrorMessage(error, "Failed to create task. Please try again."));
-    }
-  };
-
-  const onSaveFreelancerProfile = async () => {
-    if (!userId || !token) {
-      return;
-    }
-
-    try {
-      setProfileError(null);
-      setProfileStatus(null);
-
-      await updateUserProfile({
-        updateUserDto: {
-          name: profileName,
-          categoryId: profileCategoryId,
-          skills: profileSkills,
-        },
-      }).unwrap();
-
-      dispatch(
-        setCredentials({
-          userId,
-          role,
-          categoryId: profileCategoryId,
-          skills: profileSkills,
-          token,
-          email,
-        }),
-      );
-
-      if (profileCategoryId) {
-        localStorage.setItem("auth_category_id", profileCategoryId);
-      } else {
-        localStorage.removeItem("auth_category_id");
-      }
-      localStorage.setItem("auth_skills", JSON.stringify(profileSkills));
-
-      setProfileStatus("Profile updated successfully.");
-    } catch (error) {
-      setProfileError(getApiErrorMessage(error, "Failed to update profile."));
     }
   };
 
@@ -501,33 +373,9 @@ export default function DashboardPage() {
             "radial-gradient(circle at 88% 0%, color-mix(in srgb, var(--color-accent-soft) 50%, transparent), transparent 34%), linear-gradient(165deg, var(--color-bg), color-mix(in srgb, var(--color-surface-strong) 84%, var(--color-bg)))",
         }}
       >
-        <header className="sticky top-0 z-20 border-b border-[color-mix(in_srgb,var(--color-border)_88%,transparent)] bg-[color-mix(in_srgb,var(--color-bg)_84%,transparent)] backdrop-blur-xl">
-          <div className="mx-auto flex w-[min(100%-2rem,1200px)] items-center justify-between gap-3 py-3">
-            <Link href="/" className="text-lg font-bold tracking-tight text-[var(--color-text-main)] no-underline">
-              SkillBridge
-            </Link>
-            <div className="flex flex-wrap items-center gap-2">
-              <button className="rounded-full border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-brand-soft)_66%,var(--color-surface))] px-4 py-2 text-sm font-semibold text-[var(--color-brand-strong)]" type="button">
-                Jobs
-              </button>
-              <button className="rounded-full border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_88%,transparent)] px-4 py-2 text-sm font-semibold text-[var(--color-text-main)]" type="button">
-                Messages
-              </button>
-              <button className="rounded-full border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_88%,transparent)] px-4 py-2 text-sm font-semibold text-[var(--color-text-main)]" type="button">
-                Profile
-              </button>
-              <button
-                onClick={signOut}
-                className="inline-flex items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_88%,var(--color-brand-soft))] px-5 py-2.5 text-sm font-semibold text-[var(--color-text-main)]"
-                type="button"
-              >
-                Log Out
-              </button>
-            </div>
-          </div>
-        </header>
+        <DashboardNavbar role={role} activeItem="jobs" />
 
-        <div className="mx-auto grid w-[min(100%-2rem,1200px)] gap-5 py-5 md:grid-cols-[1.6fr_1fr]">
+        <div className="mx-auto grid w-[min(100%-2rem,1200px)] gap-5 py-5">
           <section className="grid gap-4">
             {isLoadingMatchedTasks ? <p className="text-sm text-[var(--color-text-muted)]">Loading jobs...</p> : null}
             {!isLoadingMatchedTasks && matchedTasks.length === 0 ? (
@@ -568,109 +416,6 @@ export default function DashboardPage() {
               </article>
             ))}
           </section>
-
-          <aside className="rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_94%,transparent)] p-5 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)]">
-            <h2 className="text-xl font-bold tracking-tight text-[var(--color-text-main)]">Profile</h2>
-            <p className="mt-2 text-sm text-[var(--color-text-muted)]">Keep your category and skills updated to get better job matches.</p>
-
-            <div className="mt-4 grid gap-4">
-              <div>
-                <label className={labelClassName} htmlFor="profileName">Name</label>
-                <input
-                  id="profileName"
-                  value={profileName}
-                  onChange={(e) => setProfileName(e.target.value)}
-                  className={inputClassName}
-                  placeholder="Your name"
-                />
-              </div>
-
-              <div>
-                <label className={labelClassName} htmlFor="profileCategory">Category</label>
-                <select
-                  id="profileCategory"
-                  value={profileCategoryId}
-                  onChange={(e) => {
-                    setProfileCategoryId(e.target.value);
-                    setProfileSkills([]);
-                    setProfileSkillInput("");
-                  }}
-                  className={inputClassName}
-                >
-                  <option value="">Select category</option>
-                  {categories.map((category) => (
-                    <option key={category._id} value={category._id}>{category.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className={labelClassName} htmlFor="profileSkills">Skills</label>
-                <input
-                  id="profileSkills"
-                  className={inputClassName}
-                  value={profileSkillInput}
-                  onChange={(e) => setProfileSkillInput(e.target.value)}
-                  onKeyDown={onProfileSkillInputKeyDown}
-                  placeholder="Type to search e.g. React"
-                  disabled={!profileCategoryId}
-                />
-
-                {profileCategoryId && profileSkillInput.trim().length > 0 && filteredProfileSkillSuggestions.length > 0 ? (
-                  <div className="mt-2 flex max-h-40 flex-wrap gap-2 overflow-auto">
-                    {filteredProfileSkillSuggestions.slice(0, 20).map((skill) => (
-                      <button
-                        key={skill}
-                        type="button"
-                        className="rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_88%,transparent)] px-3 py-1 text-xs font-semibold text-[var(--color-text-main)]"
-                        onClick={() => addProfileSkill(skill)}
-                      >
-                        {skill}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-
-                {profileSkills.length ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {profileSkills.map((skill) => (
-                      <span key={skill} className="inline-flex items-center gap-1 rounded-full border border-[color-mix(in_srgb,var(--color-brand)_24%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_68%,var(--color-surface))] px-2.5 py-1 text-xs font-semibold text-[color-mix(in_srgb,var(--color-brand-strong)_88%,var(--color-text-main))]">
-                        {skill}
-                        <button
-                          type="button"
-                          className="rounded-full px-1 text-[var(--color-brand-strong)]"
-                          onClick={() => removeProfileSkill(skill)}
-                          aria-label={`Remove ${skill}`}
-                        >
-                          x
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-
-              {profileError ? (
-                <p className="rounded-xl border border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-danger-soft)_80%,var(--color-surface))] px-3 py-2 text-sm text-[var(--color-danger)]">
-                  {profileError}
-                </p>
-              ) : null}
-              {profileStatus ? (
-                <p className="rounded-xl border border-[color-mix(in_srgb,var(--color-brand)_32%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_72%,var(--color-surface))] px-3 py-2 text-sm text-[var(--color-brand-strong)]">
-                  {profileStatus}
-                </p>
-              ) : null}
-
-              <button
-                type="button"
-                onClick={onSaveFreelancerProfile}
-                disabled={isUpdatingProfile}
-                className="inline-flex items-center justify-center rounded-full border border-transparent bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {isUpdatingProfile ? "Saving..." : "Save Profile"}
-              </button>
-            </div>
-          </aside>
         </div>
       </main>
     );
@@ -684,33 +429,14 @@ export default function DashboardPage() {
           "radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--color-brand-soft) 50%, transparent), transparent 34%), radial-gradient(circle at 96% 8%, color-mix(in srgb, var(--color-accent-soft) 42%, transparent), transparent 44%), linear-gradient(160deg, var(--color-bg), color-mix(in srgb, var(--color-surface-strong) 86%, var(--color-bg)))",
       }}
     >
-      <header className="sticky top-0 z-20 border-b border-[color-mix(in_srgb,var(--color-border)_88%,transparent)] bg-[color-mix(in_srgb,var(--color-bg)_84%,transparent)] backdrop-blur-xl">
-        <div className="mx-auto flex w-[min(100%-2rem,1200px)] items-center justify-between gap-3 py-3">
-          <Link href="/" className="text-lg font-bold tracking-tight text-[var(--color-text-main)] no-underline">
-            SkillBridge
-          </Link>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              className="inline-flex items-center justify-center rounded-full border border-transparent bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-brand-strong)_92%,#0d7000),var(--color-brand))]"
-              onClick={() => {
-                setFormError(null);
-                setFormStatus(null);
-                setIsPostJobOpen(true);
-              }}
-            >
-              Post a Job
-            </button>
-            <button
-              onClick={signOut}
-              className="inline-flex items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_88%,var(--color-brand-soft))] px-5 py-2.5 text-sm font-semibold text-[var(--color-text-main)] transition hover:bg-[color-mix(in_srgb,var(--color-surface)_75%,var(--color-brand-soft))]"
-              type="button"
-            >
-              Log Out
-            </button>
-          </div>
-        </div>
-      </header>
+      <DashboardNavbar
+        role={role}
+        onPostJob={() => {
+          setFormError(null);
+          setFormStatus(null);
+          setIsPostJobOpen(true);
+        }}
+      />
 
       <div className="mx-auto grid w-[min(100%-2rem,1200px)] gap-5 py-5">
         <section className="rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_92%,transparent)] p-4 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)] backdrop-blur-md md:p-5">
