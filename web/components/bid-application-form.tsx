@@ -30,6 +30,12 @@ type ModuleDraft = {
   amount: string;
 };
 
+type UploadedAttachment = {
+  fileName: string;
+  sizeMb: number;
+  url: string;
+};
+
 const bidApplicationSchema: yup.ObjectSchema<BidApplicationFormValues> = yup
   .object({
     bidAmount: yup.number().typeError("Bid amount must be a number").required("Bid amount is required").positive("Bid amount must be greater than zero"),
@@ -60,26 +66,72 @@ const isAttachmentAccepted = (file: File) => {
 };
 
 const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-const CLOUDINARY_UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+const CLOUDINARY_FOLDER = process.env.NEXT_PUBLIC_CLOUDINARY_FOLDER || 'skill-bridge/bid-attachments';
 
-const uploadFileToCloudinary = async (file: File) => {
-  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
+const getCloudinarySignature = async () => {
+  const timestamp = Math.floor(Date.now() / 1000);
+
+  const signatureResponse = await fetch('/api/cloudinary/signature', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      timestamp,
+      folder: CLOUDINARY_FOLDER,
+    }),
+  });
+
+  if (!signatureResponse.ok) {
+    const error = await signatureResponse.json();
     throw new Error(
-      "Cloudinary client upload is not configured. Set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME and NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET.",
+      error?.message || 'Failed to get Cloudinary upload signature.',
     );
   }
 
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+  const signatureData = (await signatureResponse.json()) as {
+    signature?: string;
+    timestamp?: number;
+    api_key?: string;
+  };
 
-  const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, {
-    method: "POST",
-    body: formData,
-  });
+  if (!signatureData.signature || !signatureData.api_key) {
+    throw new Error('Invalid signature response from server.');
+  }
+
+  return signatureData;
+};
+
+const uploadFileToCloudinary = async (file: File) => {
+  if (!CLOUDINARY_CLOUD_NAME) {
+    throw new Error(
+      'Cloudinary cloud name is not configured. Set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME.',
+    );
+  }
+
+  const signatureData = await getCloudinarySignature();
+  const signature = signatureData.signature!;
+  const timestamp = signatureData.timestamp!;
+  const api_key = signatureData.api_key!;
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('folder', CLOUDINARY_FOLDER);
+  formData.append('timestamp', String(timestamp));
+  formData.append('signature', signature);
+  formData.append('api_key', api_key);
+
+  const response = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`,
+    {
+      method: 'POST',
+      body: formData,
+    },
+  );
 
   if (!response.ok) {
-    throw new Error("Failed to upload attachment to Cloudinary.");
+    const error = await response.json();
+    throw new Error(
+      error?.error?.message || 'Failed to upload attachment to Cloudinary.',
+    );
   }
 
   const result = (await response.json()) as {
@@ -87,7 +139,7 @@ const uploadFileToCloudinary = async (file: File) => {
   };
 
   if (!result.secure_url) {
-    throw new Error("Cloudinary upload did not return a secure URL.");
+    throw new Error('Cloudinary upload did not return a secure URL.');
   }
 
   return result.secure_url;
@@ -95,7 +147,8 @@ const uploadFileToCloudinary = async (file: File) => {
 
 export default function BidApplicationForm({ taskId, defaultBidAmount }: BidApplicationFormProps) {
   const [createBid] = useBidsControllerCreateMutation();
-  const [files, setFiles] = useState<File[]>([]);
+  const [uploadedAttachments, setUploadedAttachments] = useState<UploadedAttachment[]>([]);
+  const [isUploadingAttachments, setIsUploadingAttachments] = useState(false);
   const [modules, setModules] = useState<ModuleDraft[]>([createEmptyModule()]);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -161,15 +214,72 @@ export default function BidApplicationForm({ taskId, defaultBidAmount }: BidAppl
     });
   };
 
-  const onFilesChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const onFilesChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const nextFiles = Array.from(event.target.files ?? []);
-    const acceptedFiles = nextFiles.filter((file) => isAttachmentAccepted(file));
-    setFiles((previousFiles) => [...previousFiles, ...acceptedFiles].slice(0, 10));
     event.target.value = "";
+
+    if (nextFiles.length === 0) {
+      return;
+    }
+
+    setError(null);
+    setStatus(null);
+
+    const acceptedFiles = nextFiles.filter((file) => isAttachmentAccepted(file));
+    const availableSlots = Math.max(0, 10 - uploadedAttachments.length);
+    const filesToUpload = acceptedFiles.slice(0, availableSlots);
+
+    if (filesToUpload.length === 0) {
+      setError("Attachment limit reached. You can upload up to 10 files.");
+      return;
+    }
+
+    setIsUploadingAttachments(true);
+    try {
+      const results = await Promise.allSettled(
+        filesToUpload.map(async (file) => {
+          const url = await uploadFileToCloudinary(file);
+          return {
+            fileName: file.name,
+            sizeMb: Number((file.size / (1024 * 1024)).toFixed(2)),
+            url,
+          } satisfies UploadedAttachment;
+        }),
+      );
+
+      const successfulUploads = results
+        .filter((result): result is PromiseFulfilledResult<UploadedAttachment> => result.status === "fulfilled")
+        .map((result) => result.value);
+
+      const failedUploads = results.length - successfulUploads.length;
+
+      if (successfulUploads.length > 0) {
+        setUploadedAttachments((previousAttachments) => [...previousAttachments, ...successfulUploads]);
+      }
+
+      const ignoredUnsupported = nextFiles.length - acceptedFiles.length;
+      const ignoredByLimit = acceptedFiles.length - filesToUpload.length;
+
+      if (failedUploads > 0 || ignoredUnsupported > 0 || ignoredByLimit > 0) {
+        const details: string[] = [];
+        if (failedUploads > 0) {
+          details.push(`${failedUploads} failed to upload`);
+        }
+        if (ignoredUnsupported > 0) {
+          details.push(`${ignoredUnsupported} unsupported`);
+        }
+        if (ignoredByLimit > 0) {
+          details.push(`${ignoredByLimit} skipped due to 10-file limit`);
+        }
+        setError(`Some attachments were not added (${details.join(", ")}).`);
+      }
+    } finally {
+      setIsUploadingAttachments(false);
+    }
   };
 
   const removeFile = (index: number) => {
-    setFiles((previousFiles) => previousFiles.filter((_, fileIndex) => fileIndex !== index));
+    setUploadedAttachments((previousAttachments) => previousAttachments.filter((_, fileIndex) => fileIndex !== index));
   };
 
   const onSubmit = async (values: BidApplicationFormValues) => {
@@ -195,13 +305,12 @@ export default function BidApplicationForm({ taskId, defaultBidAmount }: BidAppl
 
       const finalBidAmount = values.payoutType === "module_based" ? moduleTotal || Number(values.bidAmount) : Number(values.bidAmount);
 
-      let attachments: string[] | undefined;
-
-      if (files.length > 0) {
-        attachments = await Promise.all(
-          files.map(async (file) => uploadFileToCloudinary(file)),
-        );
+      if (isUploadingAttachments) {
+        setError("Please wait until attachment upload finishes.");
+        return;
       }
+
+      const attachments = uploadedAttachments.length > 0 ? uploadedAttachments.map((attachment) => attachment.url) : undefined;
 
       await createBid({
         createBidDto: {
@@ -215,7 +324,7 @@ export default function BidApplicationForm({ taskId, defaultBidAmount }: BidAppl
       }).unwrap();
 
       setStatus("Your bid was submitted successfully.");
-      setFiles([]);
+      setUploadedAttachments([]);
       setModules([createEmptyModule()]);
       reset({
         bidAmount: defaultBidAmount,
@@ -368,17 +477,21 @@ export default function BidApplicationForm({ taskId, defaultBidAmount }: BidAppl
           </div>
           <label className="inline-flex cursor-pointer items-center rounded-full border border-[var(--color-border)] px-3 py-1.5 text-sm font-semibold text-[var(--color-text-main)] transition hover:border-[var(--color-brand)] hover:text-[var(--color-brand-strong)]">
             Add files
-            <input type="file" multiple className="hidden" onChange={onFilesChange} />
+            <input type="file" multiple className="hidden" onChange={onFilesChange} disabled={isUploadingAttachments} />
           </label>
         </div>
 
-        {files.length ? (
+        {isUploadingAttachments ? (
+          <p className="mt-4 text-sm text-[var(--color-text-muted)]">Uploading attachments...</p>
+        ) : null}
+
+        {uploadedAttachments.length ? (
           <div className="mt-4 grid gap-2">
-            {files.map((file, index) => (
-              <div key={`${file.name}-${index}`} className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm">
+            {uploadedAttachments.map((attachment, index) => (
+              <div key={`${attachment.fileName}-${index}`} className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 text-sm">
                 <div>
-                  <p className="m-0 font-medium text-[var(--color-text-main)]">{file.name}</p>
-                  <p className="m-0 text-xs text-[var(--color-text-muted)]">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
+                  <p className="m-0 font-medium text-[var(--color-text-main)]">{attachment.fileName}</p>
+                  <p className="m-0 text-xs text-[var(--color-text-muted)]">{attachment.sizeMb.toFixed(2)} MB</p>
                 </div>
                 <button
                   type="button"
@@ -399,10 +512,10 @@ export default function BidApplicationForm({ taskId, defaultBidAmount }: BidAppl
       <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || isUploadingAttachments}
           className="inline-flex items-center justify-center rounded-full bg-[var(--color-brand)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--color-brand-strong)] disabled:cursor-not-allowed disabled:opacity-70"
         >
-          {isSubmitting ? "Submitting..." : "Submit bid"}
+          {isUploadingAttachments ? "Uploading attachments..." : isSubmitting ? "Submitting..." : "Submit bid"}
         </button>
       </div>
     </form>

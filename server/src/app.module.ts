@@ -9,6 +9,7 @@ import { UsersModule } from './users/users.module';
 import { BidsModule } from './bids/bids.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SkillsModule } from './skills/skills.module';
+import { CloudinaryModule } from './cloudinary/cloudinary.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { SkillsModule } from './skills/skills.module';
     SkillsModule,
     BidsModule,
     NotificationsModule,
+    CloudinaryModule,
   ],
   controllers: [AppController],
   providers: [AppService],
