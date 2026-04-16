@@ -315,6 +315,16 @@ const injectedRtkApi = api.injectEndpoints({
         method: "PATCH",
       }),
     }),
+    cloudinaryControllerGenerateUploadSignature: build.mutation<
+      CloudinaryControllerGenerateUploadSignatureApiResponse,
+      CloudinaryControllerGenerateUploadSignatureApiArg
+    >({
+      query: (queryArg) => ({
+        url: `/cloudinary/signature`,
+        method: "POST",
+        body: queryArg.generateUploadSignatureDto,
+      }),
+    }),
   }),
   overrideExisting: false,
 });
@@ -466,6 +476,10 @@ export type NotificationsControllerMarkAsReadApiResponse = unknown;
 export type NotificationsControllerMarkAsReadApiArg = {
   id: string;
 };
+export type CloudinaryControllerGenerateUploadSignatureApiResponse = unknown;
+export type CloudinaryControllerGenerateUploadSignatureApiArg = {
+  generateUploadSignatureDto: GenerateUploadSignatureDto;
+};
 export type SignupDto = {
   name: string;
   email: string;
@@ -554,6 +568,12 @@ export type CreateBidDto = {
   /** Required when payoutType is module_based. Include each module detail and payment amount. */
   modules?: BidMilestoneDto[];
 };
+export type GenerateUploadSignatureDto = {
+  /** Unix timestamp in seconds */
+  timestamp: number;
+  /** Optional folder path in Cloudinary */
+  folder?: string;
+};
 export const {
   useAppControllerGetHelloQuery,
   useAuthControllerSignupMutation,
@@ -594,4 +614,5 @@ export const {
   useBidsControllerDeleteMutation,
   useNotificationsControllerGetUserNotificationsQuery,
   useNotificationsControllerMarkAsReadMutation,
+  useCloudinaryControllerGenerateUploadSignatureMutation,
 } = injectedRtkApi;

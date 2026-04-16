@@ -1,6 +1,7 @@
 import { Controller, Post, Body, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
 import { CloudinaryService } from './cloudinary.service';
+import { GenerateUploadSignatureDto } from './dto/generate-upload-signature.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @ApiTags('Cloudinary')
@@ -15,23 +16,18 @@ export class CloudinaryController {
     description:
       'Generates a signed upload token for secure direct browser uploads to Cloudinary.',
   })
-  generateUploadSignature(
-    @Body()
-    body: {
-      timestamp: number;
-      folder?: string;
-    },
-  ) {
+  @ApiBody({ type: GenerateUploadSignatureDto })
+  generateUploadSignature(@Body() dto: GenerateUploadSignatureDto) {
     const params = {
-      timestamp: body.timestamp,
-      ...(body.folder && { folder: body.folder }),
+      timestamp: dto.timestamp,
+      ...(dto.folder && { folder: dto.folder }),
     };
 
     const signature = this.cloudinaryService.generateSignature(params);
 
     return {
       signature,
-      timestamp: body.timestamp,
+      timestamp: dto.timestamp,
       api_key: process.env.CLOUDINARY_API_KEY,
     };
   }
