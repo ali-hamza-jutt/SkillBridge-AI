@@ -33,7 +33,7 @@ export default function DashboardNavbar({ role, activeItem, onPostJob }: Dashboa
   return (
     <header className="sticky top-0 z-20 border-b border-[color-mix(in_srgb,var(--color-border)_88%,transparent)] bg-[color-mix(in_srgb,var(--color-bg)_84%,transparent)] backdrop-blur-xl">
       <div className="mx-auto flex w-[min(100%-2rem,1200px)] items-center justify-between gap-3 py-3">
-        <Link href="/" className="text-lg font-bold tracking-tight text-[var(--color-text-main)] no-underline">
+        <Link href="/dashboard" className="text-lg font-bold tracking-tight text-[var(--color-text-main)] no-underline">
           SkillBridge
         </Link>
 

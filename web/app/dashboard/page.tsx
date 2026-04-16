@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { KeyboardEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -17,6 +17,7 @@ import {
 } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import DashboardNavbar from "@/components/dashboard-navbar";
+import SkillSuggestionInput from "@/components/skill-suggestion-input";
 
 type BudgetType = "hourly" | "fixed";
 type ProjectType = "ongoing" | "one_time";
@@ -60,43 +61,6 @@ type CreateTaskFormValues = {
 };
 
 type JobFilter = "ALL" | "OPEN" | "ONGOING";
-
-const toUniqueSkillNames = (raw: unknown): string[] => {
-  if (!Array.isArray(raw)) {
-    return [];
-  }
-
-  const names = raw
-    .map((item) => {
-      if (!item || typeof item !== "object") {
-        return "";
-      }
-
-      const value = (item as { name?: unknown }).name;
-      return typeof value === "string" ? value.trim() : "";
-    })
-    .filter((name) => name.length > 0);
-
-  return [...new Set(names)];
-};
-
-const filterSuggestions = (allSkills: string[], selectedSkills: string[], input: string) => {
-  const query = input.trim().toLowerCase();
-  const selected = new Set(selectedSkills.map((skill) => skill.toLowerCase()));
-
-  return allSkills.filter(
-    (skill) => !selected.has(skill.toLowerCase()) && (query.length === 0 || skill.toLowerCase().includes(query)),
-  );
-};
-
-const pickMatchingSuggestion = (input: string, suggestions: string[]) => {
-  const query = input.trim().toLowerCase();
-  if (!query) {
-    return undefined;
-  }
-
-  return suggestions.find((skill) => skill.toLowerCase() === query) ?? suggestions[0];
-};
 
 const createTaskSchema: yup.ObjectSchema<CreateTaskFormValues> = yup
   .object({
@@ -205,9 +169,6 @@ export default function DashboardPage() {
   const subCategories = subCategoriesRaw as SubCategory[];
   const allTasks = (allTasksRaw as Task[] | undefined) ?? [];
   const matchedTasks = (matchedTasksRaw as Task[] | undefined) ?? [];
-  const categoryTaskSkills = toUniqueSkillNames(taskSkillsRaw);
-  const allSkillNames = toUniqueSkillNames(allSkillsRaw);
-  const suggestedTaskSkills = categoryTaskSkills.length > 0 ? categoryTaskSkills : allSkillNames;
 
   useEffect(() => {
     setSelectedTaskSkills([]);
@@ -234,10 +195,6 @@ export default function DashboardPage() {
     return myTasks;
   }, [activeFilter, myTasks]);
 
-  const filteredTaskSkillSuggestions = useMemo(() => {
-    return filterSuggestions(suggestedTaskSkills, selectedTaskSkills, taskSkillInput);
-  }, [selectedTaskSkills, suggestedTaskSkills, taskSkillInput]);
-
   const addEmployerSkill = (skill: string) => {
     if (!selectedTaskSkills.includes(skill)) {
       setSelectedTaskSkills((prev) => [...prev, skill]);
@@ -247,23 +204,6 @@ export default function DashboardPage() {
 
   const removeEmployerSkill = (skill: string) => {
     setSelectedTaskSkills((prev) => prev.filter((s) => s !== skill));
-  };
-
-  const addMatchingTaskSkillFromInput = () => {
-    const skillToAdd = pickMatchingSuggestion(taskSkillInput, filteredTaskSkillSuggestions);
-
-    if (skillToAdd) {
-      addEmployerSkill(skillToAdd);
-    }
-  };
-
-  const onTaskSkillInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key !== "Enter") {
-      return;
-    }
-
-    event.preventDefault();
-    addMatchingTaskSkillFromInput();
   };
 
   const onCreateTask = async (values: CreateTaskFormValues) => {
@@ -623,53 +563,19 @@ export default function DashboardPage() {
               </div>
 
               <div>
-                <label className={labelClassName} htmlFor="requiredSkills">Required Skills</label>
-                <input
-                  id="requiredSkills"
-                  className={inputClassName}
+                <SkillSuggestionInput
+                  label="Required Skills"
+                  inputId="requiredSkills"
                   value={taskSkillInput}
-                  onChange={(e) => setTaskSkillInput(e.target.value)}
-                  onKeyDown={onTaskSkillInputKeyDown}
+                  onValueChange={setTaskSkillInput}
+                  selectedSkills={selectedTaskSkills}
+                  suggestions={selectedCategoryId ? (taskSkillsRaw as Array<{ name?: unknown }>) : (allSkillsRaw as Array<{ name?: unknown }>) }
+                  onAddSkill={addEmployerSkill}
+                  onRemoveSkill={removeEmployerSkill}
                   placeholder="Type to search e.g. React"
                   disabled={!selectedCategoryId}
+                  suggestionLimit={25}
                 />
-
-                {selectedCategoryId && taskSkillInput.trim().length > 0 && filteredTaskSkillSuggestions.length > 0 ? (
-                  <div className="mt-2 flex max-h-40 flex-wrap gap-2 overflow-auto">
-                    {filteredTaskSkillSuggestions.slice(0, 25).map((skill) => (
-                      <button
-                        key={skill}
-                        type="button"
-                        className="rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_88%,transparent)] px-3 py-1 text-xs font-semibold text-[var(--color-text-main)]"
-                        onClick={() => addEmployerSkill(skill)}
-                      >
-                        {skill}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-
-                {selectedCategoryId && taskSkillInput.trim().length > 0 && filteredTaskSkillSuggestions.length === 0 ? (
-                  <p className="mt-2 text-sm text-[var(--color-text-muted)]">No matching skills found.</p>
-                ) : null}
-
-                {selectedTaskSkills.length ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {selectedTaskSkills.map((skill) => (
-                      <span key={skill} className="inline-flex items-center gap-1 rounded-full border border-[color-mix(in_srgb,var(--color-brand)_24%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_68%,var(--color-surface))] px-2.5 py-1 text-xs font-semibold text-[color-mix(in_srgb,var(--color-brand-strong)_88%,var(--color-text-main))]">
-                        {skill}
-                        <button
-                          type="button"
-                          className="rounded-full px-1 text-[var(--color-brand-strong)]"
-                          onClick={() => removeEmployerSkill(skill)}
-                          aria-label={`Remove ${skill}`}
-                        >
-                          x
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
               </div>
 
               {selectedCategoryId && subCategories.length === 0 ? (

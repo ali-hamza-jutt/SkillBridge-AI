@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { KeyboardEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { setCredentials } from "@/lib/features/auth/authSlice";
 import { useAppDispatch, useAppSelector } from "@/lib/hooks";
 import {
@@ -12,6 +12,7 @@ import {
 } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import DashboardNavbar from "@/components/dashboard-navbar";
+import SkillSuggestionInput from "@/components/skill-suggestion-input";
 
 type Category = {
   _id: string;
@@ -25,43 +26,6 @@ type UserProfile = {
   role: "FREELANCER" | "HIRER" | "ADMIN";
   categoryId?: string;
   skills?: string[];
-};
-
-const toUniqueSkillNames = (raw: unknown): string[] => {
-  if (!Array.isArray(raw)) {
-    return [];
-  }
-
-  const names = raw
-    .map((item) => {
-      if (!item || typeof item !== "object") {
-        return "";
-      }
-
-      const value = (item as { name?: unknown }).name;
-      return typeof value === "string" ? value.trim() : "";
-    })
-    .filter((name) => name.length > 0);
-
-  return [...new Set(names)];
-};
-
-const filterSuggestions = (allSkills: string[], selectedSkills: string[], input: string) => {
-  const query = input.trim().toLowerCase();
-  const selected = new Set(selectedSkills.map((skill) => skill.toLowerCase()));
-
-  return allSkills.filter(
-    (skill) => !selected.has(skill.toLowerCase()) && (query.length === 0 || skill.toLowerCase().includes(query)),
-  );
-};
-
-const pickMatchingSuggestion = (input: string, suggestions: string[]) => {
-  const query = input.trim().toLowerCase();
-  if (!query) {
-    return undefined;
-  }
-
-  return suggestions.find((skill) => skill.toLowerCase() === query) ?? suggestions[0];
 };
 
 export default function DashboardProfilePage() {
@@ -89,7 +53,6 @@ export default function DashboardProfilePage() {
   const [updateUserProfile, { isLoading: isUpdatingProfile }] = useUsersControllerUpdateMyProfileMutation();
 
   const categories = categoriesRaw as Category[];
-  const suggestedProfileSkills = toUniqueSkillNames(profileSkillsRaw);
   const myProfile = (myProfileRaw as UserProfile | undefined) ?? undefined;
 
   useEffect(() => {
@@ -102,10 +65,6 @@ export default function DashboardProfilePage() {
     setProfileSkills(myProfile.skills ?? []);
   }, [myProfile, role]);
 
-  const filteredProfileSkillSuggestions = useMemo(() => {
-    return filterSuggestions(suggestedProfileSkills, profileSkills, profileSkillInput);
-  }, [profileSkillInput, profileSkills, suggestedProfileSkills]);
-
   const addProfileSkill = (skill: string) => {
     if (!profileSkills.includes(skill)) {
       setProfileSkills((prev) => [...prev, skill]);
@@ -115,23 +74,6 @@ export default function DashboardProfilePage() {
 
   const removeProfileSkill = (skill: string) => {
     setProfileSkills((prev) => prev.filter((s) => s !== skill));
-  };
-
-  const addMatchingProfileSkillFromInput = () => {
-    const skillToAdd = pickMatchingSuggestion(profileSkillInput, filteredProfileSkillSuggestions);
-
-    if (skillToAdd) {
-      addProfileSkill(skillToAdd);
-    }
-  };
-
-  const onProfileSkillInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key !== "Enter") {
-      return;
-    }
-
-    event.preventDefault();
-    addMatchingProfileSkillFromInput();
   };
 
   const onSaveFreelancerProfile = async () => {
@@ -268,49 +210,19 @@ export default function DashboardProfilePage() {
             </div>
 
             <div>
-              <label className={labelClassName} htmlFor="profileSkills">Skills</label>
-              <input
-                id="profileSkills"
-                className={inputClassName}
+              <SkillSuggestionInput
+                label="Skills"
+                inputId="profileSkills"
                 value={profileSkillInput}
-                onChange={(e) => setProfileSkillInput(e.target.value)}
-                onKeyDown={onProfileSkillInputKeyDown}
+                onValueChange={setProfileSkillInput}
+                selectedSkills={profileSkills}
+                suggestions={profileSkillsRaw as Array<{ name?: unknown }>}
+                onAddSkill={addProfileSkill}
+                onRemoveSkill={removeProfileSkill}
                 placeholder="Type to search e.g. React"
                 disabled={!profileCategoryId}
+                suggestionLimit={20}
               />
-
-              {profileCategoryId && profileSkillInput.trim().length > 0 && filteredProfileSkillSuggestions.length > 0 ? (
-                <div className="mt-2 flex max-h-40 flex-wrap gap-2 overflow-auto">
-                  {filteredProfileSkillSuggestions.slice(0, 20).map((skill) => (
-                    <button
-                      key={skill}
-                      type="button"
-                      className="rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_88%,transparent)] px-3 py-1 text-xs font-semibold text-[var(--color-text-main)]"
-                      onClick={() => addProfileSkill(skill)}
-                    >
-                      {skill}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-
-              {profileSkills.length ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {profileSkills.map((skill) => (
-                    <span key={skill} className="inline-flex items-center gap-1 rounded-full border border-[color-mix(in_srgb,var(--color-brand)_24%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_68%,var(--color-surface))] px-2.5 py-1 text-xs font-semibold text-[color-mix(in_srgb,var(--color-brand-strong)_88%,var(--color-text-main))]">
-                      {skill}
-                      <button
-                        type="button"
-                        className="rounded-full px-1 text-[var(--color-brand-strong)]"
-                        onClick={() => removeProfileSkill(skill)}
-                        aria-label={`Remove ${skill}`}
-                      >
-                        x
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              ) : null}
             </div>
 
             {profileError ? (
