@@ -17,6 +17,7 @@ import {
 } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import DashboardNavbar from "@/components/dashboard-navbar";
+import TaskDetailDrawer from "@/components/task-detail-drawer";
 import SkillSuggestionInput from "@/components/skill-suggestion-input";
 
 type BudgetType = "hourly" | "fixed";
@@ -46,6 +47,8 @@ type Task = {
   experienceLevel: ExperienceLevel;
   status: string;
   requiredSkills?: string[];
+  categoryName?: string;
+  subCategoryName?: string;
 };
 
 type CreateTaskFormValues = {
@@ -100,6 +103,7 @@ export default function DashboardPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [taskSkillInput, setTaskSkillInput] = useState("");
   const [selectedTaskSkills, setSelectedTaskSkills] = useState<string[]>([]);
+  const [selectedJob, setSelectedJob] = useState<Task | null>(null);
 
   const {
     register,
@@ -137,7 +141,7 @@ export default function DashboardPage() {
   const { data: matchedTasksRaw, isFetching: isLoadingMatchedTasks } = useTasksControllerGetMatchesQuery(
     matchQuery as never,
     {
-      skip: !token || role !== "FREELANCER" || !matchQuery,
+      skip: role !== "FREELANCER" || !matchQuery,
     },
   );
 
@@ -146,7 +150,7 @@ export default function DashboardPage() {
     isFetching: isLoadingMyTasks,
     refetch: refetchMyTasks,
   } = useTasksControllerFindAllQuery(undefined, {
-    skip: !token || role !== "HIRER",
+    skip: role !== "HIRER",
   });
 
   const { data: categoriesRaw = [] } = useCategoryControllerGetAllCategoriesQuery();
@@ -271,39 +275,6 @@ export default function DashboardPage() {
     "mt-1 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm text-[var(--color-text-main)] outline-none transition placeholder:text-[color-mix(in_srgb,var(--color-text-muted)_86%,transparent)] focus:border-[color-mix(in_srgb,var(--color-brand)_58%,var(--color-border))] focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-brand-soft)_75%,transparent)]";
   const labelClassName = "text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]";
 
-  if (!token) {
-    return (
-      <main
-        className="min-h-screen py-10"
-        style={{
-          background:
-            "radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--color-brand-soft) 58%, transparent), transparent 34%), linear-gradient(165deg, var(--color-bg), color-mix(in srgb, var(--color-surface-strong) 84%, var(--color-bg)))",
-        }}
-      >
-        <div className="mx-auto w-[min(100%-2rem,980px)]">
-          <section className="rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_92%,transparent)] p-6 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)] backdrop-blur-md md:p-8">
-            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-main)]">Dashboard Access Requires Login</h1>
-            <p className="mt-3 text-sm text-[var(--color-text-muted)]">Please log in first to access your personalized dashboard.</p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link
-                href="/login"
-                className="inline-flex items-center justify-center rounded-full border border-transparent bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] px-5 py-2.5 text-sm font-semibold text-white no-underline"
-              >
-                Go to Login
-              </Link>
-              <Link
-                href="/signup"
-                className="inline-flex items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_88%,var(--color-brand-soft))] px-5 py-2.5 text-sm font-semibold text-[var(--color-text-main)] no-underline"
-              >
-                Create Account
-              </Link>
-            </div>
-          </section>
-        </div>
-      </main>
-    );
-  }
-
   if (role === "FREELANCER") {
     return (
       <main
@@ -328,7 +299,16 @@ export default function DashboardPage() {
             {matchedTasks.map((task) => (
               <article
                 key={task._id}
-                className="w-full rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_94%,transparent)] p-5 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)]"
+                className="group w-full cursor-pointer rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_94%,transparent)] p-5 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)] transition duration-200 hover:-translate-y-1 hover:border-[color-mix(in_srgb,var(--color-brand)_34%,var(--color-border))] hover:bg-[color-mix(in_srgb,var(--color-surface)_98%,var(--color-brand-soft))] hover:shadow-[0_26px_58px_-34px_rgba(15,23,42,0.44)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"
+                onClick={() => setSelectedJob(task)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setSelectedJob(task);
+                  }
+                }}
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <h3 className="m-0 text-xl font-bold tracking-tight text-[var(--color-text-main)]">{task.title}</h3>
@@ -353,10 +333,17 @@ export default function DashboardPage() {
                     {task.projectType === "one_time" ? "One-time" : "Ongoing"}
                   </span>
                 </div>
+
+                <div className="mt-4 inline-flex items-center text-sm font-semibold text-[var(--color-brand-strong)] opacity-80 transition group-hover:opacity-100">
+                  View details
+                  <span className="ml-2 transition-transform duration-200 group-hover:translate-x-1">→</span>
+                </div>
               </article>
             ))}
           </section>
         </div>
+
+        <TaskDetailDrawer open={Boolean(selectedJob)} task={selectedJob} onClose={() => setSelectedJob(null)} />
       </main>
     );
   }
@@ -423,7 +410,7 @@ export default function DashboardPage() {
           {filteredTasks.map((task) => (
             <article
               key={task._id}
-              className="w-full rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_94%,transparent)] p-5 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)]"
+                className="group w-full rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_94%,transparent)] p-5 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)] transition duration-200 hover:-translate-y-1 hover:border-[color-mix(in_srgb,var(--color-brand)_34%,var(--color-border))] hover:bg-[color-mix(in_srgb,var(--color-surface)_98%,var(--color-brand-soft))] hover:shadow-[0_26px_58px_-34px_rgba(15,23,42,0.44)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <h3 className="m-0 text-xl font-bold tracking-tight text-[var(--color-text-main)]">{task.title}</h3>

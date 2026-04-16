@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthControllerLoginMutation } from "@/lib/api";
-import { logout, setCredentials } from "@/lib/features/auth/authSlice";
+import { setCredentials } from "@/lib/features/auth/authSlice";
 import { useAppDispatch } from "@/lib/hooks";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 
@@ -16,17 +16,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [login, { isLoading }] = useAuthControllerLoginMutation();
-
-  useEffect(() => {
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("auth_refresh_token");
-    localStorage.removeItem("auth_email");
-    localStorage.removeItem("auth_user_id");
-    localStorage.removeItem("auth_role");
-    localStorage.removeItem("auth_category_id");
-    localStorage.removeItem("auth_skills");
-    dispatch(logout());
-  }, [dispatch]);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

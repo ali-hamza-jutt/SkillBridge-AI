@@ -43,12 +43,11 @@ export default function DashboardProfilePage() {
   const { data: categoriesRaw = [] } = useCategoryControllerGetAllCategoriesQuery();
 
   const { data: myProfileRaw } = useUsersControllerFindMeQuery(undefined, {
-    skip: !token,
   });
 
   const { data: profileSkillsRaw = [] } = useSkillsControllerGetByCategoryQuery(
     { categoryId: profileCategoryId },
-    { skip: !token || role !== "FREELANCER" || !profileCategoryId },
+    { skip: role !== "FREELANCER" || !profileCategoryId },
   );
 
   const { data: allSkillsRaw = [] } = useSkillsControllerGetAllQuery();
@@ -123,27 +122,6 @@ export default function DashboardProfilePage() {
   const inputClassName =
     "mt-1 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm text-[var(--color-text-main)] outline-none transition placeholder:text-[color-mix(in_srgb,var(--color-text-muted)_86%,transparent)] focus:border-[color-mix(in_srgb,var(--color-brand)_58%,var(--color-border))] focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-brand-soft)_75%,transparent)]";
   const labelClassName = "text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]";
-
-  if (!token) {
-    return (
-      <main className="min-h-screen py-10">
-        <div className="mx-auto w-[min(100%-2rem,980px)]">
-          <section className="rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_92%,transparent)] p-6 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)] backdrop-blur-md md:p-8">
-            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-main)]">Dashboard Access Requires Login</h1>
-            <p className="mt-3 text-sm text-[var(--color-text-muted)]">Please log in first to access your profile.</p>
-            <div className="mt-6">
-              <Link
-                href="/login"
-                className="inline-flex items-center justify-center rounded-full border border-transparent bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] px-5 py-2.5 text-sm font-semibold text-white no-underline"
-              >
-                Go to Login
-              </Link>
-            </div>
-          </section>
-        </div>
-      </main>
-    );
-  }
 
   if (role !== "FREELANCER") {
     return (

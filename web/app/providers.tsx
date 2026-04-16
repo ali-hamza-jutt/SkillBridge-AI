@@ -3,7 +3,7 @@
 import { PropsWithChildren, useEffect } from "react";
 import { Provider } from "react-redux";
 import { store } from "@/lib/store";
-import { setCredentials } from "@/lib/features/auth/authSlice";
+import { setCredentials, setHydrated } from "@/lib/features/auth/authSlice";
 
 function AuthBootstrap() {
   useEffect(() => {
@@ -31,6 +31,8 @@ function AuthBootstrap() {
     if (token && refreshToken) {
       store.dispatch(setCredentials({ token, refreshToken, email, userId, role, categoryId, skills }));
     }
+
+    store.dispatch(setHydrated(true));
   }, []);
 
   return null;

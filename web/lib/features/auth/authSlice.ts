@@ -8,6 +8,7 @@ type AuthState = {
   token: string | null;
   refreshToken: string | null;
   email: string | null;
+  hydrated: boolean;
 };
 
 const initialState: AuthState = {
@@ -18,6 +19,7 @@ const initialState: AuthState = {
   token: null,
   refreshToken: null,
   email: null,
+  hydrated: false,
 };
 
 const authSlice = createSlice({
@@ -62,9 +64,13 @@ const authSlice = createSlice({
       state.token = null;
       state.refreshToken = null;
       state.email = null;
+      state.hydrated = true;
+    },
+    setHydrated: (state, action: PayloadAction<boolean>) => {
+      state.hydrated = action.payload;
     },
   },
 });
 
-export const { setCredentials, logout } = authSlice.actions;
+export const { setCredentials, logout, setHydrated } = authSlice.actions;
 export default authSlice.reducer;
