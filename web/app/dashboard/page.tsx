@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { KeyboardEvent, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -11,6 +11,7 @@ import { useAppDispatch, useAppSelector } from "@/lib/hooks";
 import {
   useCategoryControllerGetAllCategoriesQuery,
   useCategoryControllerGetSubCategoriesQuery,
+  useSkillsControllerGetAllQuery,
   useSkillsControllerGetByCategoryQuery,
   useTasksControllerCreateMutation,
   useTasksControllerFindAllQuery,
@@ -31,12 +32,6 @@ type Category = {
 
 type SubCategory = {
   _id: string;
-  name: string;
-  categoryId: string;
-};
-
-type Skill = {
-  _id?: string;
   name: string;
   categoryId: string;
 };
@@ -77,6 +72,43 @@ type CreateTaskFormValues = {
 };
 
 type JobFilter = "ALL" | "OPEN" | "ONGOING";
+
+const toUniqueSkillNames = (raw: unknown): string[] => {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+
+  const names = raw
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return "";
+      }
+
+      const value = (item as { name?: unknown }).name;
+      return typeof value === "string" ? value.trim() : "";
+    })
+    .filter((name) => name.length > 0);
+
+  return [...new Set(names)];
+};
+
+const filterSuggestions = (allSkills: string[], selectedSkills: string[], input: string) => {
+  const query = input.trim().toLowerCase();
+  const selected = new Set(selectedSkills.map((skill) => skill.toLowerCase()));
+
+  return allSkills.filter(
+    (skill) => !selected.has(skill.toLowerCase()) && (query.length === 0 || skill.toLowerCase().includes(query)),
+  );
+};
+
+const pickMatchingSuggestion = (input: string, suggestions: string[]) => {
+  const query = input.trim().toLowerCase();
+  if (!query) {
+    return undefined;
+  }
+
+  return suggestions.find((skill) => skill.toLowerCase() === query) ?? suggestions[0];
+};
 
 const createTaskSchema: yup.ObjectSchema<CreateTaskFormValues> = yup
   .object({
@@ -130,6 +162,7 @@ export default function DashboardPage() {
     register,
     handleSubmit,
     reset,
+    setValue,
     watch,
     formState: { errors },
   } = useForm<CreateTaskFormValues>({
@@ -177,13 +210,15 @@ export default function DashboardPage() {
 
   const { data: subCategoriesRaw = [] } = useCategoryControllerGetSubCategoriesQuery(
     { categoryId: selectedCategoryId },
-    { skip: !selectedCategoryId || role !== "HIRER" },
+    { skip: !selectedCategoryId },
   );
 
   const { data: taskSkillsRaw = [] } = useSkillsControllerGetByCategoryQuery(
     { categoryId: selectedCategoryId },
-    { skip: !selectedCategoryId || role !== "HIRER" },
+    { skip: !selectedCategoryId },
   );
+
+  const { data: allSkillsRaw = [] } = useSkillsControllerGetAllQuery();
 
   const { data: myProfileRaw } = useUsersControllerFindMeQuery(undefined, {
     skip: !token,
@@ -201,8 +236,10 @@ export default function DashboardPage() {
   const subCategories = subCategoriesRaw as SubCategory[];
   const allTasks = (allTasksRaw as Task[] | undefined) ?? [];
   const matchedTasks = (matchedTasksRaw as Task[] | undefined) ?? [];
-  const suggestedTaskSkills = (taskSkillsRaw as Skill[]).map((skill) => skill.name);
-  const suggestedProfileSkills = (profileSkillsRaw as Skill[]).map((skill) => skill.name);
+  const categoryTaskSkills = toUniqueSkillNames(taskSkillsRaw);
+  const allSkillNames = toUniqueSkillNames(allSkillsRaw);
+  const suggestedTaskSkills = categoryTaskSkills.length > 0 ? categoryTaskSkills : allSkillNames;
+  const suggestedProfileSkills = toUniqueSkillNames(profileSkillsRaw);
   const myProfile = (myProfileRaw as UserProfile | undefined) ?? undefined;
 
   useEffect(() => {
@@ -218,7 +255,8 @@ export default function DashboardPage() {
   useEffect(() => {
     setSelectedTaskSkills([]);
     setTaskSkillInput("");
-  }, [selectedCategoryId]);
+    setValue("subCategoryId", "");
+  }, [selectedCategoryId, setValue]);
 
   const myTasks = useMemo(() => {
     if (!userId) {
@@ -240,21 +278,11 @@ export default function DashboardPage() {
   }, [activeFilter, myTasks]);
 
   const filteredTaskSkillSuggestions = useMemo(() => {
-    const query = taskSkillInput.trim().toLowerCase();
-    return suggestedTaskSkills.filter(
-      (skill) =>
-        !selectedTaskSkills.includes(skill) &&
-        (query.length === 0 || skill.toLowerCase().includes(query)),
-    );
+    return filterSuggestions(suggestedTaskSkills, selectedTaskSkills, taskSkillInput);
   }, [selectedTaskSkills, suggestedTaskSkills, taskSkillInput]);
 
   const filteredProfileSkillSuggestions = useMemo(() => {
-    const query = profileSkillInput.trim().toLowerCase();
-    return suggestedProfileSkills.filter(
-      (skill) =>
-        !profileSkills.includes(skill) &&
-        (query.length === 0 || skill.toLowerCase().includes(query)),
-    );
+    return filterSuggestions(suggestedProfileSkills, profileSkills, profileSkillInput);
   }, [profileSkillInput, profileSkills, suggestedProfileSkills]);
 
   const signOut = () => {
@@ -280,6 +308,23 @@ export default function DashboardPage() {
     setSelectedTaskSkills((prev) => prev.filter((s) => s !== skill));
   };
 
+  const addMatchingTaskSkillFromInput = () => {
+    const skillToAdd = pickMatchingSuggestion(taskSkillInput, filteredTaskSkillSuggestions);
+
+    if (skillToAdd) {
+      addEmployerSkill(skillToAdd);
+    }
+  };
+
+  const onTaskSkillInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter") {
+      return;
+    }
+
+    event.preventDefault();
+    addMatchingTaskSkillFromInput();
+  };
+
   const addProfileSkill = (skill: string) => {
     if (!profileSkills.includes(skill)) {
       setProfileSkills((prev) => [...prev, skill]);
@@ -289,6 +334,23 @@ export default function DashboardPage() {
 
   const removeProfileSkill = (skill: string) => {
     setProfileSkills((prev) => prev.filter((s) => s !== skill));
+  };
+
+  const addMatchingProfileSkillFromInput = () => {
+    const skillToAdd = pickMatchingSuggestion(profileSkillInput, filteredProfileSkillSuggestions);
+
+    if (skillToAdd) {
+      addProfileSkill(skillToAdd);
+    }
+  };
+
+  const onProfileSkillInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter") {
+      return;
+    }
+
+    event.preventDefault();
+    addMatchingProfileSkillFromInput();
   };
 
   const onCreateTask = async (values: CreateTaskFormValues) => {
@@ -549,11 +611,12 @@ export default function DashboardPage() {
                   className={inputClassName}
                   value={profileSkillInput}
                   onChange={(e) => setProfileSkillInput(e.target.value)}
+                  onKeyDown={onProfileSkillInputKeyDown}
                   placeholder="Type to search e.g. React"
                   disabled={!profileCategoryId}
                 />
 
-                {profileCategoryId && filteredProfileSkillSuggestions.length > 0 ? (
+                {profileCategoryId && profileSkillInput.trim().length > 0 && filteredProfileSkillSuggestions.length > 0 ? (
                   <div className="mt-2 flex max-h-40 flex-wrap gap-2 overflow-auto">
                     {filteredProfileSkillSuggestions.slice(0, 20).map((skill) => (
                       <button
@@ -840,11 +903,12 @@ export default function DashboardPage() {
                   className={inputClassName}
                   value={taskSkillInput}
                   onChange={(e) => setTaskSkillInput(e.target.value)}
+                  onKeyDown={onTaskSkillInputKeyDown}
                   placeholder="Type to search e.g. React"
                   disabled={!selectedCategoryId}
                 />
 
-                {selectedCategoryId && filteredTaskSkillSuggestions.length > 0 ? (
+                {selectedCategoryId && taskSkillInput.trim().length > 0 && filteredTaskSkillSuggestions.length > 0 ? (
                   <div className="mt-2 flex max-h-40 flex-wrap gap-2 overflow-auto">
                     {filteredTaskSkillSuggestions.slice(0, 25).map((skill) => (
                       <button
@@ -857,6 +921,10 @@ export default function DashboardPage() {
                       </button>
                     ))}
                   </div>
+                ) : null}
+
+                {selectedCategoryId && taskSkillInput.trim().length > 0 && filteredTaskSkillSuggestions.length === 0 ? (
+                  <p className="mt-2 text-sm text-[var(--color-text-muted)]">No matching skills found.</p>
                 ) : null}
 
                 {selectedTaskSkills.length ? (
@@ -877,6 +945,12 @@ export default function DashboardPage() {
                   </div>
                 ) : null}
               </div>
+
+              {selectedCategoryId && subCategories.length === 0 ? (
+                <p className="text-sm text-[var(--color-text-muted)]">
+                  No sub-categories found for this category.
+                </p>
+              ) : null}
 
               <div>
                 <label className={labelClassName} htmlFor="experienceLevel">Experience Level</label>
