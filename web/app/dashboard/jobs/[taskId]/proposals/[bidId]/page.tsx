@@ -5,7 +5,37 @@ import { useSearchParams } from "next/navigation";
 import { useAppSelector } from "@/lib/hooks";
 import DashboardNavbar from "@/components/dashboard-navbar";
 import type { Task, TaskBid } from "@/lib/types/proposal";
-import { getAttachmentUrls, money, formatBidDate } from "@/lib/utils/formatting";
+import { getAttachmentDisplayItems, money, formatBidDate } from "@/lib/utils/formatting";
+
+const attachmentBadge = (kind: "image" | "video" | "pdf" | "doc" | "file") => {
+  switch (kind) {
+    case "image":
+      return "IMG";
+    case "video":
+      return "VID";
+    case "pdf":
+      return "PDF";
+    case "doc":
+      return "DOC";
+    default:
+      return "FILE";
+  }
+};
+
+const attachmentBadgeClass = (kind: "image" | "video" | "pdf" | "doc" | "file") => {
+  switch (kind) {
+    case "image":
+      return "border-[color-mix(in_srgb,var(--color-brand)_30%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_72%,var(--color-surface))] text-[var(--color-brand-strong)]";
+    case "video":
+      return "border-[color-mix(in_srgb,var(--color-accent)_35%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-accent-soft)_72%,var(--color-surface))] text-[color-mix(in_srgb,var(--color-text-main)_90%,#3b2f12)]";
+    case "pdf":
+      return "border-[color-mix(in_srgb,#dc2626_36%,var(--color-border))] bg-[color-mix(in_srgb,#fee2e2_78%,var(--color-surface))] text-[color-mix(in_srgb,#991b1b_85%,var(--color-text-main))]";
+    case "doc":
+      return "border-[color-mix(in_srgb,#2563eb_34%,var(--color-border))] bg-[color-mix(in_srgb,#dbeafe_75%,var(--color-surface))] text-[color-mix(in_srgb,#1d4ed8_84%,var(--color-text-main))]";
+    default:
+      return "border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_86%,transparent)] text-[var(--color-text-main)]";
+  }
+};
 
 export default function ProposalDetailsPage() {
   const searchParams = useSearchParams();
@@ -16,7 +46,7 @@ export default function ProposalDetailsPage() {
   
   const task: Task | null = taskData ? JSON.parse(taskData) : null;
   const bid: TaskBid | null = bidData ? JSON.parse(bidData) : null;
-  const attachmentUrls = getAttachmentUrls(bid?.attachments);
+  const attachmentItems = getAttachmentDisplayItems(bid?.attachments);
 
   if (role !== "HIRER") {
     return (
@@ -101,17 +131,27 @@ export default function ProposalDetailsPage() {
 
           <div className="mt-5 rounded-2xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_90%,transparent)] p-4">
             <h2 className="text-lg font-bold tracking-tight text-[var(--color-text-main)]">Attachments</h2>
-            {attachmentUrls.length ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {attachmentUrls.map((url, index) => (
+            {attachmentItems.length ? (
+              <div className="mt-3 grid gap-2">
+                {attachmentItems.map((attachment, index) => (
                   <a
                     key={`${bid._id}-attachment-${index}`}
-                    href={url}
+                    href={attachment.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center rounded-full border border-[color-mix(in_srgb,var(--color-brand)_30%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_70%,var(--color-surface))] px-3 py-1 text-xs font-semibold text-[var(--color-brand-strong)]"
+                    className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_95%,transparent)] px-3 py-2 text-sm text-[var(--color-text-main)] no-underline transition hover:border-[color-mix(in_srgb,var(--color-brand)_30%,var(--color-border))]"
                   >
-                    Attachment {index + 1}
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className={`inline-flex min-w-[2.5rem] justify-center rounded-md border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${attachmentBadgeClass(attachment.kind)}`}>
+                        {attachmentBadge(attachment.kind)}
+                      </span>
+                      <span className="truncate font-medium" title={attachment.fileName}>
+                        {attachment.fileName}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-xs text-[var(--color-text-muted)]">
+                      {typeof attachment.sizeMb === "number" ? `${attachment.sizeMb.toFixed(1)} MB` : "Open"}
+                    </span>
                   </a>
                 ))}
               </div>
