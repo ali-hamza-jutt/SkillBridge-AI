@@ -87,15 +87,9 @@ export default function EmployerJobDetailsPage() {
 
       <div className="mx-auto grid w-[min(100%-2rem,1200px)] gap-6 py-6 lg:grid-cols-[1.05fr_0.95fr]">
         <section className="grid gap-5 self-start">
-          <div className="rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_92%,transparent)] p-5 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)]">
-            <Link href="/dashboard" className="text-sm font-semibold text-[var(--color-brand-strong)] no-underline hover:underline">
-              Back to my jobs
-            </Link>
-            <h1 className="mt-3 text-3xl font-bold tracking-tight text-[var(--color-text-main)]">{task.title}</h1>
-            <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">Review the full task brief and all received proposals in one place.</p>
-          </div>
-
           <TaskSummaryPanel
+            backHref="/dashboard"
+            backLabel="Back to my jobs"
             title={task.title}
             description={task.description}
             budget={task.budget}

@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 type TaskSummaryPanelProps = {
   title: string;
   description: string;
@@ -12,6 +14,8 @@ type TaskSummaryPanelProps = {
   categoryName?: string;
   subCategoryName?: string;
   requiredSkills?: string[];
+  backHref?: string;
+  backLabel?: string;
 };
 
 const statusClassName = (status?: string) => {
@@ -36,13 +40,22 @@ export default function TaskSummaryPanel({
   categoryName,
   subCategoryName,
   requiredSkills = [],
+  backHref,
+  backLabel = "Back",
 }: TaskSummaryPanelProps) {
   return (
     <section className="rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_94%,transparent)] p-5 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)]">
+      {backHref ? (
+        <div className="mb-4 border-b border-[color-mix(in_srgb,var(--color-border)_85%,transparent)] pb-3">
+          <Link href={backHref} className="inline-flex items-center text-sm font-semibold text-[var(--color-brand-strong)] no-underline hover:underline">
+            {backLabel}
+          </Link>
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="m-0 text-xs font-bold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Project Brief</p>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight text-[var(--color-text-main)]">{title}</h1>
+          <h1 className="m-0 text-2xl font-bold tracking-tight text-[var(--color-text-main)]">{title}</h1>
         </div>
         {status ? (
           <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-[0.08em] ${statusClassName(status)}`}>
