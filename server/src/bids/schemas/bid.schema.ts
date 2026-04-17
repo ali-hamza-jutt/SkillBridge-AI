@@ -30,8 +30,16 @@ export class Bid {
   @Prop({ required: true })
   coverLetter!: string;
 
-  @Prop({ type: [String], default: [] })
-  attachments!: string[];
+  @Prop({ type: [Object], default: [] })
+  attachments!: Array<
+    | string
+    | {
+        fileName?: string;
+        type?: string;
+        url?: string;
+        sizeMb?: number;
+      }
+  >;
 
   @Prop({ required: true, enum: Object.values(BidPayoutType) })
   payoutType!: BidPayoutType;

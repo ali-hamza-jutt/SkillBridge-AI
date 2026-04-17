@@ -408,9 +408,10 @@ export default function DashboardPage() {
           ) : null}
 
           {filteredTasks.map((task) => (
-            <article
+            <Link
               key={task._id}
-                className="group w-full rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_94%,transparent)] p-5 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)] transition duration-200 hover:-translate-y-1 hover:border-[color-mix(in_srgb,var(--color-brand)_34%,var(--color-border))] hover:bg-[color-mix(in_srgb,var(--color-surface)_98%,var(--color-brand-soft))] hover:shadow-[0_26px_58px_-34px_rgba(15,23,42,0.44)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"
+              href={`/dashboard/jobs/${task._id}`}
+              className="group block w-full rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_94%,transparent)] p-5 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)] no-underline transition duration-200 hover:-translate-y-1 hover:border-[color-mix(in_srgb,var(--color-brand)_34%,var(--color-border))] hover:bg-[color-mix(in_srgb,var(--color-surface)_98%,var(--color-brand-soft))] hover:shadow-[0_26px_58px_-34px_rgba(15,23,42,0.44)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <h3 className="m-0 text-xl font-bold tracking-tight text-[var(--color-text-main)]">{task.title}</h3>
@@ -451,7 +452,12 @@ export default function DashboardPage() {
                   ))}
                 </div>
               ) : null}
-            </article>
+
+              <div className="mt-4 inline-flex items-center text-sm font-semibold text-[var(--color-brand-strong)] opacity-80 transition group-hover:opacity-100">
+                View proposals
+                <span className="ml-2 transition-transform duration-200 group-hover:translate-x-1">→</span>
+              </div>
+            </Link>
           ))}
         </section>
       </div>
