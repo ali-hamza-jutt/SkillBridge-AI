@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { setCredentials } from "@/lib/features/auth/authSlice";
 import { useAppDispatch, useAppSelector } from "@/lib/hooks";
 import {
@@ -57,15 +57,15 @@ export default function DashboardProfilePage() {
   const categories = categoriesRaw as Category[];
   const myProfile = (myProfileRaw as UserProfile | undefined) ?? undefined;
 
-  useEffect(() => {
-    if (!myProfile || role !== "FREELANCER") {
-      return;
+  const [prevMyProfile, setPrevMyProfile] = useState<typeof myProfile>(undefined);
+  if (prevMyProfile !== myProfile) {
+    setPrevMyProfile(myProfile);
+    if (myProfile && role === "FREELANCER") {
+      setProfileName(myProfile.name ?? "");
+      setProfileCategoryId(myProfile.categoryId ?? "");
+      setProfileSkills(myProfile.skills ?? []);
     }
-
-    setProfileName(myProfile.name ?? "");
-    setProfileCategoryId(myProfile.categoryId ?? "");
-    setProfileSkills(myProfile.skills ?? []);
-  }, [myProfile, role]);
+  }
 
   const addProfileSkill = (skill: string) => {
     if (!profileSkills.includes(skill)) {
@@ -120,16 +120,16 @@ export default function DashboardProfilePage() {
   };
 
   const inputClassName =
-    "mt-1 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm text-[var(--color-text-main)] outline-none transition placeholder:text-[color-mix(in_srgb,var(--color-text-muted)_86%,transparent)] focus:border-[color-mix(in_srgb,var(--color-brand)_58%,var(--color-border))] focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-brand-soft)_75%,transparent)]";
-  const labelClassName = "text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]";
+    "mt-1 w-full rounded-2xl border border-(--color-border) bg-(--color-surface) px-3 py-2.5 text-sm text-(--color-text-main) outline-none transition placeholder:text-[color-mix(in_srgb,var(--color-text-muted)_86%,transparent)] focus:border-[color-mix(in_srgb,var(--color-brand)_58%,var(--color-border))] focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-brand-soft)_75%,transparent)]";
+  const labelClassName = "text-xs font-semibold uppercase tracking-[0.14em] text-(--color-text-muted)";
 
   if (role !== "FREELANCER") {
     return (
       <main className="min-h-screen py-10">
         <div className="mx-auto w-[min(100%-2rem,980px)]">
           <section className="rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_92%,transparent)] p-6 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)] backdrop-blur-md md:p-8">
-            <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-main)]">Profile Page Is For Freelancers</h1>
-            <p className="mt-3 text-sm text-[var(--color-text-muted)]">Return to dashboard for your role-specific workspace.</p>
+            <h1 className="text-3xl font-bold tracking-tight text-(--color-text-main)">Profile Page Is For Freelancers</h1>
+            <p className="mt-3 text-sm text-(--color-text-muted)">Return to dashboard for your role-specific workspace.</p>
             <div className="mt-6">
               <Link
                 href="/dashboard"
@@ -156,8 +156,8 @@ export default function DashboardProfilePage() {
 
       <div className="mx-auto w-[min(100%-2rem,900px)] py-5">
         <section className="rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_94%,transparent)] p-5 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)]">
-          <h2 className="text-xl font-bold tracking-tight text-[var(--color-text-main)]">Profile</h2>
-          <p className="mt-2 text-sm text-[var(--color-text-muted)]">Keep your category and skills updated to get better job matches.</p>
+          <h2 className="text-xl font-bold tracking-tight text-(--color-text-main)">Profile</h2>
+          <p className="mt-2 text-sm text-(--color-text-muted)">Keep your category and skills updated to get better job matches.</p>
 
           <div className="mt-4 grid gap-4">
             <div>
@@ -208,12 +208,12 @@ export default function DashboardProfilePage() {
             </div>
 
             {profileError ? (
-              <p className="rounded-xl border border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-danger-soft)_80%,var(--color-surface))] px-3 py-2 text-sm text-[var(--color-danger)]">
+              <p className="rounded-xl border border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-danger-soft)_80%,var(--color-surface))] px-3 py-2 text-sm text-(--color-danger)">
                 {profileError}
               </p>
             ) : null}
             {profileStatus ? (
-              <p className="rounded-xl border border-[color-mix(in_srgb,var(--color-brand)_32%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_72%,var(--color-surface))] px-3 py-2 text-sm text-[var(--color-brand-strong)]">
+              <p className="rounded-xl border border-[color-mix(in_srgb,var(--color-brand)_32%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_72%,var(--color-surface))] px-3 py-2 text-sm text-(--color-brand-strong)">
                 {profileStatus}
               </p>
             ) : null}

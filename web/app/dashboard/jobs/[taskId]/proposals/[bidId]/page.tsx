@@ -1,12 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAppSelector } from "@/lib/hooks";
 import DashboardNavbar from "@/components/dashboard-navbar";
 import FileTypeIcon from "@/components/file-type-icon";
 import RoleAccessNotice from "@/components/role-access-notice";
 import type { Task, TaskBid } from "@/lib/types/proposal";
+import {
+  useConversationsControllerCreatePreHireMutation,
+  useConversationsControllerHireMutation,
+} from "@/lib/api";
+import type { ConversationSummary } from "@/lib/types/chat";
 import { getAttachmentDisplayItems, money, formatBidDate } from "@/lib/utils/formatting";
 
 const attachmentTypeLabel = (kind: "image" | "video" | "pdf" | "doc" | "file") => {
@@ -25,8 +32,14 @@ const attachmentTypeLabel = (kind: "image" | "video" | "pdf" | "doc" | "file") =
 };
 
 export default function ProposalDetailsPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { role, userId } = useAppSelector((state) => state.auth);
+  const [createPreHire] = useConversationsControllerCreatePreHireMutation();
+  const [hire] = useConversationsControllerHireMutation();
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [isHiring, setIsHiring] = useState(false);
 
   const taskData = searchParams.get("task");
   const bidData = searchParams.get("bid");
@@ -34,6 +47,50 @@ export default function ProposalDetailsPage() {
   const task: Task | null = taskData ? JSON.parse(taskData) : null;
   const bid: TaskBid | null = bidData ? JSON.parse(bidData) : null;
   const attachmentItems = getAttachmentDisplayItems(bid?.attachments);
+
+  const openChat = async () => {
+    if (!task || !bid) {
+      return;
+    }
+
+    try {
+      setActionError(null);
+      setIsSendingMessage(true);
+      const conversation = (await createPreHire({
+        createPreHireConversationDto: {
+          taskId: task._id,
+          bidId: bid._id,
+        },
+      }).unwrap()) as ConversationSummary;
+      router.push(`/dashboard/messages/${conversation.conversationId}`);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Failed to open chat");
+    } finally {
+      setIsSendingMessage(false);
+    }
+  };
+
+  const handleHire = async () => {
+    if (!task || !bid) {
+      return;
+    }
+
+    try {
+      setActionError(null);
+      setIsHiring(true);
+      const conversation = (await hire({
+        hireConversationDto: {
+          taskId: task._id,
+          bidId: bid._id,
+        },
+      }).unwrap()) as ConversationSummary;
+      router.push(`/dashboard/messages/${conversation.conversationId}`);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Failed to hire freelancer");
+    } finally {
+      setIsHiring(false);
+    }
+  };
 
   if (role !== "HIRER") {
     return (
@@ -100,6 +157,27 @@ export default function ProposalDetailsPage() {
               <p className="mt-1 text-sm font-semibold text-[var(--color-text-main)]">{formatBidDate(bid.createdAt)}</p>
             </div>
           </div>
+
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={openChat}
+              disabled={isSendingMessage || isHiring}
+              className="inline-flex items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-brand)_30%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_72%,var(--color-surface))] px-5 py-2.5 text-sm font-semibold text-[var(--color-brand-strong)] transition hover:border-[color-mix(in_srgb,var(--color-brand)_42%,var(--color-border))] disabled:opacity-60"
+            >
+              {isSendingMessage ? "Opening chat..." : "Send Message"}
+            </button>
+            <button
+              type="button"
+              onClick={handleHire}
+              disabled={isSendingMessage || isHiring}
+              className="inline-flex items-center justify-center rounded-full border border-transparent bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] px-5 py-2.5 text-sm font-semibold text-white transition disabled:opacity-60"
+            >
+              {isHiring ? "Hiring..." : "Hire Freelancer"}
+            </button>
+          </div>
+
+          {actionError ? <p className="mt-3 text-sm text-red-600">{actionError}</p> : null}
 
           <div className="mt-5 rounded-2xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_90%,transparent)] p-4">
             <h2 className="text-lg font-bold tracking-tight text-[var(--color-text-main)]">Cover Letter</h2>

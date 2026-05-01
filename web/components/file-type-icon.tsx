@@ -21,22 +21,19 @@ const iconColorClass = (kind: AttachmentKind): string => {
   }
 };
 
-const iconByKind = (kind: AttachmentKind) => {
-  switch (kind) {
-    case "image":
-      return ImageIcon;
-    case "video":
-      return VideoIcon;
-    case "pdf":
-      return FileText;
-    case "doc":
-      return FileText;
-    default:
-      return FileIcon;
-  }
-};
 
 export default function FileTypeIcon({ kind, className = "h-4 w-4" }: FileTypeIconProps) {
-  const Icon = iconByKind(kind);
-  return <Icon className={`${className} ${iconColorClass(kind)}`} aria-hidden="true" />;
+  const colorClass = iconColorClass(kind);
+  const combined = `${className} ${colorClass}`;
+  switch (kind) {
+    case "image":
+      return <ImageIcon className={combined} aria-hidden="true" />;
+    case "video":
+      return <VideoIcon className={combined} aria-hidden="true" />;
+    case "pdf":
+    case "doc":
+      return <FileText className={combined} aria-hidden="true" />;
+    default:
+      return <FileIcon className={combined} aria-hidden="true" />;
+  }
 }

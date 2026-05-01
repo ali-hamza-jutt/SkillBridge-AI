@@ -315,6 +315,60 @@ const injectedRtkApi = api.injectEndpoints({
         method: "PATCH",
       }),
     }),
+    conversationsControllerGetMyConversations: build.query<
+      ConversationsControllerGetMyConversationsApiResponse,
+      ConversationsControllerGetMyConversationsApiArg
+    >({
+      query: () => ({ url: `/conversations/me` }),
+    }),
+    conversationsControllerCreatePreHire: build.mutation<
+      ConversationsControllerCreatePreHireApiResponse,
+      ConversationsControllerCreatePreHireApiArg
+    >({
+      query: (queryArg) => ({
+        url: `/conversations/pre-hire`,
+        method: "POST",
+        body: queryArg.createPreHireConversationDto,
+      }),
+    }),
+    conversationsControllerHire: build.mutation<
+      ConversationsControllerHireApiResponse,
+      ConversationsControllerHireApiArg
+    >({
+      query: (queryArg) => ({
+        url: `/conversations/hire`,
+        method: "POST",
+        body: queryArg.hireConversationDto,
+      }),
+    }),
+    conversationsControllerGetConversation: build.query<
+      ConversationsControllerGetConversationApiResponse,
+      ConversationsControllerGetConversationApiArg
+    >({
+      query: (queryArg) => ({ url: `/conversations/${queryArg.id}` }),
+    }),
+    conversationsControllerGetMessages: build.query<
+      ConversationsControllerGetMessagesApiResponse,
+      ConversationsControllerGetMessagesApiArg
+    >({
+      query: (queryArg) => ({
+        url: `/conversations/${queryArg.id}/messages`,
+        params: {
+          before: queryArg.before,
+          limit: queryArg.limit,
+        },
+      }),
+    }),
+    conversationsControllerSendMessage: build.mutation<
+      ConversationsControllerSendMessageApiResponse,
+      ConversationsControllerSendMessageApiArg
+    >({
+      query: (queryArg) => ({
+        url: `/conversations/${queryArg.id}/messages`,
+        method: "POST",
+        body: queryArg.sendMessageDto,
+      }),
+    }),
     cloudinaryControllerGenerateUploadSignature: build.mutation<
       CloudinaryControllerGenerateUploadSignatureApiResponse,
       CloudinaryControllerGenerateUploadSignatureApiArg
@@ -476,6 +530,31 @@ export type NotificationsControllerMarkAsReadApiResponse = unknown;
 export type NotificationsControllerMarkAsReadApiArg = {
   id: string;
 };
+export type ConversationsControllerGetMyConversationsApiResponse = unknown;
+export type ConversationsControllerGetMyConversationsApiArg = void;
+export type ConversationsControllerCreatePreHireApiResponse = unknown;
+export type ConversationsControllerCreatePreHireApiArg = {
+  createPreHireConversationDto: CreatePreHireConversationDto;
+};
+export type ConversationsControllerHireApiResponse = unknown;
+export type ConversationsControllerHireApiArg = {
+  hireConversationDto: HireConversationDto;
+};
+export type ConversationsControllerGetConversationApiResponse = unknown;
+export type ConversationsControllerGetConversationApiArg = {
+  id: string;
+};
+export type ConversationsControllerGetMessagesApiResponse = unknown;
+export type ConversationsControllerGetMessagesApiArg = {
+  id: string;
+  before: string;
+  limit: string;
+};
+export type ConversationsControllerSendMessageApiResponse = unknown;
+export type ConversationsControllerSendMessageApiArg = {
+  id: string;
+  sendMessageDto: SendMessageDto;
+};
 export type CloudinaryControllerGenerateUploadSignatureApiResponse = unknown;
 export type CloudinaryControllerGenerateUploadSignatureApiArg = {
   generateUploadSignatureDto: GenerateUploadSignatureDto;
@@ -532,7 +611,7 @@ export type CreateTaskDto = {
   requiredSkills?: string[];
   experienceLevel: ExperienceLevel;
 };
-export type UpdateTaskDto = {};
+export type UpdateTaskDto = Record<string, never>;
 export type TaskStatus = "OPEN" | "ASSIGNED" | "COMPLETED" | "CLOSED";
 export type UpdateTaskStatusDto = {
   status: TaskStatus;
@@ -567,6 +646,17 @@ export type CreateBidDto = {
   payoutType: BidPayoutType;
   /** Required when payoutType is module_based. Include each module detail and payment amount. */
   modules?: BidMilestoneDto[];
+};
+export type CreatePreHireConversationDto = {
+  taskId: string;
+  bidId: string;
+};
+export type HireConversationDto = {
+  taskId: string;
+  bidId: string;
+};
+export type SendMessageDto = {
+  body: string;
 };
 export type GenerateUploadSignatureDto = {
   /** Unix timestamp in seconds */
@@ -614,5 +704,11 @@ export const {
   useBidsControllerDeleteMutation,
   useNotificationsControllerGetUserNotificationsQuery,
   useNotificationsControllerMarkAsReadMutation,
+  useConversationsControllerGetMyConversationsQuery,
+  useConversationsControllerCreatePreHireMutation,
+  useConversationsControllerHireMutation,
+  useConversationsControllerGetConversationQuery,
+  useConversationsControllerGetMessagesQuery,
+  useConversationsControllerSendMessageMutation,
   useCloudinaryControllerGenerateUploadSignatureMutation,
 } = injectedRtkApi;

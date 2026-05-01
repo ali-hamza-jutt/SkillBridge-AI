@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useMemo, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { useAppSelector } from "@/lib/hooks";
@@ -95,7 +95,7 @@ const createTaskSchema: yup.ObjectSchema<CreateTaskFormValues> = yup
   .required();
 
 export default function DashboardPage() {
-  const { token, role, userId, categoryId, skills } = useAppSelector((state) => state.auth);
+  const { role, userId, categoryId, skills } = useAppSelector((state) => state.auth);
 
   const [activeFilter, setActiveFilter] = useState<JobFilter>("ALL");
   const [isPostJobOpen, setIsPostJobOpen] = useState(false);
@@ -110,7 +110,7 @@ export default function DashboardPage() {
     handleSubmit,
     reset,
     setValue,
-    watch,
+    control,
     formState: { errors },
   } = useForm<CreateTaskFormValues>({
     resolver: yupResolver(createTaskSchema),
@@ -127,7 +127,7 @@ export default function DashboardPage() {
     },
   });
 
-  const selectedCategoryId = watch("categoryId");
+  const selectedCategoryId = useWatch({ control, name: "categoryId" });
 
   const matchQuery =
     role === "FREELANCER" && categoryId
@@ -171,23 +171,25 @@ export default function DashboardPage() {
 
   const categories = categoriesRaw as Category[];
   const subCategories = subCategoriesRaw as SubCategory[];
-  const allTasks = (allTasksRaw as Task[] | undefined) ?? [];
   const matchedTasks = (matchedTasksRaw as Task[] | undefined) ?? [];
 
-  useEffect(() => {
+  const [prevSelectedCategoryId, setPrevSelectedCategoryId] = useState(selectedCategoryId);
+  if (prevSelectedCategoryId !== selectedCategoryId) {
+    setPrevSelectedCategoryId(selectedCategoryId);
     setSelectedTaskSkills([]);
     setTaskSkillInput("");
     setValue("subCategoryId", "");
-  }, [selectedCategoryId, setValue]);
+  }
 
   const myTasks = useMemo(() => {
+    const allTasks = (allTasksRaw as Task[] | undefined) ?? [];
     if (!userId) {
       return [] as Task[];
     }
     return allTasks
       .filter((task) => task.clientId === userId)
       .sort((a, b) => (a._id > b._id ? -1 : 1));
-  }, [allTasks, userId]);
+  }, [allTasksRaw, userId]);
 
   const filteredTasks = useMemo(() => {
     if (activeFilter === "OPEN") {
@@ -263,17 +265,17 @@ export default function DashboardPage() {
 
   const getStatusClassName = (status: string) => {
     if (status === "OPEN") {
-      return "border-[color-mix(in_srgb,var(--color-brand)_35%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_70%,var(--color-surface))] text-[var(--color-brand-strong)]";
+      return "border-[color-mix(in_srgb,var(--color-brand)_35%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_70%,var(--color-surface))] text-(--color-brand-strong)";
     }
     if (status === "ASSIGNED") {
       return "border-[color-mix(in_srgb,var(--color-accent)_35%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-accent-soft)_72%,var(--color-surface))] text-[color-mix(in_srgb,var(--color-text-main)_90%,#3b2f12)]";
     }
-    return "border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_86%,transparent)] text-[var(--color-text-muted)]";
+    return "border-(--color-border) bg-[color-mix(in_srgb,var(--color-surface)_86%,transparent)] text-(--color-text-muted)";
   };
 
   const inputClassName =
-    "mt-1 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm text-[var(--color-text-main)] outline-none transition placeholder:text-[color-mix(in_srgb,var(--color-text-muted)_86%,transparent)] focus:border-[color-mix(in_srgb,var(--color-brand)_58%,var(--color-border))] focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-brand-soft)_75%,transparent)]";
-  const labelClassName = "text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]";
+    "mt-1 w-full rounded-2xl border border-(--color-border) bg-(--color-surface) px-3 py-2.5 text-sm text-(--color-text-main) outline-none transition placeholder:text-[color-mix(in_srgb,var(--color-text-muted)_86%,transparent)] focus:border-[color-mix(in_srgb,var(--color-brand)_58%,var(--color-border))] focus:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-brand-soft)_75%,transparent)]";
+  const labelClassName = "text-xs font-semibold uppercase tracking-[0.14em] text-(--color-text-muted)";
 
   if (role === "FREELANCER") {
     return (
@@ -288,18 +290,18 @@ export default function DashboardPage() {
 
         <div className="mx-auto grid w-[min(100%-2rem,1200px)] gap-5 py-5">
           <section className="grid gap-4">
-            {isLoadingMatchedTasks ? <p className="text-sm text-[var(--color-text-muted)]">Loading jobs...</p> : null}
+            {isLoadingMatchedTasks ? <p className="text-sm text-(--color-text-muted)">Loading jobs...</p> : null}
             {!isLoadingMatchedTasks && matchedTasks.length === 0 ? (
               <article className="rounded-3xl border border-dashed border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] p-8 text-center shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)]">
-                <h2 className="text-2xl font-bold tracking-tight text-[var(--color-text-main)]">No jobs available yet</h2>
-                <p className="mt-2 text-sm text-[var(--color-text-muted)]">Update your profile skills to improve job recommendations.</p>
+                <h2 className="text-2xl font-bold tracking-tight text-(--color-text-main)">No jobs available yet</h2>
+                <p className="mt-2 text-sm text-(--color-text-muted)">Update your profile skills to improve job recommendations.</p>
               </article>
             ) : null}
 
             {matchedTasks.map((task) => (
               <article
                 key={task._id}
-                className="group w-full cursor-pointer rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_94%,transparent)] p-5 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)] transition duration-200 hover:-translate-y-1 hover:border-[color-mix(in_srgb,var(--color-brand)_34%,var(--color-border))] hover:bg-[color-mix(in_srgb,var(--color-surface)_98%,var(--color-brand-soft))] hover:shadow-[0_26px_58px_-34px_rgba(15,23,42,0.44)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"
+                className="group w-full cursor-pointer rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_94%,transparent)] p-5 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)] transition duration-200 hover:-translate-y-1 hover:border-[color-mix(in_srgb,var(--color-brand)_34%,var(--color-border))] hover:bg-[color-mix(in_srgb,var(--color-surface)_98%,var(--color-brand-soft))] hover:shadow-[0_26px_58px_-34px_rgba(15,23,42,0.44)] focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-brand)"
                 onClick={() => setSelectedJob(task)}
                 role="button"
                 tabIndex={0}
@@ -311,7 +313,7 @@ export default function DashboardPage() {
                 }}
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <h3 className="m-0 text-xl font-bold tracking-tight text-[var(--color-text-main)]">{task.title}</h3>
+                  <h3 className="m-0 text-xl font-bold tracking-tight text-(--color-text-main)">{task.title}</h3>
                   <span
                     className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-[0.08em] ${getStatusClassName(task.status)}`}
                   >
@@ -319,22 +321,22 @@ export default function DashboardPage() {
                   </span>
                 </div>
 
-                <p className="mt-3 line-clamp-2 text-sm leading-6 text-[var(--color-text-muted)]">{task.description}</p>
+                <p className="mt-3 line-clamp-2 text-sm leading-6 text-(--color-text-muted)">{task.description}</p>
 
                 <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                  <span className="rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] px-2.5 py-1 text-[var(--color-text-main)]">
+                  <span className="rounded-full border border-(--color-border) bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] px-2.5 py-1 text-(--color-text-main)">
                     {task.budgetType === "hourly" ? "Hourly" : "Fixed"}
                   </span>
-                  <span className="rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] px-2.5 py-1 text-[var(--color-text-main)]">
+                  <span className="rounded-full border border-(--color-border) bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] px-2.5 py-1 text-(--color-text-main)">
                     ${task.budget}
                     {typeof task.maxBudget === "number" ? ` - $${task.maxBudget}` : ""}
                   </span>
-                  <span className="rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] px-2.5 py-1 text-[var(--color-text-main)]">
+                  <span className="rounded-full border border-(--color-border) bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] px-2.5 py-1 text-(--color-text-main)">
                     {task.projectType === "one_time" ? "One-time" : "Ongoing"}
                   </span>
                 </div>
 
-                <div className="mt-4 inline-flex items-center text-sm font-semibold text-[var(--color-brand-strong)] opacity-80 transition group-hover:opacity-100">
+                <div className="mt-4 inline-flex items-center text-sm font-semibold text-(--color-brand-strong) opacity-80 transition group-hover:opacity-100">
                   View details
                   <span className="ml-2 transition-transform duration-200 group-hover:translate-x-1">→</span>
                 </div>
@@ -367,7 +369,7 @@ export default function DashboardPage() {
 
       <div className="mx-auto grid w-[min(100%-2rem,1200px)] gap-5 py-5">
         <section className="rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_92%,transparent)] p-4 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)] backdrop-blur-md md:p-5">
-          <p className="m-0 text-xs font-bold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">My Jobs</p>
+          <p className="m-0 text-xs font-bold uppercase tracking-[0.14em] text-(--color-text-muted)">My Jobs</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {(["ALL", "OPEN", "ONGOING"] as JobFilter[]).map((filter) => {
               const isActive = activeFilter === filter;
@@ -377,8 +379,8 @@ export default function DashboardPage() {
                   type="button"
                   className={`inline-flex items-center justify-center rounded-full border px-4 py-2 text-sm font-semibold transition ${
                     isActive
-                      ? "border-[color-mix(in_srgb,var(--color-brand)_30%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_78%,var(--color-surface))] text-[var(--color-brand-strong)]"
-                      : "border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_86%,transparent)] text-[var(--color-text-main)] hover:bg-[color-mix(in_srgb,var(--color-surface)_72%,var(--color-brand-soft))]"
+                      ? "border-[color-mix(in_srgb,var(--color-brand)_30%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_78%,var(--color-surface))] text-(--color-brand-strong)"
+                      : "border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_86%,transparent)] text-(--color-text-main) hover:bg-[color-mix(in_srgb,var(--color-surface)_72%,var(--color-brand-soft))]"
                   }`}
                   onClick={() => setActiveFilter(filter)}
                 >
@@ -390,13 +392,13 @@ export default function DashboardPage() {
         </section>
 
         <section className="grid gap-4">
-          {isLoadingMyTasks ? <p className="text-sm text-[var(--color-text-muted)]">Loading your jobs...</p> : null}
+          {isLoadingMyTasks ? <p className="text-sm text-(--color-text-muted)">Loading your jobs...</p> : null}
 
           {!isLoadingMyTasks && filteredTasks.length === 0 ? (
             <article className="rounded-3xl border border-dashed border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] p-8 text-center shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)]">
-              <p className="m-0 text-3xl text-[var(--color-text-muted)]" aria-hidden="true">o</p>
-              <h2 className="mt-2 text-2xl font-bold tracking-tight text-[var(--color-text-main)]">No jobs in this view</h2>
-              <p className="mt-2 text-sm text-[var(--color-text-muted)]">Use Post a Job to create your first listing.</p>
+              <p className="m-0 text-3xl text-(--color-text-muted)" aria-hidden="true">o</p>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight text-(--color-text-main)">No jobs in this view</h2>
+              <p className="mt-2 text-sm text-(--color-text-muted)">Use Post a Job to create your first listing.</p>
               <button
                 type="button"
                 className="mt-6 inline-flex items-center justify-center rounded-full border border-transparent bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] px-5 py-2.5 text-sm font-semibold text-white"
@@ -411,10 +413,10 @@ export default function DashboardPage() {
             <Link
               key={task._id}
               href={`/dashboard/jobs/${task._id}`}
-              className="group block w-full rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_94%,transparent)] p-5 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)] no-underline transition duration-200 hover:-translate-y-1 hover:border-[color-mix(in_srgb,var(--color-brand)_34%,var(--color-border))] hover:bg-[color-mix(in_srgb,var(--color-surface)_98%,var(--color-brand-soft))] hover:shadow-[0_26px_58px_-34px_rgba(15,23,42,0.44)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"
+              className="group block w-full rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_94%,transparent)] p-5 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)] no-underline transition duration-200 hover:-translate-y-1 hover:border-[color-mix(in_srgb,var(--color-brand)_34%,var(--color-border))] hover:bg-[color-mix(in_srgb,var(--color-surface)_98%,var(--color-brand-soft))] hover:shadow-[0_26px_58px_-34px_rgba(15,23,42,0.44)] focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-brand)"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <h3 className="m-0 text-xl font-bold tracking-tight text-[var(--color-text-main)]">{task.title}</h3>
+                <h3 className="m-0 text-xl font-bold tracking-tight text-(--color-text-main)">{task.title}</h3>
                 <span
                   className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-[0.08em] ${getStatusClassName(task.status)}`}
                 >
@@ -422,20 +424,20 @@ export default function DashboardPage() {
                 </span>
               </div>
 
-              <p className="mt-3 line-clamp-2 text-sm leading-6 text-[var(--color-text-muted)]">{task.description}</p>
+              <p className="mt-3 line-clamp-2 text-sm leading-6 text-(--color-text-muted)">{task.description}</p>
 
               <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                <span className="rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] px-2.5 py-1 text-[var(--color-text-main)]">
+                <span className="rounded-full border border-(--color-border) bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] px-2.5 py-1 text-(--color-text-main)">
                   {task.budgetType === "hourly" ? "Hourly" : "Fixed"}
                 </span>
-                <span className="rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] px-2.5 py-1 text-[var(--color-text-main)]">
+                <span className="rounded-full border border-(--color-border) bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] px-2.5 py-1 text-(--color-text-main)">
                   ${task.budget}
                   {typeof task.maxBudget === "number" ? ` - $${task.maxBudget}` : ""}
                 </span>
-                <span className="rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] px-2.5 py-1 text-[var(--color-text-main)]">
+                <span className="rounded-full border border-(--color-border) bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] px-2.5 py-1 text-(--color-text-main)">
                   {task.projectType === "one_time" ? "One-time" : "Ongoing"}
                 </span>
-                <span className="rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] px-2.5 py-1 text-[var(--color-text-main)] capitalize">
+                <span className="rounded-full border border-(--color-border) bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] px-2.5 py-1 text-(--color-text-main) capitalize">
                   {task.experienceLevel}
                 </span>
               </div>
@@ -453,7 +455,7 @@ export default function DashboardPage() {
                 </div>
               ) : null}
 
-              <div className="mt-4 inline-flex items-center text-sm font-semibold text-[var(--color-brand-strong)] opacity-80 transition group-hover:opacity-100">
+              <div className="mt-4 inline-flex items-center text-sm font-semibold text-(--color-brand-strong) opacity-80 transition group-hover:opacity-100">
                 View proposals
                 <span className="ml-2 transition-transform duration-200 group-hover:translate-x-1">→</span>
               </div>
@@ -471,10 +473,10 @@ export default function DashboardPage() {
         >
           <div className="w-full max-w-3xl rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_95%,transparent)] p-5 shadow-[0_26px_56px_-36px_rgba(15,23,42,0.4)] md:p-6">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-2xl font-bold tracking-tight text-[var(--color-text-main)]">Post a Job</h2>
+              <h2 className="text-2xl font-bold tracking-tight text-(--color-text-main)">Post a Job</h2>
               <button
                 type="button"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-surface)_90%,transparent)] text-lg text-[var(--color-text-main)] transition hover:bg-[color-mix(in_srgb,var(--color-surface)_72%,var(--color-brand-soft))]"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-(--color-border) bg-[color-mix(in_srgb,var(--color-surface)_90%,transparent)] text-lg text-(--color-text-main) transition hover:bg-[color-mix(in_srgb,var(--color-surface)_72%,var(--color-brand-soft))]"
                 onClick={() => setIsPostJobOpen(false)}
                 aria-label="Close post job form"
               >
@@ -486,7 +488,7 @@ export default function DashboardPage() {
               <div>
                 <label className={labelClassName} htmlFor="title">Title</label>
                 <input id="title" className={inputClassName} {...register("title")} placeholder="Build a Next.js admin panel" />
-                {errors.title ? <p className="mt-1 text-sm text-[var(--color-danger)]">{errors.title.message}</p> : null}
+                {errors.title ? <p className="mt-1 text-sm text-(--color-danger)">{errors.title.message}</p> : null}
               </div>
 
               <div>
@@ -498,19 +500,19 @@ export default function DashboardPage() {
                   {...register("description")}
                   placeholder="Describe scope, timelines, and deliverables"
                 />
-                {errors.description ? <p className="mt-1 text-sm text-[var(--color-danger)]">{errors.description.message}</p> : null}
+                {errors.description ? <p className="mt-1 text-sm text-(--color-danger)">{errors.description.message}</p> : null}
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label className={labelClassName} htmlFor="budget">Budget</label>
                   <input id="budget" type="number" className={inputClassName} {...register("budget")} />
-                  {errors.budget ? <p className="mt-1 text-sm text-[var(--color-danger)]">{errors.budget.message}</p> : null}
+                  {errors.budget ? <p className="mt-1 text-sm text-(--color-danger)">{errors.budget.message}</p> : null}
                 </div>
                 <div>
                   <label className={labelClassName} htmlFor="maxBudget">Max Budget (optional)</label>
                   <input id="maxBudget" type="number" className={inputClassName} {...register("maxBudget")} />
-                  {errors.maxBudget ? <p className="mt-1 text-sm text-[var(--color-danger)]">{errors.maxBudget.message}</p> : null}
+                  {errors.maxBudget ? <p className="mt-1 text-sm text-(--color-danger)">{errors.maxBudget.message}</p> : null}
                 </div>
               </div>
 
@@ -540,7 +542,7 @@ export default function DashboardPage() {
                       <option key={category._id} value={category._id}>{category.name}</option>
                     ))}
                   </select>
-                  {errors.categoryId ? <p className="mt-1 text-sm text-[var(--color-danger)]">{errors.categoryId.message}</p> : null}
+                  {errors.categoryId ? <p className="mt-1 text-sm text-(--color-danger)">{errors.categoryId.message}</p> : null}
                 </div>
 
                 <div>
@@ -551,7 +553,7 @@ export default function DashboardPage() {
                       <option key={subCategory._id} value={subCategory._id}>{subCategory.name}</option>
                     ))}
                   </select>
-                  {errors.subCategoryId ? <p className="mt-1 text-sm text-[var(--color-danger)]">{errors.subCategoryId.message}</p> : null}
+                  {errors.subCategoryId ? <p className="mt-1 text-sm text-(--color-danger)">{errors.subCategoryId.message}</p> : null}
                 </div>
               </div>
 
@@ -573,7 +575,7 @@ export default function DashboardPage() {
               </div>
 
               {selectedCategoryId && subCategories.length === 0 ? (
-                <p className="text-sm text-[var(--color-text-muted)]">
+                <p className="text-sm text-(--color-text-muted)">
                   No sub-categories found for this category.
                 </p>
               ) : null}
@@ -588,12 +590,12 @@ export default function DashboardPage() {
               </div>
 
               {formError ? (
-                <p className="rounded-xl border border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-danger-soft)_80%,var(--color-surface))] px-3 py-2 text-sm text-[var(--color-danger)]">
+                <p className="rounded-xl border border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-danger-soft)_80%,var(--color-surface))] px-3 py-2 text-sm text-(--color-danger)">
                   {formError}
                 </p>
               ) : null}
               {formStatus ? (
-                <p className="rounded-xl border border-[color-mix(in_srgb,var(--color-brand)_32%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_72%,var(--color-surface))] px-3 py-2 text-sm text-[var(--color-brand-strong)]">
+                <p className="rounded-xl border border-[color-mix(in_srgb,var(--color-brand)_32%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_72%,var(--color-surface))] px-3 py-2 text-sm text-(--color-brand-strong)">
                   {formStatus}
                 </p>
               ) : null}
@@ -608,7 +610,7 @@ export default function DashboardPage() {
                 </button>
                 <button
                   type="button"
-                  className="inline-flex items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_88%,var(--color-brand-soft))] px-5 py-2.5 text-sm font-semibold text-[var(--color-text-main)]"
+                  className="inline-flex items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_88%,var(--color-brand-soft))] px-5 py-2.5 text-sm font-semibold text-(--color-text-main)"
                   onClick={() => setIsPostJobOpen(false)}
                 >
                   Cancel

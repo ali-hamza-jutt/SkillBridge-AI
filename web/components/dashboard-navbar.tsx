@@ -7,7 +7,7 @@ import { useAppDispatch } from "@/lib/hooks";
 
 type DashboardNavbarProps = {
   role: "FREELANCER" | "HIRER" | "ADMIN" | null;
-  activeItem?: "jobs" | "profile";
+  activeItem?: "jobs" | "messages" | "profile";
   onPostJob?: () => void;
 };
 
@@ -36,9 +36,18 @@ export default function DashboardNavbar({ role, activeItem, onPostJob }: Dashboa
         <Link href="/dashboard" className="text-lg font-bold tracking-tight text-[var(--color-text-main)] no-underline">
           SkillBridge
         </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/dashboard/messages"
+            className={`rounded-full border px-4 py-2 text-sm font-semibold no-underline ${
+              activeItem === "messages" ? isActiveClass : defaultClass
+            }`}
+          >
+            Messages
+          </Link>
 
-        {role === "FREELANCER" ? (
-          <div className="flex flex-wrap items-center gap-2">
+          {role === "FREELANCER" ? (
+            <>
             <Link
               href="/dashboard"
               className={`rounded-full border px-4 py-2 text-sm font-semibold no-underline ${
@@ -47,9 +56,6 @@ export default function DashboardNavbar({ role, activeItem, onPostJob }: Dashboa
             >
               Jobs
             </Link>
-            <button className={`rounded-full border px-4 py-2 text-sm font-semibold ${defaultClass}`} type="button">
-              Messages
-            </button>
             <Link
               href="/dashboard/profile"
               className={`rounded-full border px-4 py-2 text-sm font-semibold no-underline ${
@@ -65,9 +71,9 @@ export default function DashboardNavbar({ role, activeItem, onPostJob }: Dashboa
             >
               Log Out
             </button>
-          </div>
-        ) : (
-          <div className="flex flex-wrap items-center gap-3">
+            </>
+          ) : (
+            <>
             {onPostJob ? (
               <button
                 type="button"
@@ -84,8 +90,9 @@ export default function DashboardNavbar({ role, activeItem, onPostJob }: Dashboa
             >
               Log Out
             </button>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
     </header>
   );

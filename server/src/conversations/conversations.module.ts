@@ -8,7 +8,8 @@ import { Conversation, ConversationSchema } from './schemas/conversation.schema'
 import { ChatMessage, ChatMessageSchema } from './schemas/message.schema';
 import { Task, TaskSchema } from '../tasks/schemas/task.schema';
 import { Bid, BidSchema } from '../bids/schemas/bid.schema';
-import { User, UserSchema } from '../users/schemas/user.schema';
+import { UsersModule } from '../users/users.module';
+import { UtilityModule } from '../common/utility/utility.module';
 
 @Module({
   imports: [
@@ -20,8 +21,9 @@ import { User, UserSchema } from '../users/schemas/user.schema';
       { name: ChatMessage.name, schema: ChatMessageSchema },
       { name: Task.name, schema: TaskSchema },
       { name: Bid.name, schema: BidSchema },
-      { name: User.name, schema: UserSchema },
     ]),
+    UsersModule,
+    UtilityModule,
   ],
   controllers: [ConversationsController],
   providers: [ConversationsService, ConversationsGateway],
