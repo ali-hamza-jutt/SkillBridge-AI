@@ -9,7 +9,7 @@ export default function ChatMessageTimestamp({ value }: { value: string | null }
   }
 
   return (
-    <time dateTime={date.toISOString()} className="text-[11px] text-[var(--color-text-muted)]">
+    <time dateTime={date.toISOString()} className="text-[11px] text-(--color-text-muted)">
       {date.toLocaleString([], {
         month: "short",
         day: "numeric",
