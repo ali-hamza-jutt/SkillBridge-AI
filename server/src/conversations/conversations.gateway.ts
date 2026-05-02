@@ -1,11 +1,13 @@
 import {
   ConnectedSocket,
   MessageBody,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { Inject, Injectable, Logger, UnauthorizedException, forwardRef } from '@nestjs/common';
+import { Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
 import { ConversationsService } from './conversations.service';
@@ -16,7 +18,9 @@ import { ConversationsService } from './conversations.service';
   },
 })
 @Injectable()
-export class ConversationsGateway {
+export class ConversationsGateway
+  implements OnGatewayConnection<Socket>, OnGatewayDisconnect<Socket>
+{
   private readonly logger = new Logger(ConversationsGateway.name);
 
   @WebSocketServer()
@@ -30,35 +34,35 @@ export class ConversationsGateway {
 
   async handleConnection(client: Socket) {
     try {
-      const token =
-        client.handshake.auth?.token ??
-        (client.handshake.headers.authorization?.startsWith('Bearer ')
-          ? client.handshake.headers.authorization.slice(7)
-          : undefined);
+      const rawToken: unknown = client.handshake.auth?.token;
+      const token: string | undefined =
+        typeof rawToken === 'string'
+          ? rawToken
+          : client.handshake.headers.authorization?.startsWith('Bearer ')
+            ? client.handshake.headers.authorization.slice(7)
+            : undefined;
 
       if (!token) {
-        throw new UnauthorizedException('Missing socket token');
+        throw new Error('Missing socket token');
       }
 
-      const payload = this.jwtService.verify(token, {
-        secret: process.env.JWT_SECRET || 'default_secret',
+      const payload = this.jwtService.verify<{ sub: string }>(token, {
+        secret: process.env.JWT_SECRET ?? 'default_secret',
       });
 
-      client.data.userId = payload.sub;
+      (client.data as { userId: string }).userId = payload.sub;
       await client.join(`user:${payload.sub}`);
       this.logger.log(`Client connected: ${client.id} as user ${payload.sub}`);
     } catch (error) {
-      this.logger.error('Socket connection rejected:', error);
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Socket connection rejected [${client.id}]: ${message}`);
+      client.emit('exception', { message: 'Unauthorized' });
       client.disconnect(true);
     }
   }
 
   handleDisconnect(client: Socket) {
-    try {
-      this.logger.log(`Client disconnected: ${client.id}`);
-    } catch (error) {
-      this.logger.error('Error handling disconnection:', error);
-    }
+    this.logger.log(`Client disconnected: ${client.id}`);
   }
 
   @SubscribeMessage('conversation.join')
@@ -66,7 +70,7 @@ export class ConversationsGateway {
     @MessageBody() conversationId: string,
     @ConnectedSocket() client: Socket,
   ) {
-    const userId = client.data.userId as string | undefined;
+    const userId = (client.data as { userId?: string }).userId;
     if (!userId) {
       return { ok: false };
     }

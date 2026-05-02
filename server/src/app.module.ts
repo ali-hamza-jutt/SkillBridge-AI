@@ -10,7 +10,7 @@ import { BidsModule } from './bids/bids.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ConversationsModule } from './conversations/conversations.module';
 import { SkillsModule } from './skills/skills.module';
-import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { GCSModule } from './gcs/gcs.module';
 
 @Module({
   imports: [
@@ -28,7 +28,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
     BidsModule,
     NotificationsModule,
     ConversationsModule,
-    CloudinaryModule,
+    GCSModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -10,6 +10,7 @@ import { Task, TaskSchema } from '../tasks/schemas/task.schema';
 import { Bid, BidSchema } from '../bids/schemas/bid.schema';
 import { UsersModule } from '../users/users.module';
 import { UtilityModule } from '../common/utility/utility.module';
+import { GCSModule } from '../gcs/gcs.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { UtilityModule } from '../common/utility/utility.module';
     ]),
     UsersModule,
     UtilityModule,
+    GCSModule,
   ],
   controllers: [ConversationsController],
   providers: [ConversationsService, ConversationsGateway],

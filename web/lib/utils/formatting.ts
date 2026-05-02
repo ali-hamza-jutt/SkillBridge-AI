@@ -105,6 +105,26 @@ export const getAttachmentDisplayItems = (attachments?: TaskBid["attachments"]):
     .filter((item): item is AttachmentDisplayItem => Boolean(item));
 };
 
+export function fileTypeMeta(mimeType: string): { label: string; bg: string } {
+  if (mimeType === "application/pdf")
+    return { label: "PDF", bg: "bg-red-500" };
+  if (mimeType.includes("word") || mimeType.includes("doc"))
+    return { label: "DOC", bg: "bg-blue-600" };
+  if (mimeType.includes("powerpoint") || mimeType.includes("ppt") || mimeType.includes("presentation"))
+    return { label: "PPT", bg: "bg-orange-500" };
+  if (mimeType.includes("excel") || mimeType.includes("xls") || mimeType.includes("spreadsheet") || mimeType === "text/csv")
+    return { label: "XLS", bg: "bg-emerald-600" };
+  if (mimeType.includes("zip") || mimeType.includes("rar") || mimeType.includes("7z"))
+    return { label: "ZIP", bg: "bg-yellow-600" };
+  return { label: "FILE", bg: "bg-slate-500" };
+}
+
+export function formatFileSize(bytes?: number): string | null {
+  if (!bytes) return null;
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${Math.round(bytes / 1024)} KB`;
+}
+
 export const money = (value: number) =>
   new Intl.NumberFormat("en-US", {
     style: "currency",

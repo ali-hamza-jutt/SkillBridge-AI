@@ -10,14 +10,14 @@ import { markConversationRead } from "@/lib/useUnreadMessages";
 import ChatMessageTimestamp from "@/components/chat-message-timestamp";
 import type { ChatMessage, ConversationSummary, MessageAttachment } from "@/lib/types/chat";
 import type { AttachmentDto } from "@/lib/api";
+import { fileTypeMeta, formatFileSize } from "@/lib/utils/formatting";
 import {
   useConversationsControllerGetConversationQuery,
   useConversationsControllerGetMessagesQuery,
   useConversationsControllerSendMessageMutation,
-  useCloudinaryControllerGenerateUploadSignatureMutation,
+  useGcsControllerGenerateSignedUrlMutation,
 } from "@/lib/api";
 
-const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME ?? "";
 const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100 MB
 
 type PendingAttachment = {
@@ -46,7 +46,11 @@ const mergeUniqueMessages = (current: ChatMessage[], incoming: ChatMessage[]) =>
   });
 };
 
-function AttachmentPreview({ attachment }: { attachment: MessageAttachment }) {
+
+function MediaPreview({ attachment }: { attachment: MessageAttachment }) {
+  const isValidUrl = attachment.url.startsWith("http");
+  if (!isValidUrl) return null;
+
   if (attachment.type === "IMAGE") {
     return (
       <a href={attachment.url} target="_blank" rel="noopener noreferrer" className="block">
@@ -55,34 +59,44 @@ function AttachmentPreview({ attachment }: { attachment: MessageAttachment }) {
           alt={attachment.name}
           width={0}
           height={0}
-          sizes="100vw"
-          className="max-h-48 max-w-full rounded-xl object-cover"
-          style={{ width: "100%", height: "auto" }}
+          sizes="420px"
+          className="max-h-96 w-auto rounded-2xl object-contain"
+          style={{ maxWidth: "420px" }}
         />
       </a>
     );
   }
-  if (attachment.type === "VIDEO") {
-    return (
-      <video
-        src={attachment.url}
-        controls
-        className="max-h-48 max-w-full rounded-xl"
-        preload="metadata"
-      />
-    );
-  }
+  return (
+    <video
+      src={attachment.url}
+      controls
+      className="max-h-96 rounded-2xl"
+      style={{ maxWidth: "420px" }}
+      preload="metadata"
+    />
+  );
+}
+
+function DocPreview({ attachment, isMine }: { attachment: MessageAttachment; isMine?: boolean }) {
+  const meta = fileTypeMeta(attachment.mimeType);
+  const size = formatFileSize(attachment.size);
   return (
     <a
       href={attachment.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex items-center gap-2 rounded-xl border border-(--color-border) bg-[color-mix(in_srgb,var(--color-surface)_90%,transparent)] px-3 py-2 no-underline hover:bg-[color-mix(in_srgb,var(--color-surface)_80%,transparent)]"
+      className="group flex items-center gap-3 no-underline"
     >
-      <FileText className="h-5 w-5 shrink-0 text-(--color-text-muted)" />
-      <span className="max-w-50 truncate text-xs font-medium text-(--color-text-main)">
-        {attachment.name}
-      </span>
+      <div className={`flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl ${meta.bg} shadow-sm`}>
+        <FileText className="h-4 w-4 text-white/80" />
+        <span className="text-[9px] font-black tracking-wider text-white">{meta.label}</span>
+      </div>
+      <div className="flex min-w-0 flex-col">
+        <span className={`max-w-45 truncate text-sm font-semibold group-hover:underline ${isMine ? "text-white" : "text-(--color-text-main)"}`}>
+          {attachment.name}
+        </span>
+        {size && <span className={`text-xs ${isMine ? "text-white/70" : "text-(--color-text-muted)"}`}>{size}</span>}
+      </div>
     </a>
   );
 }
@@ -111,7 +125,7 @@ export default function ConversationThread({
     { skip: !token || !conversationId },
   );
   const [sendMessage, { isLoading: sending }] = useConversationsControllerSendMessageMutation();
-  const [generateSignature] = useCloudinaryControllerGenerateUploadSignatureMutation();
+  const [generateSignedUrl] = useGcsControllerGenerateSignedUrlMutation();
 
   const baseConversation = (conversationData as ConversationSummary | undefined) ?? null;
   const [conversationPatches, setConversationPatches] = useState<Partial<ConversationSummary>>({});
@@ -195,51 +209,32 @@ export default function ConversationThread({
       );
 
     try {
-      if (!CLOUD_NAME) {
-        setError("Cloudinary not configured — contact support");
-        return;
-      }
+      const { signedUrl, publicUrl, objectName } = (await generateSignedUrl({
+        generateUploadUrlDto: {
+          fileName: pending.file.name,
+          mimeType: pending.file.type,
+          folder: "chat-attachments",
+        },
+      }).unwrap()) as { signedUrl: string; publicUrl: string; objectName: string };
 
-      const timestamp = Math.floor(Date.now() / 1000);
-      const folder = "chat-attachments";
-
-      const sigData = await generateSignature({
-        generateUploadSignatureDto: { timestamp, folder },
-      }).unwrap() as { signature: string; api_key: string; timestamp: number };
-
-      if (!sigData.api_key || !sigData.signature) {
-        setError("Upload service not configured — contact support");
-        return;
-      }
-
-      const resourceType = pending.file.type.startsWith("video/") ? "video" : "auto";
-      const formData = new FormData();
-      formData.append("file", pending.file);
-      formData.append("folder", folder);
-      formData.append("timestamp", String(timestamp));
-      formData.append("signature", sigData.signature);
-      formData.append("api_key", sigData.api_key);
-
-      const res = await fetch(
-        `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${resourceType}/upload`,
-        { method: "POST", body: formData },
-      );
+      const res = await fetch(signedUrl, {
+        method: "PUT",
+        headers: { "Content-Type": pending.file.type },
+        body: pending.file,
+      });
 
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({})) as { error?: { message?: string } };
-        throw new Error(errData?.error?.message ?? `Upload failed (HTTP ${res.status})`);
+        throw new Error(`Upload failed (HTTP ${res.status})`);
       }
-
-      const data = (await res.json()) as { secure_url: string; public_id: string; bytes: number };
 
       const attachmentType = resolveAttachmentType(pending.file);
       const result: AttachmentDto = {
-        url: data.secure_url,
-        publicId: data.public_id,
+        url: publicUrl,
+        publicId: objectName,
         name: pending.file.name,
         mimeType: pending.file.type,
         type: attachmentType,
-        size: data.bytes,
+        size: pending.file.size,
       };
 
       setPendingAttachments((prev) =>
@@ -384,41 +379,75 @@ export default function ConversationThread({
           {messages.map((message) => {
             const isMine = message.senderId === userId;
             const isSystem = message.messageType === "SYSTEM";
+            const mediaAtts = (message.attachments ?? []).filter((a) => a.type === "IMAGE" || a.type === "VIDEO");
+            const docAtts = (message.attachments ?? []).filter((a) => a.type === "DOCUMENT");
+            const hasBubble = !!message.body || docAtts.length > 0;
+
+            const bubbleCls = isSystem
+              ? "border border-[color-mix(in_srgb,var(--color-accent)_30%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-accent-soft)_70%,var(--color-surface))]"
+              : isMine
+                ? "bg-(--color-brand)"
+                : "border border-(--color-border) bg-[#f0f2f0]";
+
+            const headerCls = isMine ? "text-white/70" : "text-(--color-text-muted)";
+            const nameCls = isMine ? "text-white" : "text-(--color-text-main)";
+            const textCls = isMine ? "text-white" : "text-(--color-text-main)";
+            const dividerCls = isMine ? "border-white/20" : "border-(--color-border)";
+
             return (
-              <article
+              <div
                 key={message.id}
-                className={`max-w-[85%] rounded-2xl border px-4 py-3 ${
-                  isSystem
-                    ? "mx-auto border-[color-mix(in_srgb,var(--color-accent)_30%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-accent-soft)_70%,var(--color-surface))] text-center"
-                    : isMine
-                      ? "ml-auto border-[color-mix(in_srgb,var(--color-brand)_30%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_68%,var(--color-surface))]"
-                      : "border-(--color-border) bg-[color-mix(in_srgb,var(--color-surface)_95%,transparent)]"
+                className={`flex w-fit max-w-[80%] flex-col gap-1 ${
+                  isSystem ? "mx-auto items-center" : isMine ? "ml-auto items-end" : "items-start"
                 }`}
               >
-                {!isSystem ? (
-                  <div className="mb-1 flex items-center justify-between gap-3 text-xs text-(--color-text-muted)">
+                {/* Media attachments — no bubble, just rounded media */}
+                {mediaAtts.map((att, i) => (
+                  <div key={i} className="overflow-hidden rounded-2xl shadow-sm">
+                    <MediaPreview attachment={att} />
+                  </div>
+                ))}
+
+                {/* Bubble: text + documents */}
+                {hasBubble && (
+                  <div className={`w-fit rounded-2xl px-4 py-3 ${bubbleCls}`}>
+                    {!isSystem && (
+                      <div className={`mb-1 flex items-center justify-between gap-4 text-xs ${headerCls}`}>
+                        <span className={`font-semibold ${nameCls}`}>{message.senderName}</span>
+                        <ChatMessageTimestamp
+                          value={message.createdAt}
+                          className={isMine ? "text-white/60" : "text-(--color-text-muted)"}
+                        />
+                      </div>
+                    )}
+                    {message.body ? (
+                      <p className={`whitespace-pre-wrap text-sm leading-6 ${textCls}`}>
+                        {message.body}
+                      </p>
+                    ) : null}
+                    {docAtts.length > 0 && (
+                      <div className={`flex flex-col gap-2 ${message.body ? `mt-2 border-t ${dividerCls} pt-2` : ""}`}>
+                        {docAtts.map((att, i) => (
+                          <DocPreview key={i} attachment={att} isMine={isMine} />
+                        ))}
+                      </div>
+                    )}
+                    {isSystem && (
+                      <div className="mt-1 text-center text-[11px] text-(--color-text-muted)">
+                        <ChatMessageTimestamp value={message.createdAt} />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Name + time below media when there's no bubble */}
+                {!hasBubble && mediaAtts.length > 0 && !isSystem && (
+                  <div className="flex items-center gap-2 px-1 text-xs text-(--color-text-muted)">
                     <span className="font-semibold text-(--color-text-main)">{message.senderName}</span>
                     <ChatMessageTimestamp value={message.createdAt} />
                   </div>
-                ) : null}
-                {message.body ? (
-                  <p className="whitespace-pre-wrap text-sm leading-6 text-(--color-text-main)">
-                    {message.body}
-                  </p>
-                ) : null}
-                {message.attachments && message.attachments.length > 0 ? (
-                  <div className={`grid gap-2 ${message.body ? "mt-2" : ""}`}>
-                    {message.attachments.map((att, i) => (
-                      <AttachmentPreview key={i} attachment={att} />
-                    ))}
-                  </div>
-                ) : null}
-                {isSystem ? (
-                  <div className="mt-2 text-center text-[11px] text-(--color-text-muted)">
-                    <ChatMessageTimestamp value={message.createdAt} />
-                  </div>
-                ) : null}
-              </article>
+                )}
+              </div>
             );
           })}
           <div ref={messagesEndRef} />

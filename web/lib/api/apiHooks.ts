@@ -369,14 +369,14 @@ const injectedRtkApi = api.injectEndpoints({
         body: queryArg.sendMessageDto,
       }),
     }),
-    cloudinaryControllerGenerateUploadSignature: build.mutation<
-      CloudinaryControllerGenerateUploadSignatureApiResponse,
-      CloudinaryControllerGenerateUploadSignatureApiArg
+    gcsControllerGenerateSignedUrl: build.mutation<
+      GcsControllerGenerateSignedUrlApiResponse,
+      GcsControllerGenerateSignedUrlApiArg
     >({
       query: (queryArg) => ({
-        url: `/cloudinary/signature`,
+        url: `/storage/signed-url`,
         method: "POST",
-        body: queryArg.generateUploadSignatureDto,
+        body: queryArg.generateUploadUrlDto,
       }),
     }),
   }),
@@ -555,9 +555,9 @@ export type ConversationsControllerSendMessageApiArg = {
   id: string;
   sendMessageDto: SendMessageDto;
 };
-export type CloudinaryControllerGenerateUploadSignatureApiResponse = unknown;
-export type CloudinaryControllerGenerateUploadSignatureApiArg = {
-  generateUploadSignatureDto: GenerateUploadSignatureDto;
+export type GcsControllerGenerateSignedUrlApiResponse = unknown;
+export type GcsControllerGenerateSignedUrlApiArg = {
+  generateUploadUrlDto: GenerateUploadUrlDto;
 };
 export type SignupDto = {
   name: string;
@@ -678,10 +678,12 @@ export type SendMessageDto = {
   body?: string;
   attachments?: AttachmentDto[];
 };
-export type GenerateUploadSignatureDto = {
-  /** Unix timestamp in seconds */
-  timestamp: number;
-  /** Optional folder path in Cloudinary */
+export type GenerateUploadUrlDto = {
+  /** Original file name including extension */
+  fileName: string;
+  /** MIME type of the file */
+  mimeType: string;
+  /** Folder prefix inside the bucket */
   folder?: string;
 };
 export const {
@@ -730,5 +732,5 @@ export const {
   useConversationsControllerGetConversationQuery,
   useConversationsControllerGetMessagesQuery,
   useConversationsControllerSendMessageMutation,
-  useCloudinaryControllerGenerateUploadSignatureMutation,
+  useGcsControllerGenerateSignedUrlMutation,
 } = injectedRtkApi;

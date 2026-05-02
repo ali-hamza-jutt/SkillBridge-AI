@@ -6,7 +6,7 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { useBidsControllerCreateMutation } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
-import { useCloudinaryControllerGenerateUploadSignatureMutation } from "@/lib/api";
+import { useGcsControllerGenerateSignedUrlMutation } from "@/lib/api";
 
 type BidModule = {
   title: string;
@@ -66,66 +66,35 @@ const isAttachmentAccepted = (file: File) => {
   return false;
 };
 
-const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-const CLOUDINARY_FOLDER = process.env.NEXT_PUBLIC_CLOUDINARY_FOLDER || 'skill-bridge/bid-attachments';
-
 export default function BidApplicationForm({ taskId, defaultBidAmount }: BidApplicationFormProps) {
   const [createBid] = useBidsControllerCreateMutation();
-  const [generateSignature] = useCloudinaryControllerGenerateUploadSignatureMutation();
+  const [generateSignedUrl] = useGcsControllerGenerateSignedUrlMutation();
   const [uploadedAttachments, setUploadedAttachments] = useState<UploadedAttachment[]>([]);
   const [isUploadingAttachments, setIsUploadingAttachments] = useState(false);
   const [modules, setModules] = useState<ModuleDraft[]>([createEmptyModule()]);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const uploadFileToCloudinary = async (file: File): Promise<string> => {
-    if (!CLOUDINARY_CLOUD_NAME) {
-      throw new Error(
-        'Cloudinary cloud name is not configured. Set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME.',
-      );
-    }
-
-    const timestamp = Math.floor(Date.now() / 1000);
-    const signatureData = await generateSignature({
-      generateUploadSignatureDto: {
-        timestamp,
-        folder: CLOUDINARY_FOLDER,
+  const uploadFileToGCS = async (file: File): Promise<string> => {
+    const { signedUrl, publicUrl } = (await generateSignedUrl({
+      generateUploadUrlDto: {
+        fileName: file.name,
+        mimeType: file.type,
+        folder: 'bid-attachments',
       },
-    }).unwrap() as { signature: string; api_key: string; timestamp: number };
+    }).unwrap()) as { signedUrl: string; publicUrl: string };
 
-    const { signature, api_key } = signatureData;
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('folder', CLOUDINARY_FOLDER);
-    formData.append('timestamp', String(timestamp));
-    formData.append('signature', signature);
-    formData.append('api_key', api_key);
-
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`,
-      {
-        method: 'POST',
-        body: formData,
-      },
-    );
+    const response = await fetch(signedUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type },
+      body: file,
+    });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(
-        error?.error?.message || 'Failed to upload attachment to Cloudinary.',
-      );
+      throw new Error(`Failed to upload attachment (HTTP ${response.status})`);
     }
 
-    const result = (await response.json()) as {
-      secure_url?: string;
-    };
-
-    if (!result.secure_url) {
-      throw new Error('Cloudinary upload did not return a secure URL.');
-    }
-
-    return result.secure_url;
+    return publicUrl;
   };
 
   const {
@@ -213,7 +182,7 @@ export default function BidApplicationForm({ taskId, defaultBidAmount }: BidAppl
     try {
       const results = await Promise.allSettled(
         filesToUpload.map(async (file) => {
-          const url = await uploadFileToCloudinary(file);
+          const url = await uploadFileToGCS(file);
           return {
             fileName: file.name,
             sizeMb: Number((file.size / (1024 * 1024)).toFixed(2)),

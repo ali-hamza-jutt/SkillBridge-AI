@@ -35,7 +35,13 @@ export default function ChatSocketProvider({ children }: PropsWithChildren) {
 
     nextSocket.on("connect", () => setConnected(true));
     nextSocket.on("disconnect", () => setConnected(false));
-    nextSocket.on("connect_error", () => setConnected(false));
+    nextSocket.on("connect_error", (err) => {
+      setConnected(false);
+      // Stop retrying if the token is expired/invalid — avoids spamming the server
+      if (err.message.includes("Unauthorized") || err.message.includes("expired") || err.message.includes("token")) {
+        nextSocket.disconnect();
+      }
+    });
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSocket(nextSocket);

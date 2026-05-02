@@ -5,6 +5,10 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
+        hostname: "storage.googleapis.com",
+      },
+      {
+        protocol: "https",
         hostname: "res.cloudinary.com",
       },
     ],

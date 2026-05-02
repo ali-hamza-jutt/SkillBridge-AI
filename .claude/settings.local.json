@@ -10,7 +10,8 @@
       "PowerShell(Copy-Item \"d:\\\\projects\\\\skill-bridge-ai\\\\web\\\\public\\\\favicon-removebg.png\" \"d:\\\\projects\\\\skill-bridge-ai\\\\web\\\\app\\\\icon.png\")",
       "Bash(xargs grep *)",
       "Bash(xargs ls *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(npm install *)"
     ]
   }
 }
