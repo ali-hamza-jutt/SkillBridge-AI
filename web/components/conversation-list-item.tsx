@@ -4,7 +4,6 @@ import Link from "next/link";
 import { ImageIcon, Video, FileText } from "lucide-react";
 import type { ConversationSummary } from "@/lib/types/chat";
 import ChatMessageTimestamp from "@/components/chat-message-timestamp";
-import { money } from "@/lib/utils/formatting";
 
 type ConversationListItemProps = {
   conversation: ConversationSummary;
@@ -12,68 +11,97 @@ type ConversationListItemProps = {
   active?: boolean;
 };
 
+const AVATAR_COLORS = [
+  "#4f8ef7", "#7c6ef7", "#36b37e", "#f97316",
+  "#e11d48", "#0891b2", "#8b5cf6", "#059669",
+];
+
+function getAvatarColor(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function Avatar({ name }: { name: string }) {
+  return (
+    <div
+      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+      style={{ backgroundColor: getAvatarColor(name) }}
+    >
+      {getInitials(name)}
+    </div>
+  );
+}
+
 function LastMessagePreview({ conversation }: { conversation: ConversationSummary }) {
   if (!conversation.lastMessageText) {
-    return <span>No messages yet</span>;
+    return <span className="italic">No messages yet</span>;
   }
-
   if (conversation.lastAttachmentType === "IMAGE") {
     return (
       <span className="flex items-center gap-1">
-        <ImageIcon className="h-3.5 w-3.5 shrink-0" />
+        <ImageIcon className="h-3 w-3 shrink-0" />
         Image
       </span>
     );
   }
-
   if (conversation.lastAttachmentType === "VIDEO") {
     return (
       <span className="flex items-center gap-1">
-        <Video className="h-3.5 w-3.5 shrink-0" />
+        <Video className="h-3 w-3 shrink-0" />
         Video
       </span>
     );
   }
-
   if (conversation.lastAttachmentType === "DOCUMENT") {
     return (
       <span className="flex items-center gap-1">
-        <FileText className="h-3.5 w-3.5 shrink-0" />
+        <FileText className="h-3 w-3 shrink-0" />
         <span className="truncate">{conversation.lastMessageText}</span>
       </span>
     );
   }
-
-  return <span>{conversation.lastMessageText}</span>;
+  return <span className="truncate">{conversation.lastMessageText}</span>;
 }
 
 export default function ConversationListItem({ conversation, href, active }: ConversationListItemProps) {
   return (
     <Link
       href={href}
-      className={`block rounded-2xl border p-4 no-underline transition ${
+      className={`flex items-center gap-3 rounded-xl px-3 py-3 no-underline transition-colors ${
         active
-          ? "border-[color-mix(in_srgb,var(--color-brand)_34%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_60%,var(--color-surface))]"
-          : "border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_94%,transparent)] hover:border-[color-mix(in_srgb,var(--color-brand)_24%,var(--color-border))]"
+          ? "bg-[color-mix(in_srgb,var(--color-brand-soft)_70%,var(--color-surface))]"
+          : "hover:bg-[color-mix(in_srgb,var(--color-border)_30%,var(--color-surface))]"
       }`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-(--color-text-main)">{conversation.otherUserName}</p>
-          <p className="mt-0.5 truncate text-xs text-(--color-text-muted)">{conversation.taskTitle}</p>
+      <Avatar name={conversation.otherUserName} />
+
+      <div className="min-w-0 flex-1">
+        {/* Name + timestamp */}
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="truncate text-sm font-semibold text-(--color-text-main)">
+            {conversation.otherUserName}
+          </p>
+          <span className="shrink-0 text-[11px] text-(--color-text-muted)">
+            <ChatMessageTimestamp value={conversation.lastMessageAt ?? conversation.updatedAt} />
+          </span>
         </div>
-        <span className="rounded-full border border-(--color-border) px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-(--color-brand-strong)">
-          {conversation.type === "CONTRACT" ? "Hired" : "Chat"}
-        </span>
-      </div>
 
-      <p className="mt-2 line-clamp-1 text-sm leading-6 text-(--color-text-muted)">
-        <LastMessagePreview conversation={conversation} />
-      </p>
+        {/* Task title */}
+        <p className="truncate text-xs text-(--color-text-muted)">
+          {conversation.taskTitle}
+        </p>
 
-      <div className="mt-3 flex items-center justify-between gap-2">
-        <span className="text-xs text-(--color-text-muted)">{money(conversation.bidAmount)}</span>
-        <ChatMessageTimestamp value={conversation.lastMessageAt ?? conversation.updatedAt} />
+        {/* Last message */}
+        <p className="mt-0.5 truncate text-xs text-(--color-brand-strong) opacity-80">
+          <LastMessagePreview conversation={conversation} />
+        </p>
       </div>
     </Link>
   );
