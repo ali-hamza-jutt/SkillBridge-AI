@@ -20,11 +20,10 @@ import {
   PushSubscription,
   PushSubscriptionDocument,
 } from './schema/push-subscription.schema';
-import { NotificationsGateway } from './notifications.gateway';
 import { WebPushService } from './web-push.service';
 
 export type NotificationPayload = {
-  type: NotificationType;
+  type: 'BID_RECEIVED' | 'MESSAGE_NEW' | 'HIRED';
   title: string;
   message: string;
   url?: string;
@@ -40,7 +39,6 @@ export class NotificationsService implements OnModuleInit {
     private readonly notificationModel: Model<NotificationDocument>,
     @InjectModel(PushSubscription.name)
     private readonly pushSubModel: Model<PushSubscriptionDocument>,
-    private readonly gateway: NotificationsGateway,
     private readonly webPushService: WebPushService,
   ) {
     this.client = ClientProxyFactory.create({
@@ -85,11 +83,7 @@ export class NotificationsService implements OnModuleInit {
 
     const plain = notification.toObject<Notification & { _id: Types.ObjectId }>();
 
-    if (this.gateway.isUserOnline(userId)) {
-      this.gateway.sendToUser(userId, plain);
-    } else {
-      await this.deliverPush(userId, data);
-    }
+    await this.deliverPush(userId, data);
 
     return plain;
   }

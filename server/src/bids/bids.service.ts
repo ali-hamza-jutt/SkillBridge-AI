@@ -43,11 +43,11 @@ export class BidsService {
       ]);
 
       if (task && freelancer) {
-        this.notificationsService.emitEvent('notification.bid.received', {
-          recipientId: task.clientId,
-          freelancerName: freelancer.name,
-          taskTitle: task.title,
-          taskId: String(task._id),
+        void this.notificationsService.saveAndDeliver(task.clientId, {
+          type: 'BID_RECEIVED' as const,
+          title: 'New bid received',
+          message: `${freelancer.name} submitted a bid on "${task.title}"`,
+          url: `/dashboard/jobs/${String(task._id)}`,
         });
       }
 

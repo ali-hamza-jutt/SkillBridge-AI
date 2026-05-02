@@ -384,11 +384,11 @@ export class ConversationsService {
     this.gateway.emitToUser(bid.freelancerId, 'conversation.updated', result);
 
     // notify the freelancer they were hired
-    this.notificationsService.emitEvent('notification.hired', {
-      recipientId: bid.freelancerId,
-      clientName,
-      taskTitle: task.title,
-      conversationId: String(contractConversation._id),
+    void this.notificationsService.saveAndDeliver(bid.freelancerId, {
+      type: 'HIRED' as const,
+      title: "You've been hired!",
+      message: `${clientName} hired you for "${task.title}"`,
+      url: `/dashboard/messages/${String(contractConversation._id)}`,
     });
 
     return result;
@@ -483,7 +483,7 @@ export class ConversationsService {
       conversationUpdate,
     );
 
-    // notify the OTHER party via RabbitMQ (they get a browser/push notification)
+    // notify the OTHER party with a push notification
     const recipientId =
       conversation.clientId === userId
         ? conversation.freelancerId
@@ -493,11 +493,11 @@ export class ConversationsService {
       ? trimmedBody.substring(0, 120)
       : `(${attachmentDocs[0]?.name ?? 'Sent an attachment'})`;
 
-    this.notificationsService.emitEvent('notification.message.new', {
-      recipientId,
-      senderName,
-      preview,
-      conversationId,
+    void this.notificationsService.saveAndDeliver(recipientId, {
+      type: 'MESSAGE_NEW' as const,
+      title: `New message from ${senderName}`,
+      message: preview,
+      url: `/dashboard/messages/${conversationId}`,
     });
 
     return payload;
