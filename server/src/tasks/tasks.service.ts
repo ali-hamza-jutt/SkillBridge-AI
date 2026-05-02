@@ -153,7 +153,7 @@ export class TasksService {
 
       await task.save();
 
-      this.notificationsService.sendNotification('task.assigned', {
+      this.notificationsService.emitEvent('task.assigned', {
         taskId: task._id,
         freelancerId: DEMO_USER_ID,
         clientId: task.clientId,
@@ -178,20 +178,20 @@ export class TasksService {
 
       if (dto.status === TaskStatus.ASSIGNED && dto.developerId) {
         task.assignedFreelancer = dto.developerId;
-        this.notificationsService.sendNotification('task.assigned', {
+        this.notificationsService.emitEvent('task.assigned', {
           taskId: task._id,
           freelancerId: dto.developerId,
           clientId: task.clientId,
         });
       } else if (dto.status === TaskStatus.COMPLETED && dto.developerId) {
         task.completedBy = dto.developerId;
-        this.notificationsService.sendNotification('task.completed', {
+        this.notificationsService.emitEvent('task.completed', {
           taskId: task._id,
           developerId: dto.developerId,
           clientId: task.clientId,
         });
       } else if (dto.status === TaskStatus.CLOSED) {
-        this.notificationsService.sendNotification('task.closed', {
+        this.notificationsService.emitEvent('task.closed', {
           taskId: task._id,
           clientId: task.clientId,
         });

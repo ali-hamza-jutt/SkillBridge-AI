@@ -27,6 +27,7 @@ import { AttachmentDto } from './dto/send-message.dto';
 import { ConversationsGateway } from './conversations.gateway';
 import { UsersService } from '../users/users.service';
 import { UtilityService } from '../common/utility/utility.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 type ConversationLike = Conversation & {
   _id: Types.ObjectId;
@@ -51,6 +52,7 @@ export class ConversationsService {
     private readonly gateway: ConversationsGateway,
     private readonly usersService: UsersService,
     private readonly utilityService: UtilityService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   private async buildConversationView(
@@ -381,6 +383,14 @@ export class ConversationsService {
     this.gateway.emitToUser(task.clientId, 'conversation.updated', result);
     this.gateway.emitToUser(bid.freelancerId, 'conversation.updated', result);
 
+    // notify the freelancer they were hired
+    this.notificationsService.emitEvent('notification.hired', {
+      recipientId: bid.freelancerId,
+      clientName,
+      taskTitle: task.title,
+      conversationId: String(contractConversation._id),
+    });
+
     return result;
   }
 
@@ -472,6 +482,23 @@ export class ConversationsService {
       'conversation.updated',
       conversationUpdate,
     );
+
+    // notify the OTHER party via RabbitMQ (they get a browser/push notification)
+    const recipientId =
+      conversation.clientId === userId
+        ? conversation.freelancerId
+        : conversation.clientId;
+
+    const preview = trimmedBody
+      ? trimmedBody.substring(0, 120)
+      : `(${attachmentDocs[0]?.name ?? 'Sent an attachment'})`;
+
+    this.notificationsService.emitEvent('notification.message.new', {
+      recipientId,
+      senderName,
+      preview,
+      conversationId,
+    });
 
     return payload;
   }

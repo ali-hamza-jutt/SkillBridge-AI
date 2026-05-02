@@ -1,76 +1,129 @@
 import {
+  Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
+  Post,
   Req,
   UseGuards,
   Logger,
 } from '@nestjs/common';
 import { EventPattern, Payload } from '@nestjs/microservices';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import {
-  Notification,
-  NotificationDocument,
-} from './schema/notification.scehma';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { NotificationsService } from './notifications.service';
-import { NotificationsGateway } from './notifications.gateway';
+import { NotificationsService, NotificationPayload } from './notifications.service';
+import { PushSubscribeDto, PushUnsubscribeDto } from './dto/push-subscribe.dto';
 
-const DEMO_USER_ID = 'DEMO_USER_1';
+type BidReceivedPayload = {
+  recipientId: string;
+  freelancerName: string;
+  taskTitle: string;
+  taskId: string;
+};
+
+type MessageNewPayload = {
+  recipientId: string;
+  senderName: string;
+  preview: string;
+  conversationId: string;
+};
+
+type HiredPayload = {
+  recipientId: string;
+  clientName: string;
+  taskTitle: string;
+  conversationId: string;
+};
 
 @Controller('notifications')
 export class NotificationsController {
   private readonly logger = new Logger(NotificationsController.name);
 
-  constructor(
-    @InjectModel(Notification.name)
-    private notificationModel: Model<NotificationDocument>,
-    private notificationsService: NotificationsService,
-    private gateway: NotificationsGateway,
-  ) {}
+  constructor(private readonly notificationsService: NotificationsService) {}
 
-  @EventPattern('task.assigned')
-  async handleTaskAssigned(@Payload() data: any) {
+  // ---- RabbitMQ consumers ---------------------------------------------------
+
+  @EventPattern('notification.bid.received')
+  async handleBidReceived(@Payload() data: BidReceivedPayload) {
     try {
-      const notification = await this.notificationModel.create({
-        userId: DEMO_USER_ID,
-        message: 'You have been assigned a new task',
+      await this.notificationsService.saveAndDeliver(data.recipientId, {
+        type: 'BID_RECEIVED' as NotificationPayload['type'],
+        title: 'New bid received',
+        message: `${data.freelancerName} submitted a bid on "${data.taskTitle}"`,
+        url: `/dashboard/jobs/${data.taskId}`,
       });
-
-      this.gateway.sendNotification(DEMO_USER_ID, notification);
-      this.logger.log('✅ Task Assigned Event Received:', data);
-    } catch (error) {
-      this.logger.error('Failed to handle task assigned event:', error);
+    } catch (err) {
+      this.logger.error('handleBidReceived failed', err);
     }
   }
 
-  @EventPattern('bid.placed')
-  handleBidPlaced(@Payload() data: any) {
+  @EventPattern('notification.message.new')
+  async handleMessageNew(@Payload() data: MessageNewPayload) {
     try {
-      this.logger.log('📢 Bid Placed Event:', data);
-    } catch (error) {
-      this.logger.error('Failed to handle bid placed event:', error);
+      await this.notificationsService.saveAndDeliver(data.recipientId, {
+        type: 'MESSAGE_NEW' as NotificationPayload['type'],
+        title: `New message from ${data.senderName}`,
+        message: data.preview,
+        url: `/dashboard/messages/${data.conversationId}`,
+      });
+    } catch (err) {
+      this.logger.error('handleMessageNew failed', err);
     }
   }
 
-  @EventPattern('task.completed')
-  handleTaskCompleted(@Payload() data: any) {
+  @EventPattern('notification.hired')
+  async handleHired(@Payload() data: HiredPayload) {
     try {
-      this.logger.log('🎉 Task Completed:', data);
-    } catch (error) {
-      this.logger.error('Failed to handle task completed event:', error);
+      await this.notificationsService.saveAndDeliver(data.recipientId, {
+        type: 'HIRED' as NotificationPayload['type'],
+        title: "You've been hired!",
+        message: `${data.clientName} hired you for "${data.taskTitle}"`,
+        url: `/dashboard/messages/${data.conversationId}`,
+      });
+    } catch (err) {
+      this.logger.error('handleHired failed', err);
     }
   }
+
+  // ---- HTTP endpoints -------------------------------------------------------
 
   @Get()
   @UseGuards(JwtAuthGuard)
-  getUserNotifications(@Req() req) {
+  getNotifications(@Req() req: { user: { userId: string } }) {
     return this.notificationsService.findByUser(req.user.userId);
   }
+
+  @Patch('read-all')
+  @UseGuards(JwtAuthGuard)
+  markAllRead(@Req() req: { user: { userId: string } }) {
+    return this.notificationsService.markAllRead(req.user.userId);
+  }
+
   @Patch(':id/read')
+  @UseGuards(JwtAuthGuard)
   markAsRead(@Param('id') id: string) {
     return this.notificationsService.markAsRead(id);
+  }
+
+  @Post('subscribe')
+  @UseGuards(JwtAuthGuard)
+  subscribe(
+    @Req() req: { user: { userId: string } },
+    @Body() dto: PushSubscribeDto,
+  ) {
+    return this.notificationsService.savePushSubscription(req.user.userId, dto);
+  }
+
+  @Delete('subscribe')
+  @UseGuards(JwtAuthGuard)
+  unsubscribe(
+    @Req() req: { user: { userId: string } },
+    @Body() dto: PushUnsubscribeDto,
+  ) {
+    return this.notificationsService.removePushSubscription(
+      req.user.userId,
+      dto.endpoint,
+    );
   }
 }

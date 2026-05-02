@@ -11,6 +11,7 @@ import { Bid, BidSchema } from '../bids/schemas/bid.schema';
 import { UsersModule } from '../users/users.module';
 import { UtilityModule } from '../common/utility/utility.module';
 import { GCSModule } from '../gcs/gcs.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { GCSModule } from '../gcs/gcs.module';
     UsersModule,
     UtilityModule,
     GCSModule,
+    NotificationsModule,
   ],
   controllers: [ConversationsController],
   providers: [ConversationsService, ConversationsGateway],

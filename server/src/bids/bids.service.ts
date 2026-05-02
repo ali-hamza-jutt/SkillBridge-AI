@@ -4,11 +4,16 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 
 import { Bid, BidDocument } from './schemas/bid.schema';
 import { CreateBidDto } from './dto/create-bid.dto';
 import { User, UserDocument } from '../users/schemas/user.schema';
+import { Task, TaskDocument } from '../tasks/schemas/task.schema';
+import { NotificationsService } from '../notifications/notifications.service';
+
+type BidLean = Bid & { _id: Types.ObjectId };
+type UserNameLean = { _id: Types.ObjectId; name: string };
 
 @Injectable()
 export class BidsService {
@@ -17,53 +22,74 @@ export class BidsService {
     private bidModel: Model<BidDocument>,
     @InjectModel(User.name)
     private userModel: Model<UserDocument>,
+    @InjectModel(Task.name)
+    private taskModel: Model<TaskDocument>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(dto: CreateBidDto, freelancerId: string) {
     try {
-      const bid = new this.bidModel({
-        ...dto,
-        freelancerId,
-      });
+      const bid = await this.bidModel.create({ ...dto, freelancerId });
 
-      return await bid.save();
-    } catch (error:any) {
-      throw new BadRequestException(`Failed to create bid: ${error.message}`);
+      const [task, freelancer] = await Promise.all([
+        this.taskModel
+          .findById(dto.taskId)
+          .select('clientId title')
+          .lean<{ _id: Types.ObjectId; clientId: string; title: string }>(),
+        this.userModel
+          .findById(freelancerId)
+          .select('name')
+          .lean<UserNameLean>(),
+      ]);
+
+      if (task && freelancer) {
+        this.notificationsService.emitEvent('notification.bid.received', {
+          recipientId: task.clientId,
+          freelancerName: freelancer.name,
+          taskTitle: task.title,
+          taskId: String(task._id),
+        });
+      }
+
+      return bid;
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new BadRequestException(`Failed to create bid: ${msg}`);
     }
   }
 
   async findByTask(taskId: string) {
     try {
-      const bids = await this.bidModel.find({ taskId }).sort({ createdAt: -1 }).lean();
+      const bids = await this.bidModel
+        .find({ taskId })
+        .sort({ createdAt: -1 })
+        .lean<BidLean[]>();
 
       if (!bids.length) {
         return [];
       }
 
       const freelancerIds = Array.from(
-        new Set(
-          bids
-            .map((bid: any) => bid.freelancerId)
-            .filter((freelancerId: string | undefined) => !!freelancerId),
-        ),
+        new Set(bids.map((bid) => bid.freelancerId).filter(Boolean)),
       );
 
       const freelancers = await this.userModel
         .find({ _id: { $in: freelancerIds } })
         .select('_id name')
-        .lean();
+        .lean<UserNameLean[]>();
 
       const freelancerMap = new Map(
-        freelancers.map((freelancer: any) => [String(freelancer._id), freelancer]),
+        freelancers.map((f) => [String(f._id), f.name]),
       );
 
-      return bids.map((bid: any) => ({
+      return bids.map((bid) => ({
         ...bid,
         freelancerName:
-          freelancerMap.get(String(bid.freelancerId))?.name ?? 'Unknown Freelancer',
+          freelancerMap.get(bid.freelancerId) ?? 'Unknown Freelancer',
       }));
-    } catch (error:any) {
-      throw new BadRequestException(`Failed to fetch bids: ${error.message}`);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new BadRequestException(`Failed to fetch bids: ${msg}`);
     }
   }
 
@@ -76,9 +102,10 @@ export class BidsService {
       }
 
       return { message: 'Bid deleted' };
-    } catch (error:any) {
+    } catch (error: unknown) {
       if (error instanceof NotFoundException) throw error;
-      throw new BadRequestException(`Failed to delete bid: ${error.message}`);
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new BadRequestException(`Failed to delete bid: ${msg}`);
     }
   }
 
@@ -89,9 +116,10 @@ export class BidsService {
         throw new NotFoundException('Bid not found');
       }
       return bid;
-    } catch (error:any) {
+    } catch (error: unknown) {
       if (error instanceof NotFoundException) throw error;
-      throw new BadRequestException(`Failed to fetch bid: ${error.message}`);
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new BadRequestException(`Failed to fetch bid: ${msg}`);
     }
   }
 }

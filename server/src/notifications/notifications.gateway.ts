@@ -1,72 +1,24 @@
-import {
-  WebSocketGateway,
-  WebSocketServer,
-  SubscribeMessage,
-  ConnectedSocket,
-  MessageBody,
-} from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
+import { WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Logger } from '@nestjs/common';
+import { Server } from 'socket.io';
 
-@WebSocketGateway({
-  cors: {
-    origin: '*',
-  },
-})
+@WebSocketGateway({ cors: { origin: '*' } })
 export class NotificationsGateway {
   private readonly logger = new Logger(NotificationsGateway.name);
 
   @WebSocketServer()
   server!: Server;
 
-  // Store userId -> socket mapping
-  private users = new Map<string, string>();
+  // ConversationsGateway owns auth + room setup on the shared socket server.
+  // This gateway only emits to pre-built user rooms — no handleConnection needed.
 
-  handleConnection(client: Socket) {
-    try {
-      this.logger.log(`Client connected: ${client.id}`);
-    } catch (error) {
-      this.logger.error('Error handling connection:', error);
-    }
+  isUserOnline(userId: string): boolean {
+    const room = this.server.sockets.adapter.rooms.get(`user:${userId}`);
+    return !!(room && room.size > 0);
   }
 
-  handleDisconnect(client: Socket) {
-    try {
-      this.logger.log(`Client disconnected: ${client.id}`);
-
-      // remove user mapping
-      for (const [userId, socketId] of this.users.entries()) {
-        if (socketId === client.id) {
-          this.users.delete(userId);
-        }
-      }
-    } catch (error) {
-      this.logger.error('Error handling disconnection:', error);
-    }
-  }
-
-  @SubscribeMessage('register')
-  handleRegister(
-    @MessageBody() userId: string,
-    @ConnectedSocket() client: Socket,
-  ) {
-    try {
-      this.users.set(userId, client.id);
-      this.logger.log(`User ${userId} registered with socket ${client.id}`);
-    } catch (error) {
-      this.logger.error('Error registering user:', error);
-    }
-  }
-
-  sendNotification(userId: string, message: any) {
-    try {
-      const socketId = this.users.get(userId);
-
-      if (socketId) {
-        this.server.to(socketId).emit('notification', message);
-      }
-    } catch (error) {
-      this.logger.error('Error sending notification:', error);
-    }
+  sendToUser(userId: string, notification: unknown) {
+    this.server.to(`user:${userId}`).emit('notification', notification);
+    this.logger.debug(`Notified user ${userId}`);
   }
 }

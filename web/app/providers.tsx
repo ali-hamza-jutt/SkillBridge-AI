@@ -5,6 +5,7 @@ import { Provider } from "react-redux";
 import { store } from "@/lib/store";
 import { setCredentials, setHydrated } from "@/lib/features/auth/authSlice";
 import ChatSocketProvider from "@/components/chat-socket-provider";
+import { NotificationsProvider } from "@/lib/notifications-context";
 
 function AuthBootstrap() {
   useEffect(() => {
@@ -43,7 +44,9 @@ export default function Providers({ children }: PropsWithChildren) {
   return (
     <Provider store={store}>
       <AuthBootstrap />
-      <ChatSocketProvider>{children}</ChatSocketProvider>
+      <ChatSocketProvider>
+        <NotificationsProvider>{children}</NotificationsProvider>
+      </ChatSocketProvider>
     </Provider>
   );
 }
