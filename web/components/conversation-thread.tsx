@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUp, Paperclip, X, FileText, Loader2, RotateCcw } from "lucide-react";
+import { Paperclip, X, FileText, Loader2, RotateCcw, Send, Smile } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAppSelector } from "@/lib/hooks";
 import { useChatSocket } from "@/components/chat-socket-provider";
@@ -18,7 +18,7 @@ import {
   useGcsControllerGenerateSignedUrlMutation,
 } from "@/lib/api";
 
-const MAX_VIDEO_SIZE = 100 * 1024 * 1024; // 100 MB
+const MAX_VIDEO_SIZE = 100 * 1024 * 1024;
 
 type PendingAttachment = {
   localId: string;
@@ -37,20 +37,43 @@ function resolveAttachmentType(file: File): "IMAGE" | "VIDEO" | "DOCUMENT" {
 
 const mergeUniqueMessages = (current: ChatMessage[], incoming: ChatMessage[]) => {
   const byId = new Map<string, ChatMessage>();
-  for (const message of current) byId.set(message.id, message);
-  for (const message of incoming) byId.set(message.id, message);
+  for (const m of current) byId.set(m.id, m);
+  for (const m of incoming) byId.set(m.id, m);
   return Array.from(byId.values()).sort((a, b) => {
-    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-    return aTime - bTime;
+    const aT = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const bT = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return aT - bT;
   });
 };
 
+// ── Avatar helpers ────────────────────────────────────────────────────────────
+const AVATAR_COLORS = [
+  "#4f8ef7", "#7c6ef7", "#36b37e", "#f97316",
+  "#e11d48", "#0891b2", "#8b5cf6", "#059669",
+];
+function avatarColor(name: string) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+}
+function initials(name: string) {
+  const p = name.trim().split(/\s+/);
+  return p.length === 1 ? p[0].slice(0, 2).toUpperCase() : (p[0][0] + p[p.length - 1][0]).toUpperCase();
+}
+function Avatar({ name, size = 36 }: { name: string; size?: number }) {
+  return (
+    <div
+      className="shrink-0 flex items-center justify-center rounded-full text-white font-bold select-none"
+      style={{ width: size, height: size, fontSize: size * 0.35, backgroundColor: avatarColor(name) }}
+    >
+      {initials(name)}
+    </div>
+  );
+}
 
+// ── Attachment renderers ──────────────────────────────────────────────────────
 function MediaPreview({ attachment }: { attachment: MessageAttachment }) {
-  const isValidUrl = attachment.url.startsWith("http");
-  if (!isValidUrl) return null;
-
+  if (!attachment.url.startsWith("http")) return null;
   if (attachment.type === "IMAGE") {
     return (
       <a href={attachment.url} target="_blank" rel="noopener noreferrer" className="block">
@@ -59,25 +82,19 @@ function MediaPreview({ attachment }: { attachment: MessageAttachment }) {
           alt={attachment.name}
           width={0}
           height={0}
-          sizes="420px"
-          className="max-h-96 w-auto rounded-2xl object-contain"
-          style={{ maxWidth: "420px" }}
+          sizes="380px"
+          className="max-h-80 w-auto rounded-xl object-contain"
+          style={{ maxWidth: 380 }}
         />
       </a>
     );
   }
   return (
-    <video
-      src={attachment.url}
-      controls
-      className="max-h-96 rounded-2xl"
-      style={{ maxWidth: "420px" }}
-      preload="metadata"
-    />
+    <video src={attachment.url} controls className="max-h-80 rounded-xl" style={{ maxWidth: 380 }} preload="metadata" />
   );
 }
 
-function DocPreview({ attachment, isMine }: { attachment: MessageAttachment; isMine?: boolean }) {
+function DocPreview({ attachment }: { attachment: MessageAttachment }) {
   const meta = fileTypeMeta(attachment.mimeType);
   const size = formatFileSize(attachment.size);
   return (
@@ -85,198 +102,119 @@ function DocPreview({ attachment, isMine }: { attachment: MessageAttachment; isM
       href={attachment.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="group flex items-center gap-3 no-underline"
+      className="group inline-flex items-center gap-3 rounded-xl border border-(--color-border) bg-[color-mix(in_srgb,var(--color-surface)_80%,transparent)] px-3 py-2.5 no-underline transition hover:border-[color-mix(in_srgb,var(--color-brand)_40%,var(--color-border))]"
     >
-      <div className={`flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl ${meta.bg} shadow-sm`}>
+      <div className={`flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg ${meta.bg}`}>
         <FileText className="h-4 w-4 text-white/80" />
         <span className="text-[9px] font-black tracking-wider text-white">{meta.label}</span>
       </div>
       <div className="flex min-w-0 flex-col">
-        <span className={`max-w-45 truncate text-sm font-semibold group-hover:underline ${isMine ? "text-white" : "text-(--color-text-main)"}`}>
-          {attachment.name}
-        </span>
-        {size && <span className={`text-xs ${isMine ? "text-white/70" : "text-(--color-text-muted)"}`}>{size}</span>}
+        <span className="max-w-48 truncate text-sm font-semibold text-(--color-text-main) group-hover:underline">{attachment.name}</span>
+        {size && <span className="text-xs text-(--color-text-muted)">{size}</span>}
       </div>
     </a>
   );
 }
 
-export default function ConversationThread({
-  conversationId,
-}: {
-  conversationId: string;
-}) {
+// ── Main component ────────────────────────────────────────────────────────────
+export default function ConversationThread({ conversationId }: { conversationId: string }) {
   const router = useRouter();
-  const { token, userId } = useAppSelector((state) => state.auth);
+  const { token, userId } = useAppSelector((s) => s.auth);
   const { socket, joinConversation, leaveConversation } = useChatSocket();
-  const {
-    data: conversationData,
-    isLoading: isConversationLoading,
-    error: conversationError,
-  } = useConversationsControllerGetConversationQuery(
-    { id: conversationId },
-    { skip: !token || !conversationId },
-  );
-  const {
-    data: messagesData,
-    isLoading: isMessagesLoading,
-  } = useConversationsControllerGetMessagesQuery(
-    { id: conversationId, before: "", limit: "100" },
-    { skip: !token || !conversationId },
-  );
+
+  const { data: convData, isLoading: convLoading, error: convError } =
+    useConversationsControllerGetConversationQuery({ id: conversationId }, { skip: !token || !conversationId });
+  const { data: msgData, isLoading: msgLoading } =
+    useConversationsControllerGetMessagesQuery({ id: conversationId, before: "", limit: "100" }, { skip: !token || !conversationId });
   const [sendMessage, { isLoading: sending }] = useConversationsControllerSendMessageMutation();
   const [generateSignedUrl] = useGcsControllerGenerateSignedUrlMutation();
 
-  const baseConversation = (conversationData as ConversationSummary | undefined) ?? null;
-  const [conversationPatches, setConversationPatches] = useState<Partial<ConversationSummary>>({});
-  const conversation = baseConversation ? { ...baseConversation, ...conversationPatches } : null;
+  const baseConversation = (convData as ConversationSummary | undefined) ?? null;
+  const [patches, setPatches] = useState<Partial<ConversationSummary>>({});
+  const conversation = baseConversation ? { ...baseConversation, ...patches } : null;
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [prevMessagesData, setPrevMessagesData] = useState(messagesData);
-  if (prevMessagesData !== messagesData) {
-    setPrevMessagesData(messagesData);
-    const nextMessages = (messagesData as ChatMessage[] | undefined) ?? [];
-    setMessages((current) => mergeUniqueMessages(current, nextMessages));
+  const [prevMsgData, setPrevMsgData] = useState(msgData);
+  if (prevMsgData !== msgData) {
+    setPrevMsgData(msgData);
+    setMessages((cur) => mergeUniqueMessages(cur, (msgData as ChatMessage[] | undefined) ?? []));
   }
 
   const [body, setBody] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   const queryError = useMemo(() => {
-    if (!conversationError) return null;
-    if (typeof conversationError === "object" && "data" in conversationError) {
-      const data = (conversationError as { data?: unknown }).data;
-      return typeof data === "string" ? data : "Failed to load conversation";
+    if (!convError) return null;
+    if (typeof convError === "object" && "data" in convError) {
+      const d = (convError as { data?: unknown }).data;
+      return typeof d === "string" ? d : "Failed to load conversation";
     }
     return "Failed to load conversation";
-  }, [conversationError]);
-
-  const error = sendError ?? queryError;
+  }, [convError]);
 
   useEffect(() => {
     if (!token || !conversationId) return;
     markConversationRead(conversationId);
     joinConversation(conversationId);
-    return () => {
-      leaveConversation(conversationId);
-    };
+    return () => leaveConversation(conversationId);
   }, [conversationId, joinConversation, leaveConversation, token]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   useEffect(() => {
     if (!socket) return;
-
-    const handleMessageCreated = (payload: ChatMessage) => {
-      if (payload.conversationId !== conversationId) return;
-      setMessages((current) => {
-        if (current.some((m) => m.id === payload.id)) return current;
-        return mergeUniqueMessages(current, [payload]);
-      });
-      setConversationPatches((prev) => ({
-        ...prev,
-        lastMessageText: payload.body,
-        lastMessageAt: payload.createdAt,
-      }));
+    const onMessage = (p: ChatMessage) => {
+      if (p.conversationId !== conversationId) return;
+      setMessages((cur) => cur.some((m) => m.id === p.id) ? cur : mergeUniqueMessages(cur, [p]));
+      setPatches((prev) => ({ ...prev, lastMessageText: p.body, lastMessageAt: p.createdAt }));
       markConversationRead(conversationId);
     };
-
-    const handleConversationUpdated = (
-      payload: Partial<ConversationSummary> & { conversationId: string },
-    ) => {
-      if (payload.conversationId !== conversationId) return;
-      setConversationPatches((prev) => ({ ...prev, ...payload }));
+    const onUpdated = (p: Partial<ConversationSummary> & { conversationId: string }) => {
+      if (p.conversationId !== conversationId) return;
+      setPatches((prev) => ({ ...prev, ...p }));
     };
-
-    socket.on("message.created", handleMessageCreated);
-    socket.on("conversation.updated", handleConversationUpdated);
-
-    return () => {
-      socket.off("message.created", handleMessageCreated);
-      socket.off("conversation.updated", handleConversationUpdated);
-    };
+    socket.on("message.created", onMessage);
+    socket.on("conversation.updated", onUpdated);
+    return () => { socket.off("message.created", onMessage); socket.off("conversation.updated", onUpdated); };
   }, [conversationId, socket]);
 
   const uploadFile = async (pending: PendingAttachment) => {
-    const setError = (msg: string) =>
-      setPendingAttachments((prev) =>
-        prev.map((p) => (p.localId === pending.localId ? { ...p, uploading: false, error: msg } : p)),
-      );
-
+    const setErr = (msg: string) =>
+      setPendingAttachments((prev) => prev.map((p) => p.localId === pending.localId ? { ...p, uploading: false, error: msg } : p));
     try {
       const { signedUrl, publicUrl, objectName } = (await generateSignedUrl({
-        generateUploadUrlDto: {
-          fileName: pending.file.name,
-          mimeType: pending.file.type,
-          folder: "chat-attachments",
-        },
+        generateUploadUrlDto: { fileName: pending.file.name, mimeType: pending.file.type, folder: "chat-attachments" },
       }).unwrap()) as { signedUrl: string; publicUrl: string; objectName: string };
 
-      const res = await fetch(signedUrl, {
-        method: "PUT",
-        headers: { "Content-Type": pending.file.type },
-        body: pending.file,
-      });
+      const res = await fetch(signedUrl, { method: "PUT", headers: { "Content-Type": pending.file.type }, body: pending.file });
+      if (!res.ok) throw new Error(`Upload failed (HTTP ${res.status})`);
 
-      if (!res.ok) {
-        throw new Error(`Upload failed (HTTP ${res.status})`);
-      }
-
-      const attachmentType = resolveAttachmentType(pending.file);
       const result: AttachmentDto = {
-        url: publicUrl,
-        publicId: objectName,
-        name: pending.file.name,
-        mimeType: pending.file.type,
-        type: attachmentType,
-        size: pending.file.size,
+        url: publicUrl, publicId: objectName, name: pending.file.name,
+        mimeType: pending.file.type, type: resolveAttachmentType(pending.file), size: pending.file.size,
       };
-
-      setPendingAttachments((prev) =>
-        prev.map((p) => (p.localId === pending.localId ? { ...p, uploading: false, result } : p)),
-      );
+      setPendingAttachments((prev) => prev.map((p) => p.localId === pending.localId ? { ...p, uploading: false, result } : p));
     } catch (err) {
-      const msg =
-        err instanceof Error
-          ? err.message
-          : typeof err === "object" && err !== null && "data" in err
-            ? String((err as { data?: unknown }).data ?? "Upload failed")
-            : "Upload failed";
-      console.error("[chat upload]", err);
-      setError(msg);
+      const msg = err instanceof Error ? err.message
+        : typeof err === "object" && err !== null && "data" in err
+          ? String((err as { data?: unknown }).data ?? "Upload failed") : "Upload failed";
+      setErr(msg);
     }
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files ?? []);
-    event.target.value = "";
-
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
     for (const file of files) {
-      if (file.type.startsWith("video/") && file.size > MAX_VIDEO_SIZE) {
-        setSendError("Video files must be under 100 MB.");
-        continue;
-      }
-
+      if (file.type.startsWith("video/") && file.size > MAX_VIDEO_SIZE) { setSendError("Video must be under 100 MB."); continue; }
       const localId = `${Date.now()}-${Math.random()}`;
-      const preview =
-        file.type.startsWith("image/") || file.type.startsWith("video/")
-          ? URL.createObjectURL(file)
-          : null;
-
-      const pending: PendingAttachment = {
-        localId,
-        file,
-        preview,
-        uploading: true,
-        error: null,
-        result: null,
-      };
-
+      const preview = file.type.startsWith("image/") || file.type.startsWith("video/") ? URL.createObjectURL(file) : null;
+      const pending: PendingAttachment = { localId, file, preview, uploading: true, error: null, result: null };
       setPendingAttachments((prev) => [...prev, pending]);
       uploadFile(pending);
     }
@@ -290,59 +228,42 @@ export default function ConversationThread({
     });
   };
 
-  const handleSend = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
     const trimmed = body.trim();
-    const readyAttachments = pendingAttachments
-      .filter((p) => p.result !== null)
-      .map((p) => p.result!);
-
-    if ((!trimmed && readyAttachments.length === 0) || !token) return;
-    if (pendingAttachments.some((p) => p.uploading)) return;
-
+    const ready = pendingAttachments.filter((p) => p.result !== null).map((p) => p.result!);
+    if ((!trimmed && ready.length === 0) || !token || pendingAttachments.some((p) => p.uploading)) return;
     try {
       setSendError(null);
       await sendMessage({
         id: conversationId,
-        sendMessageDto: {
-          ...(trimmed ? { body: trimmed } : {}),
-          ...(readyAttachments.length > 0 ? { attachments: readyAttachments } : {}),
-        },
+        sendMessageDto: { ...(trimmed ? { body: trimmed } : {}), ...(ready.length > 0 ? { attachments: ready } : {}) },
       }).unwrap();
       setBody("");
       setPendingAttachments([]);
       markConversationRead(conversationId);
-    } catch {
-      setSendError("Failed to send message. Please try again.");
-    }
+    } catch { setSendError("Failed to send. Please try again."); }
   };
 
-  const canSend =
-    !sending &&
-    !pendingAttachments.some((p) => p.uploading) &&
-    (body.trim().length > 0 || pendingAttachments.some((p) => p.result !== null));
+  const canSend = !sending && !pendingAttachments.some((p) => p.uploading)
+    && (body.trim().length > 0 || pendingAttachments.some((p) => p.result !== null));
 
-  const loading = isConversationLoading || isMessagesLoading;
-
-  if (loading) {
+  if (convLoading || msgLoading) {
     return (
-      <div className="rounded-2xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_94%,transparent)] p-4 shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18)]">
-        <p className="text-sm text-(--color-text-muted)">Loading conversation...</p>
+      <div className="flex h-full items-center justify-center rounded-2xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-(--color-surface)">
+        <Loader2 className="h-5 w-5 animate-spin text-(--color-text-muted)" />
       </div>
     );
   }
 
-  if (error && !conversation) {
+  if (queryError && !conversation) {
     return (
-      <div className="rounded-2xl border border-dashed border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] p-6 text-center shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18)]">
-        <h2 className="text-xl font-bold tracking-tight text-(--color-text-main)">
-          Conversation not available
-        </h2>
-        <p className="mt-2 text-sm text-(--color-text-muted)">{error}</p>
+      <div className="flex h-full flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-(--color-border) bg-(--color-surface) text-center">
+        <p className="text-sm text-(--color-text-muted)">{queryError}</p>
         <button
           type="button"
-          className="mt-6 inline-flex items-center justify-center rounded-full border border-transparent bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] px-5 py-2.5 text-sm font-semibold text-white"
           onClick={() => router.push("/dashboard/messages")}
+          className="rounded-full bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] px-5 py-2 text-sm font-semibold text-white"
         >
           Back to Messages
         </button>
@@ -350,232 +271,229 @@ export default function ConversationThread({
     );
   }
 
+  const otherName = conversation?.otherUserName ?? "Conversation";
+
   return (
     <section
-      className="grid grid-rows-[auto_1fr_auto] rounded-2xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_94%,transparent)] shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18)]"
+      className="grid grid-rows-[auto_1fr_auto] overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-(--color-surface) shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18)]"
       style={{ height: "calc(100vh - 88px)" }}
     >
-      <header className="border-b border-[color-mix(in_srgb,var(--color-border)_85%,transparent)] px-4 py-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-(--color-text-muted)">
-              {conversation?.type === "CONTRACT" ? "Contract Chat" : "Pre-hire Chat"}
-            </p>
-            <h1 className="mt-0.5 truncate text-base font-bold tracking-tight text-(--color-text-main)">
-              {conversation?.otherUserName ?? "Conversation"}
-            </h1>
-            <p className="truncate text-xs text-(--color-text-muted)">{conversation?.taskTitle}</p>
+      {/* ── Header ── */}
+      <header className="flex items-center gap-3 border-b border-[color-mix(in_srgb,var(--color-border)_85%,transparent)] px-5 py-3.5">
+        <Avatar name={otherName} size={44} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <h1 className="truncate text-base font-bold text-(--color-text-main)">{otherName}</h1>
+            {conversation?.status === "ARCHIVED" && (
+              <span className="shrink-0 rounded-full border border-(--color-border) px-2 py-0.5 text-[10px] font-semibold text-(--color-text-muted)">
+                Archived
+              </span>
+            )}
           </div>
-          {conversation?.status === "ARCHIVED" ? (
-            <span className="shrink-0 rounded-full border border-(--color-border) px-2.5 py-1 text-xs font-semibold text-(--color-text-muted)">
-              Archived
+          <div className="mt-0.5 flex items-center gap-2 text-xs text-(--color-text-muted)">
+            <span className="font-medium text-(--color-brand-strong)">
+              {conversation?.type === "CONTRACT" ? "Contract" : "Pre-hire"}
             </span>
-          ) : null}
+            <span className="opacity-40">·</span>
+            <span className="truncate">{conversation?.taskTitle}</span>
+          </div>
         </div>
       </header>
 
-      <div className="overflow-y-auto p-4">
-        <div className="grid gap-3">
-          {messages.map((message) => {
+      {/* ── Messages ── */}
+      <div className="overflow-y-auto px-5 py-4">
+        <div className="flex flex-col gap-1">
+          {messages.map((message, idx) => {
             const isMine = message.senderId === userId;
             const isSystem = message.messageType === "SYSTEM";
+            const prev = messages[idx - 1];
+            const sameAuthorAsPrev = prev && prev.senderId === message.senderId && prev.messageType === message.messageType;
+
             const mediaAtts = (message.attachments ?? []).filter((a) => a.type === "IMAGE" || a.type === "VIDEO");
             const docAtts = (message.attachments ?? []).filter((a) => a.type === "DOCUMENT");
-            const hasBubble = !!message.body || docAtts.length > 0;
 
-            const bubbleCls = isSystem
-              ? "border border-[color-mix(in_srgb,var(--color-accent)_30%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-accent-soft)_70%,var(--color-surface))]"
-              : isMine
-                ? "bg-(--color-brand)"
-                : "border border-(--color-border) bg-[#f0f2f0]";
-
-            const headerCls = isMine ? "text-white/70" : "text-(--color-text-muted)";
-            const nameCls = isMine ? "text-white" : "text-(--color-text-main)";
-            const textCls = isMine ? "text-white" : "text-(--color-text-main)";
-            const dividerCls = isMine ? "border-white/20" : "border-(--color-border)";
+            // System message
+            if (isSystem) {
+              return (
+                <div key={message.id} className="my-3 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-[color-mix(in_srgb,var(--color-border)_70%,transparent)]" />
+                  <span className="shrink-0 rounded-full border border-[color-mix(in_srgb,var(--color-border)_80%,transparent)] bg-[color-mix(in_srgb,var(--color-surface-strong)_60%,transparent)] px-3 py-1 text-[11px] text-(--color-text-muted)">
+                    {message.body}
+                  </span>
+                  <div className="h-px flex-1 bg-[color-mix(in_srgb,var(--color-border)_70%,transparent)]" />
+                </div>
+              );
+            }
 
             return (
               <div
                 key={message.id}
-                className={`flex w-fit max-w-[80%] flex-col gap-1 ${
-                  isSystem ? "mx-auto items-center" : isMine ? "ml-auto items-end" : "items-start"
-                }`}
+                className={`group flex gap-3 rounded-xl px-2 py-1 transition-colors hover:bg-[color-mix(in_srgb,var(--color-border)_18%,transparent)] ${
+                  isMine ? "bg-[color-mix(in_srgb,var(--color-brand-soft)_22%,transparent)]" : ""
+                } ${sameAuthorAsPrev ? "mt-0.5" : "mt-3"}`}
               >
-                {/* Media attachments — no bubble, just rounded media */}
-                {mediaAtts.map((att, i) => (
-                  <div key={i} className="overflow-hidden rounded-2xl shadow-sm">
-                    <MediaPreview attachment={att} />
-                  </div>
-                ))}
+                {/* Avatar — hidden if same author continues */}
+                <div className="w-9 shrink-0 pt-0.5">
+                  {!sameAuthorAsPrev ? <Avatar name={message.senderName} size={36} /> : null}
+                </div>
 
-                {/* Bubble: text + documents */}
-                {hasBubble && (
-                  <div className={`w-fit rounded-2xl px-4 py-3 ${bubbleCls}`}>
-                    {!isSystem && (
-                      <div className={`mb-1 flex items-center justify-between gap-4 text-xs ${headerCls}`}>
-                        <span className={`font-semibold ${nameCls}`}>{message.senderName}</span>
-                        <ChatMessageTimestamp
-                          value={message.createdAt}
-                          className={isMine ? "text-white/60" : "text-(--color-text-muted)"}
-                        />
-                      </div>
-                    )}
-                    {message.body ? (
-                      <p className={`whitespace-pre-wrap text-sm leading-6 ${textCls}`}>
-                        {message.body}
-                      </p>
-                    ) : null}
-                    {docAtts.length > 0 && (
-                      <div className={`flex flex-col gap-2 ${message.body ? `mt-2 border-t ${dividerCls} pt-2` : ""}`}>
-                        {docAtts.map((att, i) => (
-                          <DocPreview key={i} attachment={att} isMine={isMine} />
-                        ))}
-                      </div>
-                    )}
-                    {isSystem && (
-                      <div className="mt-1 text-center text-[11px] text-(--color-text-muted)">
-                        <ChatMessageTimestamp value={message.createdAt} />
-                      </div>
-                    )}
-                  </div>
-                )}
+                {/* Content */}
+                <div className="min-w-0 flex-1">
+                  {!sameAuthorAsPrev && (
+                    <div className="mb-1 flex items-baseline gap-2">
+                      <span className={`text-sm font-semibold ${isMine ? "text-(--color-brand-strong)" : "text-(--color-text-main)"}`}>
+                        {message.senderName}
+                      </span>
+                      <ChatMessageTimestamp value={message.createdAt} className="text-[11px] text-(--color-text-muted)" />
+                    </div>
+                  )}
 
-                {/* Name + time below media when there's no bubble */}
-                {!hasBubble && mediaAtts.length > 0 && !isSystem && (
-                  <div className="flex items-center gap-2 px-1 text-xs text-(--color-text-muted)">
-                    <span className="font-semibold text-(--color-text-main)">{message.senderName}</span>
-                    <ChatMessageTimestamp value={message.createdAt} />
-                  </div>
-                )}
+                  {/* Media */}
+                  {mediaAtts.length > 0 && (
+                    <div className="flex flex-col gap-1.5 mb-1">
+                      {mediaAtts.map((att, i) => <MediaPreview key={i} attachment={att} />)}
+                    </div>
+                  )}
+
+                  {/* Text body */}
+                  {message.body ? (
+                    <p className="whitespace-pre-wrap text-sm leading-[1.625] text-(--color-text-main)">
+                      {message.body}
+                    </p>
+                  ) : null}
+
+                  {/* Documents */}
+                  {docAtts.length > 0 && (
+                    <div className="mt-1.5 flex flex-col gap-1.5">
+                      {docAtts.map((att, i) => <DocPreview key={i} attachment={att} />)}
+                    </div>
+                  )}
+
+                  {/* Timestamp for continued messages */}
+                  {sameAuthorAsPrev && (
+                    <div className="invisible mt-0.5 group-hover:visible">
+                      <ChatMessageTimestamp value={message.createdAt} className="text-[11px] text-(--color-text-muted)" />
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })}
-          <div ref={messagesEndRef} />
+          <div ref={bottomRef} />
         </div>
       </div>
 
-      <form
-        onSubmit={handleSend}
-        className="border-t border-[color-mix(in_srgb,var(--color-border)_85%,transparent)] px-4 py-3"
-      >
-        {pendingAttachments.length > 0 ? (
-          <div className="mb-2 flex flex-wrap gap-2">
+      {/* ── Composer ── */}
+      <form onSubmit={handleSend} className="border-t border-[color-mix(in_srgb,var(--color-border)_85%,transparent)] px-4 pb-4 pt-3">
+        {/* Pending attachments */}
+        {pendingAttachments.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-2">
             {pendingAttachments.map((p) => (
               <div
                 key={p.localId}
-                className={`relative flex items-center gap-1.5 rounded-xl border p-1.5 ${
-                  p.error
-                    ? "border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/30"
-                    : "border-(--color-border) bg-[color-mix(in_srgb,var(--color-surface)_90%,transparent)]"
+                className={`relative flex items-center gap-2 rounded-xl border p-2 ${
+                  p.error ? "border-red-300 bg-red-50" : "border-(--color-border) bg-[color-mix(in_srgb,var(--color-surface-strong)_60%,transparent)]"
                 }`}
               >
                 {p.file.type.startsWith("image/") && p.preview ? (
-                  <Image
-                    src={p.preview}
-                    alt={p.file.name}
-                    width={48}
-                    height={48}
-                    className="h-12 w-12 rounded-lg object-cover"
-                    unoptimized
-                  />
+                  <Image src={p.preview} alt={p.file.name} width={44} height={44} className="h-11 w-11 rounded-lg object-cover" unoptimized />
                 ) : p.file.type.startsWith("video/") && p.preview ? (
-                  <video src={p.preview} className="h-12 w-12 rounded-lg object-cover" muted />
+                  <video src={p.preview} className="h-11 w-11 rounded-lg object-cover" muted />
                 ) : (
-                  <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${p.error ? "bg-red-100 dark:bg-red-900/40" : "bg-[color-mix(in_srgb,var(--color-surface)_80%,transparent)]"}`}>
-                    <FileText className={`h-5 w-5 ${p.error ? "text-red-400" : "text-(--color-text-muted)"}`} />
+                  <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[color-mix(in_srgb,var(--color-surface)_80%,transparent)]">
+                    <FileText className="h-5 w-5 text-(--color-text-muted)" />
                   </div>
                 )}
-                <div className="flex flex-col gap-0.5">
+                <div className="flex flex-col gap-0.5 pr-4">
                   {p.uploading ? (
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5">
                       <Loader2 className="h-3.5 w-3.5 animate-spin text-(--color-brand)" />
-                      <span className="text-[10px] text-(--color-text-muted)">Uploading…</span>
+                      <span className="text-[11px] text-(--color-text-muted)">Uploading…</span>
                     </div>
                   ) : p.error ? (
                     <>
-                      <span className="text-[10px] font-medium text-red-500">Failed to upload</span>
+                      <span className="text-[11px] font-medium text-red-500">Failed</span>
                       <button
                         type="button"
                         onClick={() => {
-                          setPendingAttachments((prev) =>
-                            prev.map((a) =>
-                              a.localId === p.localId
-                                ? { ...a, uploading: true, error: null }
-                                : a,
-                            ),
-                          );
+                          setPendingAttachments((prev) => prev.map((a) => a.localId === p.localId ? { ...a, uploading: true, error: null } : a));
                           uploadFile({ ...p, uploading: true, error: null });
                         }}
-                        className="flex items-center gap-1 text-[10px] font-semibold text-(--color-brand) hover:underline"
+                        className="flex items-center gap-1 text-[11px] font-semibold text-(--color-brand) hover:underline"
                       >
-                        <RotateCcw className="h-3 w-3" />
-                        Retry
+                        <RotateCcw className="h-3 w-3" /> Retry
                       </button>
                     </>
                   ) : (
-                    <span className="max-w-20 truncate text-[10px] text-(--color-text-muted)">
-                      {p.file.name}
-                    </span>
+                    <span className="max-w-24 truncate text-[11px] text-(--color-text-muted)">{p.file.name}</span>
                   )}
                 </div>
                 <button
                   type="button"
                   onClick={() => removePending(p.localId)}
-                  className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--color-surface)_90%,var(--color-border))] text-(--color-text-muted)"
-                  aria-label="Remove attachment"
+                  className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-(--color-surface-strong) text-(--color-text-muted) shadow-sm"
+                  aria-label="Remove"
                 >
-                  <X className="h-3 w-3" />
+                  <X className="h-2.5 w-2.5" />
                 </button>
               </div>
             ))}
           </div>
-        ) : null}
+        )}
 
-        {sendError ? (
-          <p className="mb-2 text-xs text-red-500">{sendError}</p>
-        ) : null}
+        {/* Textarea */}
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              if (canSend) handleSend(e as unknown as React.FormEvent);
+            }
+          }}
+          rows={1}
+          placeholder="Send a message..."
+          className="w-full resize-none rounded-xl border border-(--color-border) bg-[color-mix(in_srgb,var(--color-surface-strong)_50%,transparent)] px-4 py-3 text-sm text-(--color-text-main) outline-none placeholder:text-(--color-text-muted) focus:border-[color-mix(in_srgb,var(--color-brand)_40%,var(--color-border))] focus:ring-0"
+          style={{ minHeight: 44, maxHeight: 160 }}
+        />
 
-        <div className="flex items-end gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/*,video/*,.pdf,.doc,.docx,.txt,.xlsx,.pptx,.zip"
-            className="hidden"
-            onChange={handleFileChange}
-          />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            aria-label="Attach file"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-(--color-border) bg-[color-mix(in_srgb,var(--color-surface)_88%,transparent)] text-(--color-text-muted) transition hover:border-(--color-brand) hover:text-(--color-brand)"
-          >
-            <Paperclip className="h-4 w-4" />
-          </button>
-          <textarea
-            value={body}
-            onChange={(event) => setBody(event.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                if (canSend) handleSend(e as unknown as React.FormEvent<HTMLFormElement>);
-              }
-            }}
-            rows={1}
-            placeholder="Write a message..."
-            className="min-h-10 flex-1 resize-none rounded-2xl border border-(--color-border) bg-[color-mix(in_srgb,var(--color-surface)_95%,transparent)] px-4 py-2.5 text-sm text-(--color-text-main) outline-none placeholder:text-(--color-text-muted) focus:border-[color-mix(in_srgb,var(--color-brand)_35%,var(--color-border))]"
-          />
+        {sendError && <p className="mt-1.5 text-xs text-red-500">{sendError}</p>}
+
+        {/* Toolbar */}
+        <div className="mt-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-1">
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*,video/*,.pdf,.doc,.docx,.txt,.xlsx,.pptx,.zip"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              aria-label="Attach file"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-(--color-text-muted) transition hover:bg-[color-mix(in_srgb,var(--color-border)_40%,transparent)] hover:text-(--color-text-main)"
+            >
+              <Paperclip className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Emoji"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-(--color-text-muted) transition hover:bg-[color-mix(in_srgb,var(--color-border)_40%,transparent)] hover:text-(--color-text-main)"
+            >
+              <Smile className="h-4 w-4" />
+            </button>
+          </div>
+
           <button
             type="submit"
             disabled={!canSend}
             aria-label="Send message"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] text-white shadow-sm transition hover:opacity-90 disabled:opacity-40"
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] text-white shadow-sm transition hover:opacity-90 disabled:opacity-35"
           >
-            {sending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <ArrowUp className="h-4 w-4" />
-            )}
+            {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
           </button>
         </div>
       </form>
