@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ImageIcon, Video, FileText } from "lucide-react";
 import type { ConversationSummary } from "@/lib/types/chat";
 import ChatMessageTimestamp from "@/components/chat-message-timestamp";
 import { money } from "@/lib/utils/formatting";
@@ -10,6 +11,41 @@ type ConversationListItemProps = {
   href: string;
   active?: boolean;
 };
+
+function LastMessagePreview({ conversation }: { conversation: ConversationSummary }) {
+  if (!conversation.lastMessageText) {
+    return <span>No messages yet</span>;
+  }
+
+  if (conversation.lastAttachmentType === "IMAGE") {
+    return (
+      <span className="flex items-center gap-1">
+        <ImageIcon className="h-3.5 w-3.5 shrink-0" />
+        Image
+      </span>
+    );
+  }
+
+  if (conversation.lastAttachmentType === "VIDEO") {
+    return (
+      <span className="flex items-center gap-1">
+        <Video className="h-3.5 w-3.5 shrink-0" />
+        Video
+      </span>
+    );
+  }
+
+  if (conversation.lastAttachmentType === "DOCUMENT") {
+    return (
+      <span className="flex items-center gap-1">
+        <FileText className="h-3.5 w-3.5 shrink-0" />
+        <span className="truncate">{conversation.lastMessageText}</span>
+      </span>
+    );
+  }
+
+  return <span>{conversation.lastMessageText}</span>;
+}
 
 export default function ConversationListItem({ conversation, href, active }: ConversationListItemProps) {
   return (
@@ -31,8 +67,8 @@ export default function ConversationListItem({ conversation, href, active }: Con
         </span>
       </div>
 
-      <p className="mt-2 line-clamp-2 text-sm leading-6 text-(--color-text-muted)">
-        {conversation.lastMessageText ?? "No messages yet"}
+      <p className="mt-2 line-clamp-1 text-sm leading-6 text-(--color-text-muted)">
+        <LastMessagePreview conversation={conversation} />
       </p>
 
       <div className="mt-3 flex items-center justify-between gap-2">

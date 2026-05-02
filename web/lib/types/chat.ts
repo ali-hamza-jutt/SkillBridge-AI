@@ -1,6 +1,16 @@
 export type ConversationType = "PRE_HIRE" | "CONTRACT";
 export type ConversationStatus = "ACTIVE" | "ARCHIVED";
 export type ChatMessageType = "TEXT" | "SYSTEM";
+export type AttachmentType = "IMAGE" | "VIDEO" | "DOCUMENT";
+
+export type MessageAttachment = {
+  url: string;
+  publicId: string;
+  name: string;
+  mimeType: string;
+  type: AttachmentType;
+  size?: number;
+};
 
 export type ConversationSummary = {
   conversationId: string;
@@ -20,6 +30,7 @@ export type ConversationSummary = {
   otherUserRole: "HIRER" | "FREELANCER";
   bidAmount: number;
   lastMessageText: string | null;
+  lastAttachmentType: AttachmentType | null;
   lastMessageAt: string | null;
   hiredAt: string | null;
   archivedAt: string | null;
@@ -34,6 +45,7 @@ export type ChatMessage = {
   senderName: string;
   body: string;
   messageType: ChatMessageType;
+  attachments?: MessageAttachment[];
   createdAt: string | null;
   updatedAt: string | null;
 };

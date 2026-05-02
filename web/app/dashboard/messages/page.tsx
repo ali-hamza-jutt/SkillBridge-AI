@@ -43,31 +43,28 @@ export default function MessagesPage() {
     >
       <DashboardNavbar role={role} activeItem="messages" />
 
-      <div className="mx-auto grid w-[min(100%-2rem,1200px)] gap-6 py-6 lg:grid-cols-[0.42fr_0.58fr]">
-        <section className="rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_92%,transparent)] p-5 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)]">
-          <div className="flex items-center justify-between gap-3">
+      <div className="mx-auto grid w-[min(100%-1rem,1440px)] gap-3 py-4 lg:grid-cols-[300px_1fr]">
+        <section className="rounded-2xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_94%,transparent)] shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18)]">
+          <div className="flex items-center justify-between gap-3 border-b border-[color-mix(in_srgb,var(--color-border)_85%,transparent)] px-4 py-3">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-[var(--color-text-main)]">Messages</h1>
-              <p className="mt-2 text-sm text-[var(--color-text-muted)]">All of your proposal and contract chats live here.</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-(--color-text-muted)">Inbox</p>
+              <h1 className="text-lg font-bold tracking-tight text-(--color-text-main)">Messages</h1>
             </div>
             <button
               type="button"
-              className="rounded-full border border-[var(--color-border)] px-4 py-2 text-sm font-semibold text-[var(--color-text-main)]"
+              className="rounded-full border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] px-3 py-1.5 text-xs font-semibold text-(--color-text-main) transition hover:bg-[color-mix(in_srgb,var(--color-surface)_80%,transparent)]"
               onClick={() => router.push("/dashboard")}
             >
               Back
             </button>
           </div>
 
-          <div className="mt-5 grid gap-3">
-            {loading ? <p className="text-sm text-[var(--color-text-muted)]">Loading conversations...</p> : null}
-            {!loading && errorMessage ? <p className="text-sm text-red-600">{errorMessage}</p> : null}
+          <div className="grid gap-1.5 p-3">
+            {loading ? <p className="px-2 py-3 text-sm text-(--color-text-muted)">Loading...</p> : null}
+            {!loading && errorMessage ? <p className="px-2 text-sm text-red-600">{errorMessage}</p> : null}
             {!loading && !errorMessage && conversations.length === 0 ? (
-              <article className="rounded-2xl border border-dashed border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] p-6 text-center">
-                <p className="text-sm text-[var(--color-text-muted)]">No conversations yet.</p>
-              </article>
+              <p className="px-2 py-6 text-center text-sm text-(--color-text-muted)">No conversations yet.</p>
             ) : null}
-
             {conversations.map((conversation) => (
               <ConversationListItem
                 key={conversation.conversationId}
@@ -78,12 +75,13 @@ export default function MessagesPage() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_92%,transparent)] p-5 shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)]">
-          <div className="flex h-full min-h-[60vh] items-center justify-center text-center">
-            <div className="max-w-md">
-              <h2 className="text-2xl font-bold tracking-tight text-[var(--color-text-main)]">Select a conversation</h2>
-              <p className="mt-2 text-sm leading-6 text-[var(--color-text-muted)]">
-                Open a proposal chat or contract chat from the list to continue the conversation in real time.
+        <section className="rounded-2xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_94%,transparent)] shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18)]">
+          <div className="flex min-h-[70vh] items-center justify-center text-center">
+            <div className="max-w-xs">
+              <p className="text-2xl">💬</p>
+              <h2 className="mt-3 text-lg font-bold tracking-tight text-(--color-text-main)">Select a conversation</h2>
+              <p className="mt-1.5 text-sm leading-6 text-(--color-text-muted)">
+                Choose a chat from the list to start messaging in real time.
               </p>
             </div>
           </div>

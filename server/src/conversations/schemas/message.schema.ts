@@ -8,6 +8,17 @@ export enum ChatMessageType {
   SYSTEM = 'SYSTEM',
 }
 
+export type AttachmentType = 'IMAGE' | 'VIDEO' | 'DOCUMENT';
+
+export class MessageAttachment {
+  url!: string;
+  publicId!: string;
+  name!: string;
+  mimeType!: string;
+  type!: AttachmentType;
+  size?: number;
+}
+
 @Schema({ timestamps: true })
 export class ChatMessage {
   @Prop({ required: true })
@@ -19,11 +30,30 @@ export class ChatMessage {
   @Prop({ required: true })
   senderName!: string;
 
-  @Prop({ required: true })
+  @Prop({ default: '' })
   body!: string;
 
   @Prop({ enum: ChatMessageType, default: ChatMessageType.TEXT })
   messageType!: ChatMessageType;
+
+  @Prop({
+    type: [
+      {
+        url: { type: String, required: true },
+        publicId: { type: String, required: true },
+        name: { type: String, required: true },
+        mimeType: { type: String, required: true },
+        type: {
+          type: String,
+          enum: ['IMAGE', 'VIDEO', 'DOCUMENT'],
+          required: true,
+        },
+        size: { type: Number },
+      },
+    ],
+    default: [],
+  })
+  attachments!: MessageAttachment[];
 
   createdAt?: Date;
 

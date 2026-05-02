@@ -50,6 +50,9 @@ export class Conversation {
 
   @Prop()
   lastMessageType?: string;
+
+  @Prop({ type: String, enum: ['IMAGE', 'VIDEO', 'DOCUMENT'], default: null })
+  lastAttachmentType?: 'IMAGE' | 'VIDEO' | 'DOCUMENT' | null;
 }
 
 export const ConversationSchema = SchemaFactory.createForClass(Conversation);

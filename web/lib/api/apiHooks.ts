@@ -611,7 +611,18 @@ export type CreateTaskDto = {
   requiredSkills?: string[];
   experienceLevel: ExperienceLevel;
 };
-export type UpdateTaskDto = Record<string, never>;
+export type UpdateTaskDto = {
+  title?: string;
+  description?: string;
+  budget?: number;
+  maxBudget?: number;
+  budgetType?: BudgetType;
+  projectType?: ProjectType;
+  categoryId?: string;
+  subCategoryId?: string;
+  requiredSkills?: string[];
+  experienceLevel?: ExperienceLevel;
+};
 export type TaskStatus = "OPEN" | "ASSIGNED" | "COMPLETED" | "CLOSED";
 export type UpdateTaskStatusDto = {
   status: TaskStatus;
@@ -655,8 +666,17 @@ export type HireConversationDto = {
   taskId: string;
   bidId: string;
 };
+export type AttachmentDto = {
+  url: string;
+  publicId: string;
+  name: string;
+  mimeType: string;
+  type: "IMAGE" | "VIDEO" | "DOCUMENT";
+  size?: number;
+};
 export type SendMessageDto = {
-  body: string;
+  body?: string;
+  attachments?: AttachmentDto[];
 };
 export type GenerateUploadSignatureDto = {
   /** Unix timestamp in seconds */

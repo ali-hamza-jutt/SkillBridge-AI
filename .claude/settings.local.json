@@ -2,7 +2,15 @@
   "permissions": {
     "allow": [
       "Bash(npx eslint *)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(Get-ChildItem -Path \"d:\\\\projects\\\\skill-bridge-ai\\\\web\\\\app\\\\dashboard\\\\messages\" -Recurse)",
+      "Bash(Select-Object FullName)",
+      "Bash(Remove-Item \"d:\\\\projects\\\\skill-bridge-ai\\\\web\\\\app\\\\favicon.ico\" -Force)",
+      "Bash(Copy-Item \"d:\\\\projects\\\\skill-bridge-ai\\\\web\\\\public\\\\favicon-removebg.png\" \"d:\\\\projects\\\\skill-bridge-ai\\\\web\\\\app\\\\icon.png\")",
+      "PowerShell(Copy-Item \"d:\\\\projects\\\\skill-bridge-ai\\\\web\\\\public\\\\favicon-removebg.png\" \"d:\\\\projects\\\\skill-bridge-ai\\\\web\\\\app\\\\icon.png\")",
+      "Bash(xargs grep *)",
+      "Bash(xargs ls *)",
+      "Bash(npm run *)"
     ]
   }
 }

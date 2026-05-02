@@ -61,6 +61,6 @@ export class ConversationsController {
     @Body() dto: SendMessageDto,
     @Req() req,
   ) {
-    return this.conversationsService.sendMessage(id, req.user.userId, dto.body);
+    return this.conversationsService.sendMessage(id, req.user.userId, dto.body, dto.attachments);
   }
 }
