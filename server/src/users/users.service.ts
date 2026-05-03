@@ -120,9 +120,13 @@ export class UsersService {
         throw new NotFoundException('User not found');
       }
 
-      if (typeof dto.name !== 'undefined') {
-        user.name = dto.name;
-      }
+      if (typeof dto.name !== 'undefined') user.name = dto.name;
+      if (typeof dto.title !== 'undefined') user.title = dto.title;
+      if (typeof dto.bio !== 'undefined') user.bio = dto.bio;
+      if (typeof dto.avatarUrl !== 'undefined') user.avatarUrl = dto.avatarUrl;
+      if (typeof dto.hourlyRate !== 'undefined') user.hourlyRate = dto.hourlyRate;
+      if (typeof dto.experience !== 'undefined') user.experience = dto.experience as typeof user.experience;
+      if (typeof dto.education !== 'undefined') user.education = dto.education as typeof user.education;
 
       if (user.role !== 'FREELANCER') {
         if (typeof dto.categoryId !== 'undefined' || typeof dto.skills !== 'undefined') {
@@ -155,8 +159,8 @@ export class UsersService {
         refreshTokenHash?: string;
         [key: string]: unknown;
       };
-      const { password: _password, refreshTokenHash: _refreshTokenHash, ...safeUser } =
-        userObject;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password, refreshTokenHash, ...safeUser } = userObject;
       return safeUser;
     } catch (error:any) {
       if (

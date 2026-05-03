@@ -11,6 +11,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { ConversationsModule } from './conversations/conversations.module';
 import { SkillsModule } from './skills/skills.module';
 import { GCSModule } from './gcs/gcs.module';
+import { PortfolioModule } from './portfolio/portfolio.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { GCSModule } from './gcs/gcs.module';
     NotificationsModule,
     ConversationsModule,
     GCSModule,
+    PortfolioModule,
   ],
   controllers: [AppController],
   providers: [AppService],
