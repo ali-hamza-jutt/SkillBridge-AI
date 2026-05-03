@@ -734,3 +734,42 @@ export const {
   useConversationsControllerSendMessageMutation,
   useGcsControllerGenerateSignedUrlMutation,
 } = injectedRtkApi;
+
+// ── Portfolio API ─────────────────────────────────────────────────────────────
+import type { PortfolioProject, ProjectMedia } from "@/lib/types/profile";
+
+export type CreatePortfolioProjectDto = {
+  title: string;
+  description: string;
+  role: string;
+  techStack?: string[];
+  projectUrl?: string;
+  media?: ProjectMedia[];
+};
+
+export type UpdatePortfolioProjectDto = Partial<CreatePortfolioProjectDto>;
+
+const portfolioApi = injectedRtkApi.injectEndpoints({
+  endpoints: (build) => ({
+    portfolioGetMine: build.query<PortfolioProject[], void>({
+      query: () => ({ url: "/portfolio/me" }),
+    }),
+    portfolioCreate: build.mutation<PortfolioProject, CreatePortfolioProjectDto>({
+      query: (body) => ({ url: "/portfolio", method: "POST", body }),
+    }),
+    portfolioUpdate: build.mutation<PortfolioProject, { id: string; body: UpdatePortfolioProjectDto }>({
+      query: ({ id, body }) => ({ url: `/portfolio/${id}`, method: "PATCH", body }),
+    }),
+    portfolioDelete: build.mutation<{ message: string }, string>({
+      query: (id) => ({ url: `/portfolio/${id}`, method: "DELETE" }),
+    }),
+  }),
+  overrideExisting: false,
+});
+
+export const {
+  usePortfolioGetMineQuery,
+  usePortfolioCreateMutation,
+  usePortfolioUpdateMutation,
+  usePortfolioDeleteMutation,
+} = portfolioApi;
