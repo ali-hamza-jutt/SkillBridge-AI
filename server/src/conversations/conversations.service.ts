@@ -73,7 +73,7 @@ export class ConversationsService {
       throw new NotFoundException('Conversation context not found');
     }
 
-    const nameMap = await this.usersService.getUserNameMap([
+    const infoMap = await this.usersService.getUserInfoMap([
       conversation.clientId,
       conversation.freelancerId,
     ]);
@@ -82,6 +82,10 @@ export class ConversationsService {
     const otherUserId = isClient
       ? conversation.freelancerId
       : conversation.clientId;
+
+    const clientInfo = infoMap.get(conversation.clientId);
+    const freelancerInfo = infoMap.get(conversation.freelancerId);
+    const otherUserInfo = infoMap.get(otherUserId);
 
     return {
       conversationId: String(conversation._id),
@@ -93,12 +97,12 @@ export class ConversationsService {
       taskTitle: task.title,
       taskStatus: task.status,
       clientId: conversation.clientId,
-      clientName: nameMap.get(conversation.clientId) ?? 'Unknown Client',
+      clientName: clientInfo?.name ?? 'Unknown Client',
       freelancerId: conversation.freelancerId,
-      freelancerName:
-        nameMap.get(conversation.freelancerId) ?? 'Unknown Freelancer',
+      freelancerName: freelancerInfo?.name ?? 'Unknown Freelancer',
       otherUserId,
-      otherUserName: nameMap.get(otherUserId) ?? 'Unknown User',
+      otherUserName: otherUserInfo?.name ?? 'Unknown User',
+      otherUserAvatarUrl: otherUserInfo?.avatarUrl ?? null,
       otherUserRole: isClient ? 'FREELANCER' : 'HIRER',
       bidAmount: bid.bidAmount,
       lastMessageText: conversation.lastMessageText ?? null,

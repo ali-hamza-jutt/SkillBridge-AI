@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { setCredentials } from "@/lib/features/auth/authSlice";
 import { useAppDispatch, useAppSelector } from "@/lib/hooks";
 import {
@@ -26,7 +26,7 @@ type Category = { _id: string; name: string };
 
 export default function DashboardProfilePage() {
   const dispatch = useAppDispatch();
-  const { token, role, userId, email } = useAppSelector((s) => s.auth);
+  const { token, role, userId, email, avatarUrl: storedAvatarUrl } = useAppSelector((s) => s.auth);
 
   const { data: categoriesRaw = [] } = useCategoryControllerGetAllCategoriesQuery();
   const { data: myProfileRaw, refetch: refetchProfile } = useUsersControllerFindMeQuery(undefined, { skip: !token });
@@ -35,8 +35,6 @@ export default function DashboardProfilePage() {
   const profile = myProfileRaw as UserProfile | undefined;
   const categoryId = profile?.categoryId;
 
-  // Always fetch all skills immediately — they're the instant fallback.
-  // Category-specific skills load in parallel once we know the categoryId.
   const { data: allSkillsRaw = [] } = useSkillsControllerGetAllQuery();
   const { data: categorySkillsRaw = [] } = useSkillsControllerGetByCategoryQuery(
     { categoryId: categoryId! },
@@ -44,7 +42,6 @@ export default function DashboardProfilePage() {
   );
 
   const [updateProfile] = useUsersControllerUpdateMyProfileMutation();
-  const [toastMsg, setToast] = useState<{ text: string; ok: boolean } | null>(null);
 
   const categories = categoriesRaw as Category[];
   const portfolioProjects = (portfolioRaw as PortfolioProject[] | undefined) ?? [];
@@ -52,31 +49,30 @@ export default function DashboardProfilePage() {
   const skillFallback = allSkillsRaw as Array<{ name?: unknown }>;
   const categoryName = categories.find((c) => c._id === categoryId)?.name;
 
-  const showToast = (text: string, ok = true) => {
-    setToast({ text, ok });
-    setTimeout(() => setToast(null), 3000);
-  };
-
   const save = async (partial: Record<string, unknown>) => {
     try {
       const updated = await updateProfile({ updateUserDto: partial as Parameters<typeof updateProfile>[0]["updateUserDto"] }).unwrap() as UserProfile;
-      // Sync auth state if critical fields changed
-      if (partial.skills || partial.categoryId) {
-        dispatch(setCredentials({
-          userId: userId!,
-          role: role!,
-          categoryId: (updated.categoryId ?? categoryId) as string,
-          skills: (updated.skills ?? profile?.skills ?? []) as string[],
-          token: token!,
-          email: email!,
-        }));
-        if (updated.categoryId) localStorage.setItem("auth_category_id", updated.categoryId);
-        localStorage.setItem("auth_skills", JSON.stringify(updated.skills ?? []));
-      }
+
+      const newAvatarUrl = (partial.avatarUrl as string | undefined) ?? updated.avatarUrl ?? storedAvatarUrl;
+
+      dispatch(setCredentials({
+        userId: userId!,
+        role: role!,
+        categoryId: (updated.categoryId ?? categoryId) as string,
+        skills: (updated.skills ?? profile?.skills ?? []) as string[],
+        avatarUrl: newAvatarUrl ?? null,
+        token: token!,
+        email: email!,
+      }));
+
+      if (updated.categoryId) localStorage.setItem("auth_category_id", updated.categoryId);
+      localStorage.setItem("auth_skills", JSON.stringify(updated.skills ?? []));
+      if (newAvatarUrl) localStorage.setItem("auth_avatar_url", newAvatarUrl);
+
       await refetchProfile();
-      showToast("Saved successfully");
+      toast.success("Saved successfully");
     } catch (err) {
-      showToast(getApiErrorMessage(err, "Failed to save"), false);
+      toast.error(getApiErrorMessage(err, "Failed to save"));
       throw err;
     }
   };
@@ -120,49 +116,31 @@ export default function DashboardProfilePage() {
       <DashboardNavbar role={role} activeItem="profile" />
 
       <div className="mx-auto w-[min(100%-1.5rem,860px)] space-y-4 py-5">
-        {/* Header */}
         <ProfileHeader
           profile={profile}
           categoryName={categoryName}
           onAvatarChange={async (url) => { await save({ avatarUrl: url }); }}
         />
-
-        {/* About */}
         <AboutSection
           profile={profile}
           onSave={async (data) => { await save(data as Record<string, unknown>); }}
         />
-
-        {/* Portfolio */}
         <PortfolioSection projects={portfolioProjects} onRefresh={refetchPortfolio} />
-
-        {/* Skills */}
         <SkillsSection
           profile={profile}
           skillSuggestions={skillSuggestions}
           skillFallback={skillFallback}
           onSave={async (skills) => { await save({ skills }); }}
         />
-
-        {/* Experience */}
         <ExperienceSection
           profile={profile}
           onSave={async (experience: ExperienceEntry[]) => { await save({ experience }); }}
         />
-
-        {/* Education */}
         <EducationSection
           profile={profile}
           onSave={async (education: EducationEntry[]) => { await save({ education }); }}
         />
       </div>
-
-      {/* Toast */}
-      {toastMsg && (
-        <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold text-white shadow-xl transition ${toastMsg.ok ? "bg-emerald-500" : "bg-red-500"}`}>
-          {toastMsg.text}
-        </div>
-      )}
     </main>
   );
 }

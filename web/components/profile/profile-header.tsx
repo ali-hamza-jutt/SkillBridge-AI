@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useRef, useState } from "react";
 import { Camera, Loader2, Star } from "lucide-react";
 import { useGcsControllerGenerateSignedUrlMutation } from "@/lib/api";
+import AvatarCropModal from "@/components/avatar-crop-modal";
 import type { UserProfile } from "@/lib/types/profile";
 
 const AVATAR_COLORS = [
@@ -27,24 +28,29 @@ type Props = {
 
 export default function ProfileHeader({ profile, categoryName, onAvatarChange }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [generateSignedUrl] = useGcsControllerGenerateSignedUrlMutation();
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setCropSrc(reader.result as string);
+    reader.readAsDataURL(file);
+  };
 
+  const handleCropApply = async (blob: Blob) => {
     setUploading(true);
     try {
+      const file = new File([blob], "avatar.jpg", { type: "image/jpeg" });
       const { signedUrl, publicUrl } = (await generateSignedUrl({
         generateUploadUrlDto: { fileName: file.name, mimeType: file.type, folder: "avatars" },
       }).unwrap()) as { signedUrl: string; publicUrl: string; objectName: string };
 
       await fetch(signedUrl, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
       onAvatarChange(publicUrl);
-    } catch {
-      /* silent */
     } finally {
       setUploading(false);
     }
@@ -58,11 +64,11 @@ export default function ProfileHeader({ profile, categoryName, onAvatarChange }:
         {/* Avatar */}
         <div className="relative shrink-0">
           <div
-            className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl text-3xl font-bold text-white"
+            className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full text-3xl font-bold text-white"
             style={{ backgroundColor: profile.avatarUrl ? "transparent" : bg }}
           >
             {profile.avatarUrl ? (
-              <Image src={profile.avatarUrl} alt={profile.name} width={96} height={96} className="h-24 w-24 object-cover" unoptimized />
+              <Image src={profile.avatarUrl} alt={profile.name} width={96} height={96} className="h-24 w-24 object-cover rounded-full" unoptimized />
             ) : (
               initials(profile.name)
             )}
@@ -76,7 +82,7 @@ export default function ProfileHeader({ profile, categoryName, onAvatarChange }:
           >
             {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
           </button>
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
         </div>
 
         {/* Info */}
@@ -108,6 +114,14 @@ export default function ProfileHeader({ profile, categoryName, onAvatarChange }:
           </div>
         )}
       </div>
+
+      {cropSrc && (
+        <AvatarCropModal
+          imageSrc={cropSrc}
+          onApply={handleCropApply}
+          onClose={() => setCropSrc(null)}
+        />
+      )}
     </div>
   );
 }

@@ -754,6 +754,9 @@ const portfolioApi = injectedRtkApi.injectEndpoints({
     portfolioGetMine: build.query<PortfolioProject[], void>({
       query: () => ({ url: "/portfolio/me" }),
     }),
+    portfolioGetByUser: build.query<PortfolioProject[], string>({
+      query: (userId) => ({ url: `/portfolio/user/${userId}` }),
+    }),
     portfolioCreate: build.mutation<PortfolioProject, CreatePortfolioProjectDto>({
       query: (body) => ({ url: "/portfolio", method: "POST", body }),
     }),
@@ -769,6 +772,7 @@ const portfolioApi = injectedRtkApi.injectEndpoints({
 
 export const {
   usePortfolioGetMineQuery,
+  usePortfolioGetByUserQuery,
   usePortfolioCreateMutation,
   usePortfolioUpdateMutation,
   usePortfolioDeleteMutation,
