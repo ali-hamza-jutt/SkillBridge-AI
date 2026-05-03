@@ -74,7 +74,7 @@ jobs:
             --session-affinity \
             --service-account="skill-bridge-runtime-sa@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
             --set-env-vars="NODE_ENV=production" \
-            --set-secrets="MONGODB_URI=MONGODB_URI:latest,REDIS_URL=REDIS_URL:latest,RABBITMQ_URL=RABBITMQ_URL:latest,JWT_SECRET=JWT_SECRET:latest,VAPID_SUBJECT=VAPID_SUBJECT:latest,VAPID_PUBLIC_KEY=VAPID_PUBLIC_KEY:latest,VAPID_PRIVATE_KEY=VAPID_PRIVATE_KEY:latest,GCS_PROJECT_ID=GCS_PROJECT_ID:latest,GCS_BUCKET_NAME=GCS_BUCKET_NAME:latest,GCS_SERVICE_ACCOUNT_JSON=GCS_SERVICE_ACCOUNT_JSON:latest"
+            --set-secrets="MONGODB_URI=MONGODB_URI:latest,REDIS_URL=REDIS_URL:latest,RABBITMQ_URL=RABBITMQ_URL:latest,JWT_SECRET=JWT_SECRET:latest,VAPID_SUBJECT=VAPID_SUBJECT:latest,VAPID_PUBLIC_KEY=VAPID_PUBLIC_KEY:latest,VAPID_PRIVATE_KEY=VAPID_PRIVATE_KEY:latest,GCS_PROJECT_ID=GCS_PROJECT_ID:latest,GCS_BUCKET_NAME=GCS_BUCKET_NAME:latest,GCS_SERVICE_ACCOUNT_JSON=GCS_SERVICE_ACCOUNT_JSON:latest,FRONTEND_URL=FRONTEND_URL:latest"
 
       # ── 7. Print deployed URL ─────────────────────────────────────────────────
       - name: Show service URL
