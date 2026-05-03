@@ -37,5 +37,10 @@ async function bootstrap() {
 
   await app.startAllMicroservices();
   await app.listen(process.env.PORT ?? 3001);
+
+  // Cloud Run sends SIGTERM before killing the container — drain in-flight requests
+  process.on('SIGTERM', async () => {
+    await app.close();
+  });
 }
 bootstrap().catch(console.error);
