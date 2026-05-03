@@ -8,6 +8,7 @@ type AuthState = {
   token: string | null;
   refreshToken: string | null;
   email: string | null;
+  avatarUrl: string | null;
   hydrated: boolean;
 };
 
@@ -19,6 +20,7 @@ const initialState: AuthState = {
   token: null,
   refreshToken: null,
   email: null,
+  avatarUrl: null,
   hydrated: false,
 };
 
@@ -36,6 +38,7 @@ const authSlice = createSlice({
         token: string;
         refreshToken?: string | null;
         email: string | null;
+        avatarUrl?: string | null;
       }>,
     ) => {
       if (typeof action.payload.userId !== "undefined") {
@@ -49,6 +52,9 @@ const authSlice = createSlice({
       }
       if (typeof action.payload.skills !== "undefined") {
         state.skills = action.payload.skills ?? [];
+      }
+      if (typeof action.payload.avatarUrl !== "undefined") {
+        state.avatarUrl = action.payload.avatarUrl ?? null;
       }
       state.token = action.payload.token;
       if (typeof action.payload.refreshToken !== "undefined") {
@@ -64,6 +70,7 @@ const authSlice = createSlice({
       state.token = null;
       state.refreshToken = null;
       state.email = null;
+      state.avatarUrl = null;
       state.hydrated = true;
     },
     setHydrated: (state, action: PayloadAction<boolean>) => {

@@ -139,7 +139,7 @@ export default function ExperienceSection({ profile, onSave }: Props) {
                     <button type="button" onClick={() => entry._id && handleDelete(entry._id)} className="flex h-7 w-7 items-center justify-center rounded-lg text-(--color-text-muted) hover:bg-red-50 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
                   </div>
                 </div>
-                {entry.description && <p className="mt-1.5 text-sm leading-6 text-(--color-text-muted)">{entry.description}</p>}
+                {entry.description && <p className="mt-1.5 whitespace-pre-wrap text-sm leading-6 text-(--color-text-muted)">{entry.description}</p>}
               </div>
             </div>
           )

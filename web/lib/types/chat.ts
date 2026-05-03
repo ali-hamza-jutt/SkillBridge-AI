@@ -27,6 +27,7 @@ export type ConversationSummary = {
   freelancerName: string;
   otherUserId: string;
   otherUserName: string;
+  otherUserAvatarUrl: string | null;
   otherUserRole: "HIRER" | "FREELANCER";
   bidAmount: number;
   lastMessageText: string | null;

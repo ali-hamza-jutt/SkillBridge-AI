@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { MessageSquare } from "lucide-react";
 import { logout } from "@/lib/features/auth/authSlice";
-import { useAppDispatch } from "@/lib/hooks";
+import { useAppDispatch, useAppSelector } from "@/lib/hooks";
 import { useUnreadConversationCount } from "@/lib/useUnreadMessages";
 
 type DashboardNavbarProps = {
@@ -13,6 +13,13 @@ type DashboardNavbarProps = {
   activeItem?: "jobs" | "messages" | "profile";
   onPostJob?: () => void;
 };
+
+const AVATAR_COLORS = ["#4f8ef7","#7c6ef7","#36b37e","#f97316","#e11d48","#0891b2","#8b5cf6","#059669"];
+function avatarBg(seed: string) {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = seed.charCodeAt(i) + ((h << 5) - h);
+  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+}
 
 const isActiveClass =
   "border-[color-mix(in_srgb,var(--color-brand)_30%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_66%,var(--color-surface))] text-(--color-brand-strong)";
@@ -23,6 +30,10 @@ export default function DashboardNavbar({ role, activeItem, onPostJob }: Dashboa
   const router = useRouter();
   const dispatch = useAppDispatch();
   const unreadCount = useUnreadConversationCount();
+  const { avatarUrl, email } = useAppSelector((s) => s.auth);
+
+  const initial = (email ?? "U")[0].toUpperCase();
+  const bg = avatarBg(email ?? "U");
 
   const signOut = () => {
     localStorage.removeItem("auth_token");
@@ -32,9 +43,33 @@ export default function DashboardNavbar({ role, activeItem, onPostJob }: Dashboa
     localStorage.removeItem("auth_role");
     localStorage.removeItem("auth_category_id");
     localStorage.removeItem("auth_skills");
+    localStorage.removeItem("auth_avatar_url");
     dispatch(logout());
     router.push("/login");
   };
+
+  const ProfileAvatar = () => (
+    <Link
+      href="/dashboard/profile"
+      className={`relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 transition ${
+        activeItem === "profile"
+          ? "border-(--color-brand)"
+          : "border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] hover:border-(--color-brand)"
+      }`}
+      aria-label="Profile"
+    >
+      {avatarUrl ? (
+        <Image src={avatarUrl} alt="Profile" width={36} height={36} className="h-full w-full object-cover" unoptimized />
+      ) : (
+        <span
+          className="flex h-full w-full items-center justify-center text-sm font-bold text-white"
+          style={{ backgroundColor: bg }}
+        >
+          {initial}
+        </span>
+      )}
+    </Link>
+  );
 
   return (
     <header className="sticky top-0 z-20 border-b border-[color-mix(in_srgb,var(--color-border)_88%,transparent)] bg-[color-mix(in_srgb,var(--color-bg)_84%,transparent)] backdrop-blur-xl">
@@ -77,14 +112,7 @@ export default function DashboardNavbar({ role, activeItem, onPostJob }: Dashboa
               >
                 Jobs
               </Link>
-              <Link
-                href="/dashboard/profile"
-                className={`rounded-full border px-4 py-2 text-sm font-semibold no-underline ${
-                  activeItem === "profile" ? isActiveClass : defaultClass
-                }`}
-              >
-                Profile
-              </Link>
+              <ProfileAvatar />
               <button
                 onClick={signOut}
                 className="inline-flex items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_88%,var(--color-brand-soft))] px-5 py-2.5 text-sm font-semibold text-(--color-text-main)"

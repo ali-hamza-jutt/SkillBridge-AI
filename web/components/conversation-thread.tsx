@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Paperclip, X, FileText, Loader2, RotateCcw, Send, Smile } from "lucide-react";
+import { Paperclip, X, FileText, Loader2, RotateCcw, Send, Smile, UserCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAppSelector } from "@/lib/hooks";
 import { useChatSocket } from "@/components/chat-socket-provider";
 import { markConversationRead } from "@/lib/useUnreadMessages";
@@ -60,7 +61,14 @@ function initials(name: string) {
   const p = name.trim().split(/\s+/);
   return p.length === 1 ? p[0].slice(0, 2).toUpperCase() : (p[0][0] + p[p.length - 1][0]).toUpperCase();
 }
-function Avatar({ name, size = 36 }: { name: string; size?: number }) {
+function Avatar({ name, url, size = 36 }: { name: string; url?: string | null; size?: number }) {
+  if (url) {
+    return (
+      <div className="shrink-0 overflow-hidden rounded-full" style={{ width: size, height: size }}>
+        <Image src={url} alt={name} width={size} height={size} className="h-full w-full object-cover" unoptimized />
+      </div>
+    );
+  }
   return (
     <div
       className="shrink-0 flex items-center justify-center rounded-full text-white font-bold select-none"
@@ -119,7 +127,7 @@ function DocPreview({ attachment }: { attachment: MessageAttachment }) {
 // ── Main component ────────────────────────────────────────────────────────────
 export default function ConversationThread({ conversationId }: { conversationId: string }) {
   const router = useRouter();
-  const { token, userId } = useAppSelector((s) => s.auth);
+  const { token, userId, avatarUrl: myAvatarUrl } = useAppSelector((s) => s.auth);
   const { socket, joinConversation, leaveConversation } = useChatSocket();
 
   const { data: convData, isLoading: convLoading, error: convError } =
@@ -272,6 +280,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
   }
 
   const otherName = conversation?.otherUserName ?? "Conversation";
+  const otherAvatarUrl = conversation?.otherUserAvatarUrl ?? null;
 
   return (
     <section
@@ -280,7 +289,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
     >
       {/* ── Header ── */}
       <header className="flex items-center gap-3 border-b border-[color-mix(in_srgb,var(--color-border)_85%,transparent)] px-5 py-3.5">
-        <Avatar name={otherName} size={44} />
+        <Avatar name={otherName} url={otherAvatarUrl} size={44} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <h1 className="truncate text-base font-bold text-(--color-text-main)">{otherName}</h1>
@@ -298,6 +307,15 @@ export default function ConversationThread({ conversationId }: { conversationId:
             <span className="truncate">{conversation?.taskTitle}</span>
           </div>
         </div>
+        {conversation?.otherUserRole === "FREELANCER" && conversation?.otherUserId && (
+          <Link
+            href={`/dashboard/profile/${conversation.otherUserId}`}
+            className="flex h-8 items-center gap-1.5 rounded-lg border border-(--color-border) px-2.5 text-xs font-semibold text-(--color-text-muted) transition hover:border-(--color-brand) hover:text-(--color-brand-strong)"
+          >
+            <UserCircle className="h-3.5 w-3.5" />
+            Profile
+          </Link>
+        )}
       </header>
 
       {/* ── Messages ── */}
@@ -334,7 +352,13 @@ export default function ConversationThread({ conversationId }: { conversationId:
               >
                 {/* Avatar — hidden if same author continues */}
                 <div className="w-9 shrink-0 pt-0.5">
-                  {!sameAuthorAsPrev ? <Avatar name={message.senderName} size={36} /> : null}
+                  {!sameAuthorAsPrev ? (
+                    <Avatar
+                      name={message.senderName}
+                      url={isMine ? myAvatarUrl : otherAvatarUrl}
+                      size={36}
+                    />
+                  ) : null}
                 </div>
 
                 {/* Content */}

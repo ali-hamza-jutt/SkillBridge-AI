@@ -185,6 +185,18 @@ export class UsersService {
     return new Map(users.map((user: any) => [String(user._id), user.name]));
   }
 
+  async getUserInfoMap(userIds: string[]): Promise<Map<string, { name: string; avatarUrl?: string }>> {
+    const uniqueIds = Array.from(new Set(userIds.filter(Boolean)));
+    if (!uniqueIds.length) return new Map();
+
+    const users = await this.userModel
+      .find({ _id: { $in: uniqueIds } })
+      .select('_id name avatarUrl')
+      .lean();
+
+    return new Map(users.map((user: any) => [String(user._id), { name: user.name, avatarUrl: user.avatarUrl ?? undefined }]));
+  }
+
   async delete(id: string) {
     try {
       const user = await this.userModel.findByIdAndDelete(id);

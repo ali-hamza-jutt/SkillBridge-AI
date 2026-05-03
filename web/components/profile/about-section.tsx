@@ -78,15 +78,7 @@ export default function AboutSection({ profile, onSave }: Props) {
           </FormField>
         </div>
       ) : (
-        <div className="space-y-3">
-          {profile.title && (
-            <p className="text-sm font-semibold text-(--color-brand-strong)">{profile.title}</p>
-          )}
-          {profile.hourlyRate != null && profile.hourlyRate > 0 && (
-            <p className="text-sm text-(--color-text-muted)">
-              <span className="font-semibold text-(--color-text-main)">${profile.hourlyRate}</span> / hr
-            </p>
-          )}
+        <div>
           {profile.bio ? (
             <p className="whitespace-pre-wrap text-sm leading-7 text-(--color-text-main)">{profile.bio}</p>
           ) : (

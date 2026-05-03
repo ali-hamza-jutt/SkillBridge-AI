@@ -2,6 +2,7 @@
 
 import { PropsWithChildren, useEffect } from "react";
 import { Provider } from "react-redux";
+import { Toaster } from "sonner";
 import { store } from "@/lib/store";
 import { setCredentials, setHydrated } from "@/lib/features/auth/authSlice";
 import ChatSocketProvider from "@/components/chat-socket-provider";
@@ -15,6 +16,7 @@ function AuthBootstrap() {
     const userId = localStorage.getItem("auth_user_id");
     const categoryId = localStorage.getItem("auth_category_id");
     const skillsRaw = localStorage.getItem("auth_skills");
+    const avatarUrl = localStorage.getItem("auth_avatar_url");
     const role = localStorage.getItem("auth_role") as
       | "FREELANCER"
       | "HIRER"
@@ -31,7 +33,7 @@ function AuthBootstrap() {
     }
 
     if (token && refreshToken) {
-      store.dispatch(setCredentials({ token, refreshToken, email, userId, role, categoryId, skills }));
+      store.dispatch(setCredentials({ token, refreshToken, email, userId, role, categoryId, skills, avatarUrl }));
     }
 
     store.dispatch(setHydrated(true));
@@ -44,6 +46,7 @@ export default function Providers({ children }: PropsWithChildren) {
   return (
     <Provider store={store}>
       <AuthBootstrap />
+      <Toaster position="top-right" richColors closeButton duration={5000} />
       <ChatSocketProvider>
         <NotificationsProvider>{children}</NotificationsProvider>
       </ChatSocketProvider>

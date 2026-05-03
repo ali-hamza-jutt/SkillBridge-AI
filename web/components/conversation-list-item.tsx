@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { ImageIcon, Video, FileText } from "lucide-react";
 import type { ConversationSummary } from "@/lib/types/chat";
@@ -28,7 +29,14 @@ function getInitials(name: string) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-function Avatar({ name }: { name: string }) {
+function Avatar({ name, url }: { name: string; url?: string | null }) {
+  if (url) {
+    return (
+      <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full">
+        <Image src={url} alt={name} width={44} height={44} className="h-full w-full object-cover" unoptimized />
+      </div>
+    );
+  }
   return (
     <div
       className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
@@ -80,7 +88,7 @@ export default function ConversationListItem({ conversation, href, active }: Con
           : "hover:bg-[color-mix(in_srgb,var(--color-border)_30%,var(--color-surface))]"
       }`}
     >
-      <Avatar name={conversation.otherUserName} />
+      <Avatar name={conversation.otherUserName} url={conversation.otherUserAvatarUrl} />
 
       <div className="min-w-0 flex-1">
         {/* Name + timestamp */}
