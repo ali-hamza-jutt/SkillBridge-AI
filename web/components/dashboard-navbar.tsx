@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import type { RefObject } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Bell, Mail, Search } from "lucide-react";
 import { logout } from "@/lib/features/auth/authSlice";
@@ -27,6 +28,88 @@ function avatarBg(seed: string) {
 
 const navButtonClass =
   "rounded-full px-4 py-2 text-sm font-semibold text-black no-underline transition hover:bg-transparent hover:text-black";
+
+type ProfileAvatarProps = {
+  activeItem?: "jobs" | "messages" | "profile";
+  avatarUrl?: string | null;
+  bg: string;
+  email?: string | null;
+  profileMenuOpen: boolean;
+  profileMenuRef: RefObject<HTMLDivElement | null>;
+  setProfileMenuOpen: (open: boolean | ((current: boolean) => boolean)) => void;
+  signOut: () => void;
+};
+
+function ProfileAvatar({
+  activeItem,
+  avatarUrl,
+  bg,
+  email,
+  profileMenuOpen,
+  profileMenuRef,
+  setProfileMenuOpen,
+  signOut,
+}: ProfileAvatarProps) {
+  const initial = (email ?? "U")[0].toUpperCase();
+
+  return (
+    <div className="relative" ref={profileMenuRef}>
+      <button
+        type="button"
+        onClick={() => setProfileMenuOpen((open) => !open)}
+        className={`relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 transition ${
+          activeItem === "profile"
+            ? "border-(--color-brand)"
+            : "border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] hover:border-(--color-brand)"
+        }`}
+        aria-label="Profile menu"
+        aria-expanded={profileMenuOpen}
+        aria-haspopup="menu"
+      >
+        {avatarUrl ? (
+          <Image src={avatarUrl} alt="Profile" width={36} height={36} className="h-full w-full object-cover" unoptimized />
+        ) : (
+          <span className="flex h-full w-full items-center justify-center text-sm font-bold text-white" style={{ backgroundColor: bg }}>
+            {initial}
+          </span>
+        )}
+      </button>
+
+      {profileMenuOpen ? (
+        <div
+          className="absolute right-0 top-[calc(100%+0.6rem)] z-50 w-48 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--color-border)_88%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_96%,transparent)] p-2 shadow-[0_18px_36px_-24px_rgba(15,23,42,0.42)]"
+          role="menu"
+        >
+          <Link
+            href="/dashboard/profile"
+            className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-(--color-text-main) no-underline transition hover:bg-[color-mix(in_srgb,var(--color-brand-soft)_55%,transparent)]"
+            role="menuitem"
+            onClick={() => setProfileMenuOpen(false)}
+          >
+            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--color-brand-soft)_70%,var(--color-surface))] text-(--color-brand-strong)">
+              <Mail className="h-4 w-4" />
+            </span>
+            Edit Profile
+          </Link>
+          <button
+            type="button"
+            onClick={() => {
+              setProfileMenuOpen(false);
+              signOut();
+            }}
+            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold text-(--color-text-main) transition hover:bg-[color-mix(in_srgb,var(--color-brand-soft)_55%,transparent)]"
+            role="menuitem"
+          >
+            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--color-brand-soft)_70%,var(--color-surface))] text-(--color-brand-strong)">
+              <Bell className="h-4 w-4" />
+            </span>
+            Logout
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export default function DashboardNavbar({ role, activeItem, onPostJob }: DashboardNavbarProps) {
   const router = useRouter();
@@ -93,64 +176,6 @@ export default function DashboardNavbar({ role, activeItem, onPostJob }: Dashboa
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, []);
 
-  const ProfileAvatar = () => (
-    <div className="relative" ref={profileMenuRef}>
-      <button
-        type="button"
-        onClick={() => setProfileMenuOpen((open) => !open)}
-        className={`relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 transition ${
-          activeItem === "profile"
-            ? "border-(--color-brand)"
-            : "border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] hover:border-(--color-brand)"
-        }`}
-        aria-label="Profile menu"
-        aria-expanded={profileMenuOpen}
-        aria-haspopup="menu"
-      >
-        {avatarUrl ? (
-          <Image src={avatarUrl} alt="Profile" width={36} height={36} className="h-full w-full object-cover" unoptimized />
-        ) : (
-          <span className="flex h-full w-full items-center justify-center text-sm font-bold text-white" style={{ backgroundColor: bg }}>
-            {initial}
-          </span>
-        )}
-      </button>
-
-      {profileMenuOpen ? (
-        <div
-          className="absolute right-0 top-[calc(100%+0.6rem)] z-50 w-48 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--color-border)_88%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_96%,transparent)] p-2 shadow-[0_18px_36px_-24px_rgba(15,23,42,0.42)]"
-          role="menu"
-        >
-          <Link
-            href="/dashboard/profile"
-            className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-(--color-text-main) no-underline transition hover:bg-[color-mix(in_srgb,var(--color-brand-soft)_55%,transparent)]"
-            role="menuitem"
-            onClick={() => setProfileMenuOpen(false)}
-          >
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--color-brand-soft)_70%,var(--color-surface))] text-(--color-brand-strong)">
-              <Mail className="h-4 w-4" />
-            </span>
-            Edit Profile
-          </Link>
-          <button
-            type="button"
-            onClick={() => {
-              setProfileMenuOpen(false);
-              signOut();
-            }}
-            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold text-(--color-text-main) transition hover:bg-[color-mix(in_srgb,var(--color-brand-soft)_55%,transparent)]"
-            role="menuitem"
-          >
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--color-brand-soft)_70%,var(--color-surface))] text-(--color-brand-strong)">
-              <Bell className="h-4 w-4" />
-            </span>
-            Logout
-          </button>
-        </div>
-      ) : null}
-    </div>
-  );
-
   return (
     <header className="sticky top-0 z-20 bg-(--color-bg) backdrop-blur-xl">
       <div className="mx-auto flex w-full max-w-[1440px] flex-nowrap items-center gap-3 px-4 py-3 sm:px-6 md:gap-4 md:px-8 md:py-4 lg:px-10">
@@ -203,7 +228,16 @@ export default function DashboardNavbar({ role, activeItem, onPostJob }: Dashboa
             ) : null}
           </button>
 
-          <ProfileAvatar />
+          <ProfileAvatar
+            activeItem={activeItem}
+            avatarUrl={avatarUrl}
+            bg={bg}
+            email={email}
+            profileMenuOpen={profileMenuOpen}
+            profileMenuRef={profileMenuRef}
+            setProfileMenuOpen={setProfileMenuOpen}
+            signOut={signOut}
+          />
 
           {canPostJob ? (
             <button
