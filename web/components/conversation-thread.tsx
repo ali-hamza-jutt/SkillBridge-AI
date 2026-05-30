@@ -9,6 +9,7 @@ import { useAppSelector } from "@/lib/hooks";
 import { useChatSocket } from "@/components/chat-socket-provider";
 import { markConversationRead } from "@/lib/useUnreadMessages";
 import ChatMessageTimestamp from "@/components/chat-message-timestamp";
+import EmojiPicker from "@/components/emoji-picker";
 import type { ChatMessage, ConversationSummary, MessageAttachment } from "@/lib/types/chat";
 import type { AttachmentDto } from "@/lib/api";
 import { fileTypeMeta, formatFileSize } from "@/lib/utils/formatting";
@@ -152,7 +153,10 @@ export default function ConversationThread({ conversationId }: { conversationId:
   const [sendError, setSendError] = useState<string | null>(null);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const emojiMenuRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
   const queryError = useMemo(() => {
     if (!convError) return null;
@@ -190,6 +194,39 @@ export default function ConversationThread({ conversationId }: { conversationId:
     socket.on("conversation.updated", onUpdated);
     return () => { socket.off("message.created", onMessage); socket.off("conversation.updated", onUpdated); };
   }, [conversationId, socket]);
+
+  useEffect(() => {
+    const onPointerDown = (event: MouseEvent) => {
+      if (emojiMenuRef.current && !emojiMenuRef.current.contains(event.target as Node)) {
+        setEmojiPickerOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, []);
+
+  const insertEmoji = (emoji: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      setBody((current) => `${current}${emoji}`);
+      setEmojiPickerOpen(false);
+      return;
+    }
+
+    const start = textarea.selectionStart ?? body.length;
+    const end = textarea.selectionEnd ?? body.length;
+    const nextValue = `${body.slice(0, start)}${emoji}${body.slice(end)}`;
+
+    setBody(nextValue);
+    setEmojiPickerOpen(false);
+
+    requestAnimationFrame(() => {
+      textarea.focus();
+      const nextCursor = start + emoji.length;
+      textarea.setSelectionRange(nextCursor, nextCursor);
+    });
+  };
 
   const uploadFile = async (pending: PendingAttachment) => {
     const setErr = (msg: string) =>
@@ -485,15 +522,22 @@ export default function ConversationThread({ conversationId }: { conversationId:
           >
             <Paperclip className="h-4 w-4" />
           </button>
-          <button
-            type="button"
-            aria-label="Emoji"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-(--color-text-muted) transition hover:bg-[color-mix(in_srgb,var(--color-border)_40%,transparent)] hover:text-(--color-text-main)"
-          >
-            <Smile className="h-4 w-4" />
-          </button>
+          <div className="relative" ref={emojiMenuRef}>
+            <button
+              type="button"
+              aria-label="Emoji"
+              aria-expanded={emojiPickerOpen}
+              onClick={() => setEmojiPickerOpen((open) => !open)}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-(--color-text-muted) transition hover:bg-[color-mix(in_srgb,var(--color-border)_40%,transparent)] hover:text-(--color-text-main)"
+            >
+              <Smile className="h-4 w-4" />
+            </button>
+
+            <EmojiPicker open={emojiPickerOpen} onSelect={insertEmoji} onClose={() => setEmojiPickerOpen(false)} />
+          </div>
 
           <textarea
+            ref={textareaRef}
             value={body}
             onChange={(e) => setBody(e.target.value)}
             onKeyDown={(e) => {
