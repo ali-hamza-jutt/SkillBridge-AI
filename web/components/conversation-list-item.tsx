@@ -100,12 +100,12 @@ export default function ConversationListItem({ conversation, href, active }: Con
         </div>
 
         {/* Task title */}
-        <p className="truncate text-xs text-(--color-text-muted)">
+        <p className="truncate text-xs font-semibold text-(--color-text-muted)">
           {conversation.taskTitle}
         </p>
 
         {/* Last message */}
-        <p className="mt-0.5 truncate text-xs text-(--color-brand-strong) opacity-80">
+        <p className="mt-0.5 truncate text-xs text-(--color-text-muted)">
           <LastMessagePreview conversation={conversation} />
         </p>
       </div>
