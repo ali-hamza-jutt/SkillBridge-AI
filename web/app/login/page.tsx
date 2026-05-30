@@ -137,7 +137,13 @@ export default function LoginPage() {
               <form className="mt-6 grid gap-4" onSubmit={onSubmit}>
                 <div>
                   <label className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]" htmlFor="email">
-                    <main className="min-h-screen bg-(--color-bg)">
+                    Email
+                  </label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className={inputClassName}
