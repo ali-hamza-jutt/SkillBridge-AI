@@ -13,6 +13,7 @@ import EmojiPicker from "@/components/emoji-picker";
 import type { ChatMessage, ConversationSummary, MessageAttachment } from "@/lib/types/chat";
 import type { AttachmentDto } from "@/lib/api";
 import { fileTypeMeta, formatFileSize, normalizeAttachmentUrl } from "@/lib/utils/formatting";
+import MediaModal from "@/components/media-modal";
 import { CHAT_VIDEO_UPLOAD_MAX_SIZE_BYTES } from "@/lib/constants/upload";
 import {
   useConversationsControllerGetConversationQuery,
@@ -123,7 +124,7 @@ function Avatar({ name, url, size = 36 }: { name: string; url?: string | null; s
 }
 
 // ── Attachment renderers ──────────────────────────────────────────────────────
-function MediaPreview({ attachment, optimistic = false }: { attachment: MessageAttachment; optimistic?: boolean }) {
+function MediaPreview({ attachment, optimistic = false, onOpen }: { attachment: MessageAttachment; optimistic?: boolean; onOpen?: (item: { url: string; type: "IMAGE" | "VIDEO"; name?: string }) => void }) {
   const url = normalizeAttachmentUrl(attachment.url);
   const isLocalPreview = url.startsWith("blob:");
   const attachmentType = inferAttachmentType(attachment);
@@ -131,7 +132,12 @@ function MediaPreview({ attachment, optimistic = false }: { attachment: MessageA
   if (attachmentType === "IMAGE") {
     if (optimistic || isLocalPreview) {
       return (
-        <div className="relative overflow-hidden rounded-xl" style={{ width: "min(380px, 100%)", aspectRatio: "4 / 3" }}>
+        <button
+          type="button"
+          onClick={() => onOpen?.({ url, type: "IMAGE", name: attachment.name })}
+          className="relative overflow-hidden rounded-xl text-left"
+          style={{ width: "min(380px, 100%)", aspectRatio: "4 / 3" }}
+        >
           <Image
             src={url}
             alt={attachment.name}
@@ -145,12 +151,16 @@ function MediaPreview({ attachment, optimistic = false }: { attachment: MessageA
             <Loader2 className="h-3 w-3 animate-spin" />
             Sending...
           </div>
-        </div>
+        </button>
       );
     }
 
     return (
-      <a href={url} target="_blank" rel="noopener noreferrer" className="block">
+      <button
+        type="button"
+        onClick={() => onOpen?.({ url, type: "IMAGE", name: attachment.name })}
+        className="block text-left"
+      >
         <Image
           src={url}
           alt={attachment.name}
@@ -161,11 +171,23 @@ function MediaPreview({ attachment, optimistic = false }: { attachment: MessageA
           className="max-h-80 w-auto rounded-xl object-contain"
           style={{ maxWidth: 380 }}
         />
-      </a>
+      </button>
     );
   }
   return (
-    <video src={attachment.url} controls className="max-h-80 rounded-xl" style={{ maxWidth: 380 }} preload="metadata" />
+    <button
+      type="button"
+      onClick={() => onOpen?.({ url, type: "VIDEO", name: attachment.name })}
+      className="relative block overflow-hidden rounded-xl text-left"
+      aria-label={`Open ${attachment.name}`}
+      style={{ maxWidth: 380 }}
+    >
+      <video src={url} muted playsInline loop autoPlay className="max-h-80 rounded-xl object-cover" preload="metadata" />
+      <div className="absolute inset-0 bg-black/10" />
+      <div className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-1 text-[11px] font-medium text-white shadow-sm backdrop-blur-sm">
+        Tap to preview
+      </div>
+    </button>
   );
 }
 
@@ -233,6 +255,11 @@ export default function ConversationThread({ conversationId }: { conversationId:
   const [body, setBody] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
+  const [mediaPreview, setMediaPreview] = useState<{ open: boolean; src: string; type: "IMAGE" | "VIDEO"; title?: string }>({
+    open: false,
+    src: "",
+    type: "IMAGE",
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const emojiMenuRef = useRef<HTMLDivElement>(null);
@@ -247,24 +274,13 @@ export default function ConversationThread({ conversationId }: { conversationId:
     return mergeUniqueMessages(messages, stillPending) as DisplayChatMessage[];
   }, [messages, optimisticMessages]);
 
-  const mediaLinks = useMemo(() => {
-    return visibleMessages.flatMap((message) =>
-      (message.attachments ?? [])
-        .filter((attachment) => inferAttachmentType(attachment) === "IMAGE" || inferAttachmentType(attachment) === "VIDEO")
-        .map((attachment) => ({
-          messageId: message.id,
-          senderName: message.senderName,
-          type: inferAttachmentType(attachment),
-          url: attachment.url,
-          name: attachment.name,
-        })),
-    );
-  }, [visibleMessages]);
+  const openMediaPreview = (item: { url: string; type: "IMAGE" | "VIDEO"; name?: string }) => {
+    setMediaPreview({ open: true, src: item.url, type: item.type, title: item.name });
+  };
 
-  useEffect(() => {
-    if (mediaLinks.length === 0) return;
-    console.log(mediaLinks.map((mediaLink) => mediaLink.url));
-  }, [mediaLinks]);
+  const closeMediaPreview = () => {
+    setMediaPreview((current) => ({ ...current, open: false }));
+  };
 
   const queryError = useMemo(() => {
     if (!convError) return null;
@@ -551,7 +567,14 @@ export default function ConversationThread({ conversationId }: { conversationId:
                   {/* Media */}
                   {mediaAtts.length > 0 && (
                     <div className="mb-1 grid gap-1.5 sm:grid-cols-2">
-                      {mediaAtts.map((att) => <MediaPreview key={att.url} attachment={att} optimistic={Boolean(message.optimistic)} />)}
+                      {mediaAtts.map((att) => (
+                        <MediaPreview
+                          key={att.url}
+                          attachment={att}
+                          optimistic={Boolean(message.optimistic)}
+                          onOpen={openMediaPreview}
+                        />
+                      ))}
                     </div>
                   )}
 
@@ -711,6 +734,14 @@ export default function ConversationThread({ conversationId }: { conversationId:
           </button>
         </div>
       </form>
+
+      <MediaModal
+        open={mediaPreview.open}
+        src={mediaPreview.src}
+        type={mediaPreview.type}
+        title={mediaPreview.title}
+        onClose={closeMediaPreview}
+      />
     </section>
   );
 }
