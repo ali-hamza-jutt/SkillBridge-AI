@@ -381,7 +381,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
 
                   {/* Text body */}
                   {message.body ? (
-                    <p className="whitespace-pre-wrap text-sm leading-[1.625] text-(--color-text-main)">
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-(--color-text-main)">
                       {message.body}
                     </p>
                   ) : null}

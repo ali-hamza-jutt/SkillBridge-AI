@@ -41,7 +41,6 @@ export default function MessagesPage() {
         <section className="rounded-2xl bg-(--background-color-chat-list-box)">
           <div className="flex items-center justify-between gap-3 px-4 py-3">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-(--color-text-muted)">Inbox</p>
               <h1 className="text-lg font-bold tracking-tight text-(--color-text-main)">Messages</h1>
             </div>
             <button
