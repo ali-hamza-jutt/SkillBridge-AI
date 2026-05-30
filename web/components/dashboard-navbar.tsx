@@ -121,7 +121,6 @@ export default function DashboardNavbar({ role, activeItem, onPostJob }: Dashboa
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
-  const initial = (email ?? "U")[0].toUpperCase();
   const bg = avatarBg(email ?? "U");
   const canPostJob = role === "HIRER" && Boolean(onPostJob);
 
@@ -178,10 +177,10 @@ export default function DashboardNavbar({ role, activeItem, onPostJob }: Dashboa
 
   return (
     <header className="sticky top-0 z-20 bg-(--color-bg) backdrop-blur-xl">
-      <div className="mx-auto flex w-full max-w-[1440px] flex-nowrap items-center gap-3 px-4 py-3 sm:px-6 md:gap-4 md:px-8 md:py-4 lg:px-10">
+      <div className="mx-auto flex w-full max-w-360 flex-nowrap items-center gap-3 px-4 py-3 sm:px-6 md:gap-4 md:px-8 md:py-4 lg:px-10">
         <Link
           href="/dashboard"
-          className="relative inline-flex shrink-0 items-center pl-4 text-lg font-bold text-[var(--color-text-main)] no-underline before:absolute before:left-0 before:top-1 before:h-3 before:w-3 before:rounded-full before:bg-[linear-gradient(145deg,var(--color-brand),var(--color-accent))]"
+          className="relative inline-flex shrink-0 items-center pl-4 text-lg font-bold text-(--color-text-main) no-underline before:absolute before:left-0 before:top-1 before:h-3 before:w-3 before:rounded-full before:bg-[linear-gradient(145deg,var(--color-brand),var(--color-accent))]"
         >
           SkillBridge
         </Link>
@@ -200,7 +199,7 @@ export default function DashboardNavbar({ role, activeItem, onPostJob }: Dashboa
 
         <div className="flex shrink-0 flex-nowrap items-center justify-start gap-2 md:justify-end">
           <form
-            className="flex w-[240px] shrink-0 items-center gap-2 rounded-[12px] border border-black bg-transparent px-3 py-1.5"
+            className="flex w-60 shrink-0 items-center gap-2 rounded-xl border border-black bg-transparent px-3 py-1.5"
             onSubmit={handleSearchSubmit}
             role="search"
           >
