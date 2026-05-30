@@ -52,7 +52,7 @@ export default function MessagesPage() {
             </button>
           </div>
 
-          <div className="grid gap-1.5 p-3">
+          <div className="grid gap-0 p-3">
             {loading ? <p className="px-2 py-3 text-sm text-(--color-text-muted)">Loading...</p> : null}
             {!loading && errorMessage ? <p className="px-2 text-sm text-red-600">{errorMessage}</p> : null}
             {!loading && !errorMessage && conversations.length === 0 ? (

@@ -41,7 +41,7 @@ export default function ConversationPage() {
             </Link>
           </div>
 
-          <div className="grid gap-1.5 p-3">
+          <div className="grid gap-0 p-3">
             {loadingSidebar ? <p className="px-2 py-3 text-sm text-(--color-text-muted)">Loading...</p> : null}
             {conversations.map((conversation) => (
               <ConversationListItem
