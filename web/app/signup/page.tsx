@@ -180,10 +180,6 @@ export default function SignupPage() {
                     className={inputClassName}
                     placeholder="you@example.com"
                   />
-                    onChange={(e) => setEmail(e.target.value)}
-                    className={inputClassName}
-                    placeholder="you@example.com"
-                  />
                 </div>
 
                 <div>
