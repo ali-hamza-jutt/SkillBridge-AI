@@ -20,6 +20,8 @@ export default function MessagesPage() {
     error,
   } = useConversationsControllerGetMyConversationsQuery(undefined, {
     skip: !token || (role !== "HIRER" && role !== "FREELANCER"),
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
   });
 
   const conversations = (data as ConversationSummary[] | undefined) ?? [];

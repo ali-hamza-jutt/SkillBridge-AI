@@ -138,9 +138,17 @@ export default function ConversationThread({ conversationId }: { conversationId:
   const { socket, joinConversation, leaveConversation } = useChatSocket();
 
   const { data: convData, isLoading: convLoading, error: convError } =
-    useConversationsControllerGetConversationQuery({ id: conversationId }, { skip: !token || !conversationId });
+    useConversationsControllerGetConversationQuery({ id: conversationId }, {
+      skip: !token || !conversationId,
+      refetchOnFocus: true,
+      refetchOnReconnect: true,
+    });
   const { data: msgData, isLoading: msgLoading } =
-    useConversationsControllerGetMessagesQuery({ id: conversationId, before: "", limit: "100" }, { skip: !token || !conversationId });
+    useConversationsControllerGetMessagesQuery({ id: conversationId, before: "", limit: "100" }, {
+      skip: !token || !conversationId,
+      refetchOnFocus: true,
+      refetchOnReconnect: true,
+    });
   const [sendMessage, { isLoading: sending }] = useConversationsControllerSendMessageMutation();
   const [generateSignedUrl] = useGcsControllerGenerateSignedUrlMutation();
 

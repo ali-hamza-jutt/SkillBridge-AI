@@ -19,6 +19,8 @@ export default function ConversationPage() {
   useConversationListRealtimeUpdates();
   const { data, isLoading, isFetching } = useConversationsControllerGetMyConversationsQuery(undefined, {
     skip: !token || (role !== "HIRER" && role !== "FREELANCER"),
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
   });
   const conversations = (data as ConversationSummary[] | undefined) ?? [];
   const loadingSidebar = isLoading || isFetching;
