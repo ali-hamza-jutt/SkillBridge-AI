@@ -370,7 +370,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
       </header>
 
       {/* ── Messages ── */}
-      <div className="overflow-y-auto px-5 py-4">
+      <div className="overflow-y-auto px-5 py-4 hide-scrollbar">
         <div className="flex flex-col gap-1">
           {messages.map((message, idx) => {
             const isMine = message.senderId === userId;

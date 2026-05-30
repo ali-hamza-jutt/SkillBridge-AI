@@ -80,3 +80,12 @@ textarea:disabled,
     transform: translateY(8px) scale(1.04);
   }
 }
+
+/* Utility: hide native scrollbars while preserving scroll behavior */
+.hide-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Safari and Chrome */
+}

@@ -42,7 +42,7 @@ export default function MessagesPage() {
       <DashboardNavbar role={role} activeItem="messages" />
 
       <div className="mx-auto grid w-[min(100%-1rem,1440px)] gap-3 py-4 lg:grid-cols-[300px_1fr]">
-        <section className="rounded-2xl bg-(--background-color-chat-list-box)">
+        <section className="rounded-2xl bg-(--background-color-chat-list-box)" style={{ maxHeight: "calc(100vh - 88px)" }}>
           <div className="flex items-center justify-between gap-3 px-4 py-3">
             <div>
               <h1 className="text-lg font-bold tracking-tight text-(--color-text-main)">Messages</h1>
@@ -56,7 +56,7 @@ export default function MessagesPage() {
             </button>
           </div>
 
-          <div className="grid gap-0 p-3">
+          <div className="grid gap-0 p-3 overflow-y-auto hide-scrollbar">
             {loading ? <p className="px-2 py-3 text-sm text-(--color-text-muted)">Loading...</p> : null}
             {!loading && errorMessage ? <p className="px-2 text-sm text-red-600">{errorMessage}</p> : null}
             {!loading && !errorMessage && conversations.length === 0 ? (
