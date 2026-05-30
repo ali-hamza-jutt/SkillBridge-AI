@@ -38,8 +38,8 @@ export default function MessagesPage() {
       <DashboardNavbar role={role} activeItem="messages" />
 
       <div className="mx-auto grid w-[min(100%-1rem,1440px)] gap-3 py-4 lg:grid-cols-[300px_1fr]">
-        <section className="rounded-2xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_94%,transparent)] shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18)]">
-          <div className="flex items-center justify-between gap-3 border-b border-[color-mix(in_srgb,var(--color-border)_85%,transparent)] px-4 py-3">
+        <section className="rounded-2xl bg-(--background-color-chat-list-box)">
+          <div className="flex items-center justify-between gap-3 px-4 py-3">
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-(--color-text-muted)">Inbox</p>
               <h1 className="text-lg font-bold tracking-tight text-(--color-text-main)">Messages</h1>

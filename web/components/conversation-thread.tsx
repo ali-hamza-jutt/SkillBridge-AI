@@ -284,11 +284,11 @@ export default function ConversationThread({ conversationId }: { conversationId:
 
   return (
     <section
-      className="grid grid-rows-[auto_1fr_auto] overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-(--color-surface) shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18)]"
+      className="grid grid-rows-[auto_1fr_auto] overflow-hidden rounded-2xl bg-(--color-surface) shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18)]"
       style={{ height: "calc(100vh - 88px)" }}
     >
       {/* ── Header ── */}
-      <header className="flex items-center gap-3 border-b border-[color-mix(in_srgb,var(--color-border)_85%,transparent)] px-5 py-3.5">
+      <header className="flex items-center gap-3 px-5 py-3.5">
         <Avatar name={otherName} url={otherAvatarUrl} size={44} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
@@ -408,7 +408,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
       </div>
 
       {/* ── Composer ── */}
-      <form onSubmit={handleSend} className="border-t border-[color-mix(in_srgb,var(--color-border)_85%,transparent)] px-4 pb-4 pt-3">
+      <form onSubmit={handleSend} className="px-4 pb-4 pt-3">
         {/* Pending attachments */}
         {pendingAttachments.length > 0 && (
           <div className="mb-3 flex flex-wrap gap-2">

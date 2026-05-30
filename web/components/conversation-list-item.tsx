@@ -82,10 +82,8 @@ export default function ConversationListItem({ conversation, href, active }: Con
   return (
     <Link
       href={href}
-      className={`flex items-center gap-3 rounded-xl px-3 py-3 no-underline transition-colors ${
-        active
-          ? "bg-[color-mix(in_srgb,var(--color-brand-soft)_70%,var(--color-surface))]"
-          : "hover:bg-[color-mix(in_srgb,var(--color-border)_30%,var(--color-surface))]"
+      className={`flex w-full min-w-0 items-start gap-3 overflow-hidden rounded-xl bg-(--background-color-chat-list-item) px-3 py-3 no-underline transition-colors hover:bg-(--background-color-chat-list-item) ${
+        active ? "opacity-100" : ""
       }`}
     >
       <Avatar name={conversation.otherUserName} url={conversation.otherUserAvatarUrl} />
