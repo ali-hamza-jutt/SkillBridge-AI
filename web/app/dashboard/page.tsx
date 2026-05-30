@@ -279,13 +279,7 @@ export default function DashboardPage() {
 
   if (role === "FREELANCER") {
     return (
-      <main
-        className="min-h-screen"
-        style={{
-          background:
-            "radial-gradient(circle at 88% 0%, color-mix(in srgb, var(--color-accent-soft) 50%, transparent), transparent 34%), linear-gradient(165deg, var(--color-bg), color-mix(in srgb, var(--color-surface-strong) 84%, var(--color-bg)))",
-        }}
-      >
+      <main className="min-h-screen bg-(--color-bg)">
         <DashboardNavbar role={role} activeItem="jobs" />
 
         <div className="mx-auto grid w-[min(100%-2rem,1200px)] gap-5 py-5">
@@ -351,13 +345,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <main
-      className="min-h-screen"
-      style={{
-        background:
-          "radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--color-brand-soft) 50%, transparent), transparent 34%), radial-gradient(circle at 96% 8%, color-mix(in srgb, var(--color-accent-soft) 42%, transparent), transparent 44%), linear-gradient(160deg, var(--color-bg), color-mix(in srgb, var(--color-surface-strong) 86%, var(--color-bg)))",
-      }}
-    >
+    <main className="min-h-screen bg-(--color-bg)">
       <DashboardNavbar
         role={role}
         onPostJob={() => {

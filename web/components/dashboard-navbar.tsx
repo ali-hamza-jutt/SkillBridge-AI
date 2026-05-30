@@ -152,7 +152,7 @@ export default function DashboardNavbar({ role, activeItem, onPostJob }: Dashboa
   );
 
   return (
-    <header className="sticky top-0 z-20 border-b border-[color-mix(in_srgb,var(--color-border)_88%,transparent)] bg-[color-mix(in_srgb,var(--color-bg)_84%,transparent)] backdrop-blur-xl">
+    <header className="sticky top-0 z-20 border-b border-[color-mix(in_srgb,var(--color-border)_88%,transparent)] bg-(--color-bg) backdrop-blur-xl">
       <div className="mx-auto flex w-full max-w-[1440px] flex-nowrap items-center gap-3 px-4 py-3 sm:px-6 md:gap-4 md:px-8 md:py-4 lg:px-10">
         <Link
           href="/dashboard"

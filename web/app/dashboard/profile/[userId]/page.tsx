@@ -170,13 +170,7 @@ export default function FreelancerProfilePage() {
   const bg = avatarBg(profile.name);
 
   return (
-    <main
-      className="min-h-screen"
-      style={{
-        background:
-          "radial-gradient(circle at 88% 0%, color-mix(in srgb, var(--color-accent-soft) 45%, transparent), transparent 36%), linear-gradient(165deg, var(--color-bg), color-mix(in srgb, var(--color-surface-strong) 84%, var(--color-bg)))",
-      }}
-    >
+    <main className="min-h-screen bg-(--color-bg)">
       <DashboardNavbar role={role} activeItem={undefined} />
 
       <div className="mx-auto w-[min(100%-1.5rem,860px)] space-y-4 py-5">

@@ -169,13 +169,7 @@ export default function SignupPage() {
 
                 <div>
                   <label className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]" htmlFor="email">
-                    Email
-                  </label>
-                  <input
-                    id="email"
-                    type="email"
-                    required
-                    value={email}
+                    <main className="min-h-screen bg-(--color-bg)">
                     onChange={(e) => setEmail(e.target.value)}
                     className={inputClassName}
                     placeholder="you@example.com"

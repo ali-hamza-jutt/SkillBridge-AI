@@ -2,13 +2,7 @@ import Link from "next/link";
 
 export default function Home() {
   return (
-    <main
-      className="min-h-screen"
-      style={{
-        background:
-          "radial-gradient(circle at 8% 7%, color-mix(in srgb, var(--color-brand) 10%, transparent), transparent 40%), radial-gradient(circle at 92% 14%, color-mix(in srgb, var(--color-accent) 9%, transparent), transparent 46%), linear-gradient(160deg, var(--color-bg), color-mix(in srgb, var(--color-surface-strong) 74%, var(--color-bg)))",
-      }}
-    >
+    <main className="min-h-screen bg-(--color-bg)">
       <header className="sticky top-0 z-20 border-b border-[color-mix(in_srgb,var(--color-border)_88%,transparent)] bg-[color-mix(in_srgb,var(--color-bg)_86%,transparent)] backdrop-blur-xl">
         <div className="mx-auto grid w-[min(100%-2rem,1180px)] grid-cols-[auto_1fr_auto] items-center gap-4 py-3 max-[640px]:grid-cols-1">
           <Link href="/" className="relative pl-4 text-lg font-bold text-[var(--color-text-main)] no-underline before:absolute before:left-0 before:top-1 before:h-3 before:w-3 before:rounded-full before:bg-[linear-gradient(145deg,var(--color-brand),var(--color-accent))]">
