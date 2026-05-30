@@ -219,7 +219,7 @@ export default function DashboardNavbar({ role, activeItem, onPostJob }: Dashboa
             className="relative inline-flex items-center justify-center rounded-full p-2.5 transition bg-[color-mix(in_srgb,var(--color-surface)_88%,transparent)] text-(--color-text-main)"
             aria-label="Notifications"
           >
-            <Bell className="h-4 w-4 shrink-0" />
+            <Bell className="h-5 w-5 shrink-0" />
             {unreadCount > 0 ? (
               <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-(--color-brand) px-1 text-[10px] font-bold leading-none text-white">
                 {unreadCount > 99 ? "99+" : unreadCount}
