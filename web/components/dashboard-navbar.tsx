@@ -216,7 +216,7 @@ export default function DashboardNavbar({ role, activeItem, onPostJob }: Dashboa
           <button
             type="button"
             onClick={goToNotifications}
-            className="relative inline-flex items-center justify-center rounded-full border p-2.5 transition border-[color-mix(in_srgb,var(--color-border)_88%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_88%,transparent)] text-(--color-text-main)"
+            className="relative inline-flex items-center justify-center rounded-full p-2.5 transition bg-[color-mix(in_srgb,var(--color-surface)_88%,transparent)] text-(--color-text-main)"
             aria-label="Notifications"
           >
             <Bell className="h-4 w-4 shrink-0" />
