@@ -37,6 +37,13 @@ function resolveAttachmentType(file: File): "IMAGE" | "VIDEO" | "DOCUMENT" {
   return "DOCUMENT";
 }
 
+const SINGLE_EMOJI_REGEX = /^(?:\p{Extended_Pictographic}|\p{Regional_Indicator}{2}|\p{Emoji_Presentation}|\p{Emoji}\uFE0F)(?:\u200D(?:\p{Extended_Pictographic}|\p{Emoji_Presentation}|\p{Emoji}\uFE0F))*$/u;
+
+function isSingleEmojiMessage(text: string) {
+  const trimmed = text.trim();
+  return trimmed.length > 0 && SINGLE_EMOJI_REGEX.test(trimmed);
+}
+
 const mergeUniqueMessages = (current: ChatMessage[], incoming: ChatMessage[]) => {
   const byId = new Map<string, ChatMessage>();
   for (const m of current) byId.set(m.id, m);
@@ -418,7 +425,13 @@ export default function ConversationThread({ conversationId }: { conversationId:
 
                   {/* Text body */}
                   {message.body ? (
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-(--color-text-main)">
+                    <p
+                      className={`whitespace-pre-wrap text-sm leading-relaxed text-(--color-text-main) ${
+                        isSingleEmojiMessage(message.body)
+                          ? "inline-flex min-w-14 items-center justify-center rounded-2xl px-2 py-1.5 text-4xl leading-none"
+                          : ""
+                      }`}
+                    >
                       {message.body}
                     </p>
                   ) : null}
