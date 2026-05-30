@@ -3,8 +3,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title ?? "SkillBridge", {
       body: data.body ?? "",
-      icon: "/logo-light-removebg.png",
-      badge: "/logo-light-removebg.png",
+      icon: "/logo.svg",
+      badge: "/logo.svg",
       data: { url: data.url ?? "/dashboard" },
     }),
   );
