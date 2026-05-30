@@ -13,14 +13,13 @@ import EmojiPicker from "@/components/emoji-picker";
 import type { ChatMessage, ConversationSummary, MessageAttachment } from "@/lib/types/chat";
 import type { AttachmentDto } from "@/lib/api";
 import { fileTypeMeta, formatFileSize } from "@/lib/utils/formatting";
+import { CHAT_VIDEO_UPLOAD_MAX_SIZE_BYTES } from "@/lib/constants/upload";
 import {
   useConversationsControllerGetConversationQuery,
   useConversationsControllerGetMessagesQuery,
   useConversationsControllerSendMessageMutation,
   useGcsControllerGenerateSignedUrlMutation,
 } from "@/lib/api";
-
-const MAX_VIDEO_SIZE = 100 * 1024 * 1024;
 
 type PendingAttachment = {
   localId: string;
@@ -263,7 +262,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
     const files = Array.from(e.target.files ?? []);
     e.target.value = "";
     for (const file of files) {
-      if (file.type.startsWith("video/") && file.size > MAX_VIDEO_SIZE) { setSendError("Video must be under 100 MB."); continue; }
+      if (file.type.startsWith("video/") && file.size > CHAT_VIDEO_UPLOAD_MAX_SIZE_BYTES) { setSendError("Video must be under 100 MB."); continue; }
       const localId = `${Date.now()}-${Math.random()}`;
       const preview = file.type.startsWith("image/") || file.type.startsWith("video/") ? URL.createObjectURL(file) : null;
       const pending: PendingAttachment = { localId, file, preview, uploading: true, error: null, result: null };
