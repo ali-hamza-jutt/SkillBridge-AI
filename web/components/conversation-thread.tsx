@@ -425,15 +425,19 @@ export default function ConversationThread({ conversationId }: { conversationId:
 
                   {/* Text body */}
                   {message.body ? (
+                    (() => {
+                      const emojiOnly = isSingleEmojiMessage(message.body);
+                      return (
                     <p
                       className={`whitespace-pre-wrap text-sm leading-relaxed text-(--color-text-main) ${
-                        isSingleEmojiMessage(message.body)
-                          ? "inline-flex min-w-14 items-center justify-center rounded-2xl px-2 py-1.5 text-4xl leading-none"
-                          : ""
+                        emojiOnly ? "inline-flex min-w-14 items-center justify-center rounded-2xl px-3 py-2" : ""
                       }`}
+                      style={emojiOnly ? { fontSize: "3.25rem", lineHeight: 1 } : undefined}
                     >
                       {message.body}
                     </p>
+                      );
+                    })()
                   ) : null}
 
                   {/* Documents */}
