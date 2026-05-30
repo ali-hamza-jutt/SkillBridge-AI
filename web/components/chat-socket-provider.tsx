@@ -54,6 +54,34 @@ export default function ChatSocketProvider({ children }: PropsWithChildren) {
     };
   }, [hydrated, token, userId]);
 
+  // Attempt to reconnect when the page becomes visible or network comes back
+  useEffect(() => {
+    const tryReconnect = () => {
+      if (!token || !userId) return;
+      if (socket && !connected) {
+        try {
+          socket.connect();
+        } catch (e) {
+          // ignore
+        }
+      }
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") tryReconnect();
+    };
+
+    const onOnline = () => tryReconnect();
+
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("online", onOnline);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("online", onOnline);
+    };
+  }, [socket, connected, token, userId]);
+
   const value = useMemo<ChatSocketContextValue>(
     () => ({
       socket,
