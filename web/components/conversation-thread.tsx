@@ -624,17 +624,17 @@ export default function ConversationThread({ conversationId }: { conversationId:
             {pendingAttachments.map((p) => (
               <div
                 key={p.localId}
-                className={`relative flex items-center gap-2 rounded-xl border p-2 ${
+                className={`relative flex items-center gap-3 rounded-xl border p-3 ${
                   p.error ? "border-red-300 bg-red-50" : "border-(--color-border) bg-[color-mix(in_srgb,var(--color-surface-strong)_60%,transparent)]"
                 }`}
               >
                 {p.file.type.startsWith("image/") && p.preview ? (
-                  <Image src={p.preview} alt={p.file.name} width={44} height={44} className="h-11 w-11 rounded-lg object-cover" unoptimized />
+                  <Image src={p.preview} alt={p.file.name} width={60} height={60} className="h-14 w-14 rounded-lg object-cover" unoptimized />
                 ) : p.file.type.startsWith("video/") && p.preview ? (
-                  <video src={p.preview} className="h-11 w-11 rounded-lg object-cover" muted />
+                  <video src={p.preview} className="h-14 w-14 rounded-lg object-cover" muted />
                 ) : (
-                  <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[color-mix(in_srgb,var(--color-surface)_80%,transparent)]">
-                    <FileText className="h-5 w-5 text-(--color-text-muted)" />
+                  <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-[color-mix(in_srgb,var(--color-surface)_80%,transparent)]">
+                    <FileText className="h-6 w-6 text-(--color-text-muted)" />
                   </div>
                 )}
                 <div className="flex flex-col gap-0.5 pr-4">
@@ -658,16 +658,16 @@ export default function ConversationThread({ conversationId }: { conversationId:
                       </button>
                     </>
                   ) : (
-                    <span className="max-w-24 truncate text-[11px] text-(--color-text-muted)">{p.file.name}</span>
+                    <span className="max-w-32 truncate text-[11px] text-(--color-text-muted)">{p.file.name}</span>
                   )}
                 </div>
                 <button
                   type="button"
                   onClick={() => removePending(p.localId)}
-                  className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-(--color-surface-strong) text-(--color-text-muted) shadow-sm"
+                  className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-(--color-surface-strong) text-(--color-text-muted) shadow-sm"
                   aria-label="Remove"
                 >
-                  <X className="h-2.5 w-2.5" />
+                  <X className="h-3 w-3" />
                 </button>
               </div>
             ))}
