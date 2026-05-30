@@ -10,11 +10,13 @@ import ConversationThread from "@/components/conversation-thread";
 import { useConversationsControllerGetMyConversationsQuery } from "@/lib/api";
 import type { ConversationSummary } from "@/lib/types/chat";
 import { useUnreadConversationCount } from "@/lib/useUnreadMessages";
+import { useConversationListRealtimeUpdates } from "@/lib/useConversationListRealtimeUpdates";
 
 export default function ConversationPage() {
   const params = useParams<{ conversationId: string }>();
   const conversationId = Array.isArray(params.conversationId) ? params.conversationId[0] : params.conversationId;
   const { role, token } = useAppSelector((state) => state.auth);
+  useConversationListRealtimeUpdates();
   const { data, isLoading, isFetching } = useConversationsControllerGetMyConversationsQuery(undefined, {
     skip: !token || (role !== "HIRER" && role !== "FREELANCER"),
   });

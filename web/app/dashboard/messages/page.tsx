@@ -7,10 +7,12 @@ import RoleAccessNotice from "@/components/role-access-notice";
 import ConversationListItem from "@/components/conversation-list-item";
 import type { ConversationSummary } from "@/lib/types/chat";
 import { useConversationsControllerGetMyConversationsQuery } from "@/lib/api";
+import { useConversationListRealtimeUpdates } from "@/lib/useConversationListRealtimeUpdates";
 
 export default function MessagesPage() {
   const router = useRouter();
   const { role, token } = useAppSelector((state) => state.auth);
+  useConversationListRealtimeUpdates();
   const {
     data,
     isLoading,
