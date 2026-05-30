@@ -12,7 +12,7 @@ import ChatMessageTimestamp from "@/components/chat-message-timestamp";
 import EmojiPicker from "@/components/emoji-picker";
 import type { ChatMessage, ConversationSummary, MessageAttachment } from "@/lib/types/chat";
 import type { AttachmentDto } from "@/lib/api";
-import { fileTypeMeta, formatFileSize } from "@/lib/utils/formatting";
+import { fileTypeMeta, formatFileSize, normalizeAttachmentUrl } from "@/lib/utils/formatting";
 import { CHAT_VIDEO_UPLOAD_MAX_SIZE_BYTES } from "@/lib/constants/upload";
 import {
   useConversationsControllerGetConversationQuery,
@@ -30,13 +30,49 @@ type PendingAttachment = {
   result: AttachmentDto | null;
 };
 
+type DisplayChatMessage = ChatMessage & {
+  optimistic?: boolean;
+};
+
 function resolveAttachmentType(file: File): "IMAGE" | "VIDEO" | "DOCUMENT" {
   if (file.type.startsWith("image/")) return "IMAGE";
   if (file.type.startsWith("video/")) return "VIDEO";
   return "DOCUMENT";
 }
 
+function inferAttachmentType(attachment: MessageAttachment): "IMAGE" | "VIDEO" | "DOCUMENT" {
+  if (attachment.type === "IMAGE" || attachment.type === "VIDEO" || attachment.type === "DOCUMENT") {
+    return attachment.type;
+  }
+
+  const mimeType = attachment.mimeType.toLowerCase();
+  const name = attachment.name.toLowerCase();
+  const url = normalizeAttachmentUrl(attachment.url).toLowerCase();
+
+  if (mimeType.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg|heic)(\?|#|$)/.test(name) || /\.(png|jpe?g|gif|webp|bmp|svg|heic)(\?|#|$)/.test(url)) {
+    return "IMAGE";
+  }
+
+  if (mimeType.startsWith("video/") || /\.(mp4|mov|avi|mkv|webm|m4v)(\?|#|$)/.test(name) || /\.(mp4|mov|avi|mkv|webm|m4v)(\?|#|$)/.test(url)) {
+    return "VIDEO";
+  }
+
+  return "DOCUMENT";
+}
+
 const SINGLE_EMOJI_REGEX = /^(?:\p{Extended_Pictographic}|\p{Regional_Indicator}{2}|\p{Emoji_Presentation}|\p{Emoji}\uFE0F)(?:\u200D(?:\p{Extended_Pictographic}|\p{Emoji_Presentation}|\p{Emoji}\uFE0F))*$/u;
+
+const attachmentSignature = (attachments?: MessageAttachment[]) =>
+  (attachments ?? [])
+    .map((attachment) => `${attachment.name}|${attachment.mimeType}|${attachment.type}|${attachment.size ?? ""}`)
+    .join("::");
+
+function messagesEquivalent(left: ChatMessage, right: ChatMessage) {
+  if (left.senderId !== right.senderId) return false;
+  if (left.messageType !== right.messageType) return false;
+  if ((left.body ?? "") !== (right.body ?? "")) return false;
+  return attachmentSignature(left.attachments) === attachmentSignature(right.attachments);
+}
 
 function isSingleEmojiMessage(text: string) {
   const trimmed = text.trim();
@@ -87,16 +123,40 @@ function Avatar({ name, url, size = 36 }: { name: string; url?: string | null; s
 }
 
 // ── Attachment renderers ──────────────────────────────────────────────────────
-function MediaPreview({ attachment }: { attachment: MessageAttachment }) {
-  if (!attachment.url.startsWith("http")) return null;
-  if (attachment.type === "IMAGE") {
+function MediaPreview({ attachment, optimistic = false }: { attachment: MessageAttachment; optimistic?: boolean }) {
+  const url = normalizeAttachmentUrl(attachment.url);
+  const isLocalPreview = url.startsWith("blob:");
+  const attachmentType = inferAttachmentType(attachment);
+  if (!url.startsWith("http") && !isLocalPreview) return null;
+  if (attachmentType === "IMAGE") {
+    if (optimistic || isLocalPreview) {
+      return (
+        <div className="relative overflow-hidden rounded-xl" style={{ width: "min(380px, 100%)", aspectRatio: "4 / 3" }}>
+          <Image
+            src={url}
+            alt={attachment.name}
+            width={380}
+            height={285}
+            unoptimized
+            sizes="380px"
+            className="h-full w-full rounded-xl object-cover blur-md scale-105"
+          />
+          <div className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-2 py-1 text-[11px] font-medium text-white shadow-sm backdrop-blur-sm">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Sending...
+          </div>
+        </div>
+      );
+    }
+
     return (
-      <a href={attachment.url} target="_blank" rel="noopener noreferrer" className="block">
+      <a href={url} target="_blank" rel="noopener noreferrer" className="block">
         <Image
-          src={attachment.url}
+          src={url}
           alt={attachment.name}
-          width={0}
-          height={0}
+          width={380}
+          height={285}
+          unoptimized
           sizes="380px"
           className="max-h-80 w-auto rounded-xl object-contain"
           style={{ maxWidth: 380 }}
@@ -112,9 +172,10 @@ function MediaPreview({ attachment }: { attachment: MessageAttachment }) {
 function DocPreview({ attachment }: { attachment: MessageAttachment }) {
   const meta = fileTypeMeta(attachment.mimeType);
   const size = formatFileSize(attachment.size);
+  const url = normalizeAttachmentUrl(attachment.url);
   return (
     <a
-      href={attachment.url}
+      href={url}
       target="_blank"
       rel="noopener noreferrer"
       className="group inline-flex items-center gap-3 rounded-xl border border-(--color-border) bg-[color-mix(in_srgb,var(--color-surface)_80%,transparent)] px-3 py-2.5 no-underline transition hover:border-[color-mix(in_srgb,var(--color-brand)_40%,var(--color-border))]"
@@ -136,6 +197,11 @@ export default function ConversationThread({ conversationId }: { conversationId:
   const router = useRouter();
   const { token, userId, avatarUrl: myAvatarUrl } = useAppSelector((s) => s.auth);
   const { socket, joinConversation, leaveConversation } = useChatSocket();
+  const myDisplayName = useMemo(() => {
+    const fallback = "You";
+    if (!token) return fallback;
+    return fallback;
+  }, [token]);
 
   const { data: convData, isLoading: convLoading, error: convError } =
     useConversationsControllerGetConversationQuery({ id: conversationId }, {
@@ -157,6 +223,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
   const conversation = baseConversation ? { ...baseConversation, ...patches } : null;
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [optimisticMessages, setOptimisticMessages] = useState<DisplayChatMessage[]>([]);
   const [prevMsgData, setPrevMsgData] = useState(msgData);
   if (prevMsgData !== msgData) {
     setPrevMsgData(msgData);
@@ -171,6 +238,33 @@ export default function ConversationThread({ conversationId }: { conversationId:
   const emojiMenuRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+
+  const visibleMessages = useMemo<DisplayChatMessage[]>(() => {
+    const stillPending = optimisticMessages.filter((pendingMessage) => {
+      return !messages.some((message) => messagesEquivalent(message, pendingMessage));
+    });
+
+    return mergeUniqueMessages(messages, stillPending) as DisplayChatMessage[];
+  }, [messages, optimisticMessages]);
+
+  const mediaLinks = useMemo(() => {
+    return visibleMessages.flatMap((message) =>
+      (message.attachments ?? [])
+        .filter((attachment) => inferAttachmentType(attachment) === "IMAGE" || inferAttachmentType(attachment) === "VIDEO")
+        .map((attachment) => ({
+          messageId: message.id,
+          senderName: message.senderName,
+          type: inferAttachmentType(attachment),
+          url: attachment.url,
+          name: attachment.name,
+        })),
+    );
+  }, [visibleMessages]);
+
+  useEffect(() => {
+    if (mediaLinks.length === 0) return;
+    console.log(mediaLinks.map((mediaLink) => mediaLink.url));
+  }, [mediaLinks]);
 
   const queryError = useMemo(() => {
     if (!convError) return null;
@@ -190,13 +284,14 @@ export default function ConversationThread({ conversationId }: { conversationId:
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [visibleMessages]);
 
   useEffect(() => {
     if (!socket) return;
     const onMessage = (p: ChatMessage) => {
       if (p.conversationId !== conversationId) return;
       setMessages((cur) => cur.some((m) => m.id === p.id) ? cur : mergeUniqueMessages(cur, [p]));
+      setOptimisticMessages((current) => current.filter((pendingMessage) => !messagesEquivalent(p, pendingMessage)));
       setPatches((prev) => ({ ...prev, lastMessageText: p.body, lastMessageAt: p.createdAt }));
       markConversationRead(conversationId);
     };
@@ -290,8 +385,35 @@ export default function ConversationThread({ conversationId }: { conversationId:
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = body.trim();
-    const ready = pendingAttachments.filter((p) => p.result !== null).map((p) => p.result!);
+    const readyAttachments = pendingAttachments.filter((p): p is PendingAttachment & { result: AttachmentDto } => p.result !== null);
+    const ready = readyAttachments.map((p) => p.result);
     if ((!trimmed && ready.length === 0) || !token || pendingAttachments.some((p) => p.uploading)) return;
+
+    const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const optimisticAttachments: MessageAttachment[] = readyAttachments.map((attachment) => ({
+      url: attachment.file.type.startsWith("image/") && attachment.preview ? attachment.preview : attachment.result.url,
+      publicId: attachment.result.publicId,
+      name: attachment.result.name,
+      mimeType: attachment.result.mimeType,
+      type: attachment.result.type,
+      size: attachment.result.size,
+    }));
+
+    const optimisticMessage: DisplayChatMessage = {
+      id: optimisticId,
+      conversationId,
+      senderId: userId ?? "",
+      senderName: myDisplayName,
+      body: trimmed,
+      messageType: "TEXT",
+      attachments: optimisticAttachments,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      optimistic: true,
+    };
+
+    setOptimisticMessages((current) => [...current, optimisticMessage]);
+
     try {
       setSendError(null);
       await sendMessage({
@@ -301,7 +423,10 @@ export default function ConversationThread({ conversationId }: { conversationId:
       setBody("");
       setPendingAttachments([]);
       markConversationRead(conversationId);
-    } catch { setSendError("Failed to send. Please try again."); }
+    } catch {
+      setOptimisticMessages((current) => current.filter((message) => message.id !== optimisticId));
+      setSendError("Failed to send. Please try again.");
+    }
   };
 
   const canSend = !sending && !pendingAttachments.some((p) => p.uploading)
@@ -372,14 +497,14 @@ export default function ConversationThread({ conversationId }: { conversationId:
       {/* ── Messages ── */}
       <div className="overflow-y-auto px-5 py-4 hide-scrollbar">
         <div className="flex flex-col gap-1">
-          {messages.map((message, idx) => {
+          {visibleMessages.map((message: DisplayChatMessage, idx) => {
             const isMine = message.senderId === userId;
             const isSystem = message.messageType === "SYSTEM";
-            const prev = messages[idx - 1];
+            const prev = visibleMessages[idx - 1];
             const sameAuthorAsPrev = prev && prev.senderId === message.senderId && prev.messageType === message.messageType;
 
-            const mediaAtts = (message.attachments ?? []).filter((a) => a.type === "IMAGE" || a.type === "VIDEO");
-            const docAtts = (message.attachments ?? []).filter((a) => a.type === "DOCUMENT");
+            const mediaAtts = (message.attachments ?? []).filter((a) => inferAttachmentType(a) === "IMAGE" || inferAttachmentType(a) === "VIDEO");
+            const docAtts = (message.attachments ?? []).filter((a) => inferAttachmentType(a) === "DOCUMENT");
 
             // System message
             if (isSystem) {
@@ -425,8 +550,8 @@ export default function ConversationThread({ conversationId }: { conversationId:
 
                   {/* Media */}
                   {mediaAtts.length > 0 && (
-                    <div className="flex flex-col gap-1.5 mb-1">
-                      {mediaAtts.map((att, i) => <MediaPreview key={i} attachment={att} />)}
+                    <div className="mb-1 grid gap-1.5 sm:grid-cols-2">
+                      {mediaAtts.map((att) => <MediaPreview key={att.url} attachment={att} optimistic={Boolean(message.optimistic)} />)}
                     </div>
                   )}
 
@@ -450,7 +575,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
                   {/* Documents */}
                   {docAtts.length > 0 && (
                     <div className="mt-1.5 flex flex-col gap-1.5">
-                      {docAtts.map((att, i) => <DocPreview key={i} attachment={att} />)}
+                      {docAtts.map((att) => <DocPreview key={att.url} attachment={att} />)}
                     </div>
                   )}
 

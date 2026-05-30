@@ -10,6 +10,28 @@ export type AttachmentDisplayItem = {
   kind: AttachmentKind;
 };
 
+export const normalizeAttachmentUrl = (url?: string | null): string => {
+  if (!url) {
+    return "";
+  }
+
+  try {
+    const parsed = new URL(url);
+    const pathParts = parsed.pathname.split("/").filter(Boolean);
+
+    if (pathParts.length >= 2) {
+      const embeddedUrl = decodeURIComponent(pathParts.slice(1).join("/"));
+      if (/^https?:\/\//i.test(embeddedUrl)) {
+        return embeddedUrl;
+      }
+    }
+  } catch {
+    return url;
+  }
+
+  return url;
+};
+
 export const getAttachmentUrls = (attachments?: TaskBid["attachments"]): string[] => {
   if (!attachments?.length) {
     return [];
@@ -18,9 +40,9 @@ export const getAttachmentUrls = (attachments?: TaskBid["attachments"]): string[
   return attachments
     .map((attachment) => {
       if (typeof attachment === "string") {
-        return attachment;
+        return normalizeAttachmentUrl(attachment);
       }
-      return attachment?.url;
+      return normalizeAttachmentUrl(attachment?.url);
     })
     .filter((url): url is string => Boolean(url));
 };
@@ -81,9 +103,10 @@ export const getAttachmentDisplayItems = (attachments?: TaskBid["attachments"]):
   return attachments
     .map((attachment) => {
       if (typeof attachment === "string") {
-        const fileName = getFileNameFromUrl(attachment);
+        const normalizedUrl = normalizeAttachmentUrl(attachment);
+        const fileName = getFileNameFromUrl(normalizedUrl);
         return {
-          url: attachment,
+          url: normalizedUrl,
           fileName,
           kind: getAttachmentKind(fileName),
         } satisfies AttachmentDisplayItem;
@@ -93,9 +116,10 @@ export const getAttachmentDisplayItems = (attachments?: TaskBid["attachments"]):
         return null;
       }
 
-      const fileName = attachment.fileName?.trim() || getFileNameFromUrl(attachment.url);
+      const normalizedUrl = normalizeAttachmentUrl(attachment.url);
+      const fileName = attachment.fileName?.trim() || getFileNameFromUrl(normalizedUrl);
       return {
-        url: attachment.url,
+        url: normalizedUrl,
         fileName,
         mimeType: attachment.type,
         sizeMb: attachment.sizeMb,
