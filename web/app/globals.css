@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 :root {
-  --color-bg: #f4f8f3;
+  --color-bg: #ffffff;
   --color-surface: #ffffff;
-  --color-surface-strong: #eef5ee;
-  --color-surface-tint: #e7f2e6;
+  --color-surface-strong: #ffffff;
+  --color-surface-tint: #ffffff;
   --color-text-main: #0f1720;
   --color-text-muted: #5b675b;
   --color-brand: #108a00;
@@ -25,7 +25,7 @@
 body {
   margin: 0;
   color: var(--color-text-main);
-  background: var(--color-bg);
+  background: #ffffff;
   font-family: var(--font-geist-sans), "Segoe UI", sans-serif;
 }
 
