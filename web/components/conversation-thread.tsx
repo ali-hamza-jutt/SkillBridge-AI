@@ -246,11 +246,6 @@ export default function ConversationThread({ conversationId }: { conversationId:
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [optimisticMessages, setOptimisticMessages] = useState<DisplayChatMessage[]>([]);
-  const [prevMsgData, setPrevMsgData] = useState(msgData);
-  if (prevMsgData !== msgData) {
-    setPrevMsgData(msgData);
-    setMessages((cur) => mergeUniqueMessages(cur, (msgData as ChatMessage[] | undefined) ?? []));
-  }
 
   const [body, setBody] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
@@ -265,6 +260,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
   const emojiMenuRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const shouldStickToBottomRef = useRef(true);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
   const visibleMessages = useMemo<DisplayChatMessage[]>(() => {
@@ -300,30 +296,42 @@ export default function ConversationThread({ conversationId }: { conversationId:
   }, [conversationId, joinConversation, leaveConversation, token]);
 
   useEffect(() => {
+    setMessages([]);
+    setOptimisticMessages([]);
+    setPatches({});
+    setBody("");
+    setSendError(null);
+    setPendingAttachments((current) => {
+      for (const attachment of current) {
+        if (attachment.preview) URL.revokeObjectURL(attachment.preview);
+      }
+      return [];
+    });
+    setMediaPreview({ open: false, src: "", type: "IMAGE" });
+    setEmojiPickerOpen(false);
+    shouldStickToBottomRef.current = true;
+  }, [conversationId]);
+
+  useEffect(() => {
+    if (!msgData) return;
+    setMessages((current) => mergeUniqueMessages(current, msgData as ChatMessage[]));
+  }, [conversationId, msgData]);
+
+  useEffect(() => {
     const el = scrollContainerRef.current;
     if (!el) return;
 
-    // Force-scroll to bottom immediately (no animation) to ensure we land
-    // at the end when opening a conversation or when new messages arrive.
-    el.scrollTop = el.scrollHeight;
+    if (!shouldStickToBottomRef.current) {
+      return;
+    }
 
-    // Also set on the next animation frame in case layout changes (images, videos).
-    requestAnimationFrame(() => {
-      el.scrollTop = el.scrollHeight;
+    el.scrollTo({ top: el.scrollHeight, behavior: visibleMessages.length > 1 ? "smooth" : "auto" });
+
+    const raf = requestAnimationFrame(() => {
+      el.scrollTo({ top: el.scrollHeight, behavior: "auto" });
     });
 
-    // If images are loading, re-scroll after they finish so we remain at the bottom.
-    const imgs = Array.from(el.querySelectorAll("img")).filter((img) => !img.complete) as HTMLImageElement[];
-    const handlers: Array<() => void> = [];
-    imgs.forEach((img) => {
-      const h = () => { el.scrollTop = el.scrollHeight; img.removeEventListener("load", h); };
-      handlers.push(h);
-      img.addEventListener("load", h);
-    });
-
-    return () => {
-      handlers.forEach((h, i) => imgs[i]?.removeEventListener("load", h));
-    };
+    return () => cancelAnimationFrame(raf);
   }, [conversationId, visibleMessages.length]);
 
   useEffect(() => {
@@ -472,7 +480,10 @@ export default function ConversationThread({ conversationId }: { conversationId:
   const canSend = !sending && !pendingAttachments.some((p) => p.uploading)
     && (body.trim().length > 0 || pendingAttachments.some((p) => p.result !== null));
 
-  if (convLoading || msgLoading) {
+  const hasLoadedMessages = messages.length > 0;
+  const showInitialLoading = (!conversation && convLoading) || (!hasLoadedMessages && msgLoading);
+
+  if (showInitialLoading) {
     return (
       <div className="flex h-full items-center justify-center rounded-2xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-(--color-surface)">
         <Loader2 className="h-5 w-5 animate-spin text-(--color-text-muted)" />
@@ -535,7 +546,16 @@ export default function ConversationThread({ conversationId }: { conversationId:
       </header>
 
       {/* ── Messages ── */}
-      <div ref={scrollContainerRef} className="overflow-y-auto px-5 py-4 hide-scrollbar">
+      <div
+        ref={scrollContainerRef}
+        onScroll={() => {
+          const el = scrollContainerRef.current;
+          if (!el) return;
+          const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+          shouldStickToBottomRef.current = distanceFromBottom < 160;
+        }}
+        className="overflow-y-auto px-5 py-4 hide-scrollbar"
+      >
         <div className="flex flex-col gap-1">
           {visibleMessages.map((message: DisplayChatMessage, idx) => {
             const isMine = message.senderId === userId;
