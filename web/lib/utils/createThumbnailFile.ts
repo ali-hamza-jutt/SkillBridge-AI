@@ -1,5 +1,3 @@
-import pica from "pica";
-
 export async function createThumbnailFile(
   file: File,
   maxWidth = 800,
@@ -28,11 +26,26 @@ export async function createThumbnailFile(
     targetCanvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
     targetCanvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
 
-    const picaInstance = pica();
-    await picaInstance.resize(sourceCanvas, targetCanvas, { quality: 3 });
+    const targetContext = targetCanvas.getContext("2d");
+    if (!targetContext) {
+      return null;
+    }
 
-    const blob = await picaInstance.toBlob(targetCanvas, "image/jpeg", quality);
-    return new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), { type: "image/jpeg" });
+    targetContext.imageSmoothingEnabled = true;
+    targetContext.imageSmoothingQuality = "high";
+    targetContext.drawImage(sourceCanvas, 0, 0, targetCanvas.width, targetCanvas.height);
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      targetCanvas.toBlob((result) => resolve(result), "image/jpeg", quality);
+    });
+    if (!blob) {
+      return null;
+    }
+
+    const thumbnailFile = new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), { type: "image/jpeg" });
+    return thumbnailFile;
+  } catch (error) {
+    return null;
   } finally {
     URL.revokeObjectURL(imageUrl);
   }

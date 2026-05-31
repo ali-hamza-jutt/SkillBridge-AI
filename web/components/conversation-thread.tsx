@@ -24,6 +24,7 @@ import {
   useGcsControllerGenerateSignedUrlMutation,
 } from "@/lib/api";
 
+
 type PendingAttachment = {
   localId: string;
   file: File;
@@ -517,29 +518,51 @@ export default function ConversationThread({ conversationId }: { conversationId:
     const setErr = (msg: string) =>
       setPendingAttachments((prev) => prev.map((p) => p.localId === pending.localId ? { ...p, uploading: false, error: msg } : p));
     try {
-      const { signedUrl, publicUrl, objectName } = (await generateSignedUrl({
-        generateUploadUrlDto: { fileName: pending.file.name, mimeType: pending.file.type, folder: "chat-attachments" },
-      }).unwrap()) as { signedUrl: string; publicUrl: string; objectName: string };
-
-      const res = await fetch(signedUrl, { method: "PUT", headers: { "Content-Type": pending.file.type }, body: pending.file });
-      if (!res.ok) throw new Error(`Upload failed (HTTP ${res.status})`);
-      let thumbnailUrl: string | undefined = undefined;
+      // If image, create thumbnail first
+      let thumbFile: File | null = null;
       if (pending.file.type.startsWith("image/")) {
+        console.log(`[thumbnail] start creating localId=${pending.localId} name=${pending.file.name}`);
         try {
-          const thumbFile = await createThumbnailFile(pending.file);
+          thumbFile = await createThumbnailFile(pending.file);
           if (thumbFile) {
-            const thumbSigned = (await generateSignedUrl({
-              generateUploadUrlDto: { fileName: thumbFile.name, mimeType: thumbFile.type, folder: "chat-attachments/thumbnails" },
-            }).unwrap()) as { signedUrl: string; publicUrl: string; objectName: string };
-
-            const putRes = await fetch(thumbSigned.signedUrl, { method: "PUT", headers: { "Content-Type": thumbFile.type }, body: thumbFile });
-            if (putRes.ok) {
-              thumbnailUrl = thumbSigned.publicUrl;
-            }
+            console.log(`[thumbnail] finished creating localId=${pending.localId} name=${pending.file.name} success=${thumbFile.name}`);
+          } else {
+            console.error(`[thumbnail] error localId=${pending.localId} name=${pending.file.name} message=Thumbnail creation returned null`);
           }
-        } catch {
-          // ignore thumbnail errors; main upload succeeded
+        } catch (e) {
+          console.error(`[thumbnail] error localId=${pending.localId} name=${pending.file.name} message=Thumbnail creation failed`, e);
         }
+      }
+
+      // Request signed URLs for original and thumbnail (if any) in parallel
+      const origSignedPromise = generateSignedUrl({ generateUploadUrlDto: { fileName: pending.file.name, mimeType: pending.file.type, folder: "chat-attachments" } }).unwrap();
+      const thumbSignedPromise = thumbFile
+        ? (
+            generateSignedUrl({ generateUploadUrlDto: { fileName: thumbFile.name, mimeType: thumbFile.type, folder: "chat-attachments/thumbnails" } }).unwrap()
+          )
+        : Promise.resolve(null);
+
+      type Signed = { signedUrl: string; publicUrl: string; objectName: string } | null;
+      const [origSigned, thumbSigned] = await Promise.all([origSignedPromise, thumbSignedPromise]) as [Signed, Signed];
+      if (!origSigned) throw new Error('Failed to obtain signed URL for original');
+      const signedUrl = origSigned.signedUrl;
+      const publicUrl = origSigned.publicUrl;
+      const objectName = origSigned.objectName;
+
+      // Upload both files (original and thumbnail) concurrently
+      const origPut = fetch(signedUrl, { method: "PUT", headers: { "Content-Type": pending.file.type }, body: pending.file });
+      const thumbPut = thumbFile && thumbSigned
+        ? (
+            fetch(thumbSigned.signedUrl, { method: "PUT", headers: { "Content-Type": thumbFile.type }, body: thumbFile })
+          )
+        : Promise.resolve(null);
+
+      const [origRes, thumbRes] = await Promise.all([origPut, thumbPut]);
+      if (!(origRes as Response)?.ok) throw new Error(`Upload failed (HTTP ${(origRes as Response)?.status})`);
+
+      let thumbnailUrl: string | undefined = undefined;
+      if (thumbRes && (thumbRes as Response).ok && thumbSigned) {
+        thumbnailUrl = thumbSigned.publicUrl;
       }
 
       const result: AttachmentDto = {
@@ -551,6 +574,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
         size: pending.file.size,
         thumbnailUrl,
       };
+
       setPendingAttachments((prev) => prev.map((p) => p.localId === pending.localId ? { ...p, uploading: false, result } : p));
     } catch (err) {
       const msg = err instanceof Error ? err.message
