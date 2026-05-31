@@ -10,6 +10,7 @@ export type MessageAttachment = {
   mimeType: string;
   type: AttachmentType;
   size?: number;
+  thumbnailUrl?: string;
 };
 
 export type ConversationSummary = {
@@ -49,4 +50,10 @@ export type ChatMessage = {
   attachments?: MessageAttachment[];
   createdAt: string | null;
   updatedAt: string | null;
+};
+
+export type ChatMessagePage = {
+  items: ChatMessage[];
+  nextCursor: string | null;
+  hasMore: boolean;
 };

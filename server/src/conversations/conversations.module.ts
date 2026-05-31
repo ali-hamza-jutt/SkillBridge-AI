@@ -6,6 +6,7 @@ import { ConversationsGateway } from './conversations.gateway';
 import { ConversationsService } from './conversations.service';
 import { Conversation, ConversationSchema } from './schemas/conversation.schema';
 import { ChatMessage, ChatMessageSchema } from './schemas/message.schema';
+import { MessageMedia, MessageMediaSchema } from './schemas/message-media.schema';
 import { Task, TaskSchema } from '../tasks/schemas/task.schema';
 import { Bid, BidSchema } from '../bids/schemas/bid.schema';
 import { UsersModule } from '../users/users.module';
@@ -21,6 +22,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     MongooseModule.forFeature([
       { name: Conversation.name, schema: ConversationSchema },
       { name: ChatMessage.name, schema: ChatMessageSchema },
+      { name: MessageMedia.name, schema: MessageMediaSchema },
       { name: Task.name, schema: TaskSchema },
       { name: Bid.name, schema: BidSchema },
     ]),

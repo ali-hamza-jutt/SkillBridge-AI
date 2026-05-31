@@ -21,8 +21,12 @@ import {
   ChatMessage,
   ChatMessageDocument,
   ChatMessageType,
-  MessageAttachment,
 } from './schemas/message.schema';
+import {
+  MessageMedia,
+  MessageMediaDocument,
+  MessageAttachment,
+} from './schemas/message-media.schema';
 import { AttachmentDto } from './dto/send-message.dto';
 import { ConversationsGateway } from './conversations.gateway';
 import { UsersService } from '../users/users.service';
@@ -37,6 +41,35 @@ type ConversationLike = Conversation & {
 
 type MessageLike = ChatMessage & { _id: Types.ObjectId };
 
+type MessageMediaLike = MessageMedia & { _id: Types.ObjectId };
+
+function encodeMessageCursor(message: MessageLike) {
+  return `${message.createdAt?.toISOString() ?? new Date().toISOString()}|${message._id.toString()}`;
+}
+
+function decodeMessageCursor(cursor: string) {
+  const [createdAt, id] = cursor.split('|');
+  if (!createdAt || !id || !Types.ObjectId.isValid(id)) {
+    throw new BadRequestException('Invalid message cursor');
+  }
+
+  const parsedDate = new Date(createdAt);
+  if (Number.isNaN(parsedDate.getTime())) {
+    throw new BadRequestException('Invalid message cursor');
+  }
+
+  return { createdAt: parsedDate, id: new Types.ObjectId(id) };
+}
+
+function dedupeAttachments(attachments: MessageAttachment[]) {
+  const byKey = new Map<string, MessageAttachment>();
+  for (const attachment of attachments) {
+    const key = attachment.publicId || attachment.url;
+    byKey.set(key, attachment);
+  }
+  return Array.from(byKey.values());
+}
+
 @Injectable()
 export class ConversationsService {
   constructor(
@@ -44,6 +77,8 @@ export class ConversationsService {
     private readonly conversationModel: Model<ConversationDocument>,
     @InjectModel(ChatMessage.name)
     private readonly messageModel: Model<ChatMessageDocument>,
+    @InjectModel(MessageMedia.name)
+    private readonly messageMediaModel: Model<MessageMediaDocument>,
     @InjectModel(Task.name)
     private readonly taskModel: Model<TaskDocument>,
     @InjectModel(Bid.name)
@@ -175,31 +210,82 @@ export class ConversationsService {
     const query: Record<string, unknown> = { conversationId };
 
     if (before) {
-      query.createdAt = { $lt: new Date(before) };
+      const cursor = decodeMessageCursor(before);
+      query.$or = [
+        { createdAt: { $lt: cursor.createdAt } },
+        { createdAt: cursor.createdAt, _id: { $lt: cursor.id } },
+      ];
     }
+
+    const pageSize = Math.min(limit, 100);
 
     const messages = (await this.messageModel
       .find(query)
       .sort({ createdAt: -1, _id: -1 })
-      .limit(Math.min(limit, 100))
+      .limit(pageSize + 1)
       .lean()) as MessageLike[];
+
+    const hasMore = messages.length > pageSize;
+    if (hasMore) {
+      messages.pop();
+    }
 
     const userIds = messages.map((message) => message.senderId).filter(Boolean);
 
     const nameMap = await this.usersService.getUserNameMap(userIds);
 
-    return messages.reverse().map((message) => ({
-      id: String(message._id),
-      conversationId: message.conversationId,
-      senderId: message.senderId,
-      senderName:
-        nameMap.get(message.senderId) ?? message.senderName ?? 'System',
-      body: message.body,
-      messageType: message.messageType,
-      attachments: message.attachments ?? [],
-      createdAt: this.utilityService.toISOString(message.createdAt),
-      updatedAt: this.utilityService.toISOString(message.updatedAt),
-    }));
+    const messageIds = messages.map((message) => String(message._id));
+    const mediaDocs = messageIds.length
+      ? ((await this.messageMediaModel
+          .find({ messageId: { $in: messageIds } })
+          .sort({ createdAt: 1, _id: 1 })
+          .lean()) as MessageMediaLike[])
+      : [];
+
+    const mediaMap = new Map<string, MessageAttachment[]>();
+    for (const media of mediaDocs) {
+      const nextAttachments = mediaMap.get(media.messageId) ?? [];
+      nextAttachments.push({
+        url: media.url,
+        publicId: media.publicId,
+        name: media.name,
+        mimeType: media.mimeType,
+        type: media.type,
+        size: media.size,
+      });
+      mediaMap.set(media.messageId, nextAttachments);
+    }
+
+    const items = messages.reverse().map((message) => {
+      const legacyAttachments = Array.isArray(
+        (message as { attachments?: MessageAttachment[] }).attachments,
+      )
+        ? ((message as { attachments?: MessageAttachment[] }).attachments ?? [])
+        : [];
+      const storedAttachments = mediaMap.get(String(message._id)) ?? [];
+
+      return {
+        id: String(message._id),
+        conversationId: message.conversationId,
+        senderId: message.senderId,
+        senderName:
+          nameMap.get(message.senderId) ?? message.senderName ?? 'System',
+        body: message.body,
+        messageType: message.messageType,
+        attachments: dedupeAttachments([...legacyAttachments, ...storedAttachments]),
+        createdAt: this.utilityService.toISOString(message.createdAt),
+        updatedAt: this.utilityService.toISOString(message.updatedAt),
+      };
+    });
+
+    return {
+      items,
+      nextCursor:
+        hasMore && messages.length > 0
+          ? encodeMessageCursor(messages[messages.length - 1])
+          : null,
+      hasMore,
+    };
   }
 
   private async upsertConversation(
@@ -428,6 +514,7 @@ export class ConversationsService {
           mimeType: a.mimeType,
           type: a.type,
           size: a.size,
+          thumbnailUrl: (a as any).thumbnailUrl,
         }))
       : [];
 
@@ -437,8 +524,17 @@ export class ConversationsService {
       senderName,
       body: trimmedBody,
       messageType: ChatMessageType.TEXT,
-      attachments: attachmentDocs,
     });
+
+    if (attachmentDocs.length > 0) {
+      await this.messageMediaModel.insertMany(
+        attachmentDocs.map((attachment) => ({
+          conversationId,
+          messageId: String(message._id),
+          ...attachment,
+        })),
+      );
+    }
 
     const lastMessageText =
       trimmedBody || (attachmentDocs[0]?.name ?? 'Attachment');
@@ -463,7 +559,7 @@ export class ConversationsService {
       senderName: message.senderName,
       body: message.body,
       messageType: message.messageType,
-      attachments: message.attachments ?? [],
+      attachments: attachmentDocs,
       createdAt: this.utilityService.toISOString(message.createdAt),
       updatedAt: this.utilityService.toISOString(message.updatedAt),
     };

@@ -1,26 +1,29 @@
 "use client";
 
 import Image from "next/image";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Paperclip, X, FileText, Loader2, RotateCcw, Send, Smile, UserCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { useAppSelector } from "@/lib/hooks";
 import { useChatSocket } from "@/components/chat-socket-provider";
 import { markConversationRead } from "@/lib/useUnreadMessages";
 import ChatMessageTimestamp from "@/components/chat-message-timestamp";
 import EmojiPicker from "@/components/emoji-picker";
-import type { ChatMessage, ConversationSummary, MessageAttachment } from "@/lib/types/chat";
+import type { ChatMessage, ChatMessagePage, ConversationSummary, MessageAttachment } from "@/lib/types/chat";
 import type { AttachmentDto } from "@/lib/api";
 import { fileTypeMeta, formatFileSize, normalizeAttachmentUrl } from "@/lib/utils/formatting";
+import { createThumbnailFile } from "@/lib/utils/createThumbnailFile";
 import MediaModal from "@/components/media-modal";
-import { CHAT_VIDEO_UPLOAD_MAX_SIZE_BYTES } from "@/lib/constants/upload";
+import { CHAT_MESSAGE_PAGE_SIZE, CHAT_VIDEO_UPLOAD_MAX_SIZE_BYTES } from "@/lib/constants/upload";
 import {
   useConversationsControllerGetConversationQuery,
   useConversationsControllerGetMessagesQuery,
   useConversationsControllerSendMessageMutation,
   useGcsControllerGenerateSignedUrlMutation,
 } from "@/lib/api";
+
 
 type PendingAttachment = {
   localId: string;
@@ -62,7 +65,6 @@ function inferAttachmentType(attachment: MessageAttachment): "IMAGE" | "VIDEO" |
 }
 
 const SINGLE_EMOJI_REGEX = /^(?:\p{Extended_Pictographic}|\p{Regional_Indicator}{2}|\p{Emoji_Presentation}|\p{Emoji}\uFE0F)(?:\u200D(?:\p{Extended_Pictographic}|\p{Emoji_Presentation}|\p{Emoji}\uFE0F))*$/u;
-
 const attachmentSignature = (attachments?: MessageAttachment[]) =>
   (attachments ?? [])
     .map((attachment) => `${attachment.name}|${attachment.mimeType}|${attachment.type}|${attachment.size ?? ""}`)
@@ -130,6 +132,8 @@ function MediaPreview({ attachment, optimistic = false, onOpen }: { attachment: 
   const attachmentType = inferAttachmentType(attachment);
   if (!url.startsWith("http") && !isLocalPreview) return null;
   if (attachmentType === "IMAGE") {
+    const displayUrl = optimistic || isLocalPreview ? url : (attachment.thumbnailUrl ?? url);
+
     if (optimistic || isLocalPreview) {
       return (
         <button
@@ -139,7 +143,7 @@ function MediaPreview({ attachment, optimistic = false, onOpen }: { attachment: 
           style={{ width: "min(380px, 100%)", aspectRatio: "4 / 3" }}
         >
           <Image
-            src={url}
+            src={displayUrl}
             alt={attachment.name}
             width={380}
             height={285}
@@ -162,7 +166,7 @@ function MediaPreview({ attachment, optimistic = false, onOpen }: { attachment: 
         className="block text-left"
       >
         <Image
-          src={url}
+          src={displayUrl}
           alt={attachment.name}
           width={380}
           height={285}
@@ -214,6 +218,106 @@ function DocPreview({ attachment }: { attachment: MessageAttachment }) {
   );
 }
 
+type RenderMessageItemContext = {
+  visibleMessages: DisplayChatMessage[];
+  userId: string | null;
+  myAvatarUrl?: string | null;
+  otherAvatarUrl: string | null;
+  openMediaPreview: (item: { url: string; type: "IMAGE" | "VIDEO"; name?: string }) => void;
+};
+
+function renderMessageItemRow(
+  idx: number,
+  message: DisplayChatMessage,
+  context: RenderMessageItemContext,
+) {
+  const isMine = message.senderId === context.userId;
+  const isSystem = message.messageType === "SYSTEM";
+  const prev = context.visibleMessages[idx - 1];
+  const sameAuthorAsPrev = prev && prev.senderId === message.senderId && prev.messageType === message.messageType;
+
+  const mediaAtts = (message.attachments ?? []).filter((a) => inferAttachmentType(a) === "IMAGE" || inferAttachmentType(a) === "VIDEO");
+  const docAtts = (message.attachments ?? []).filter((a) => inferAttachmentType(a) === "DOCUMENT");
+
+  if (isSystem) {
+    return (
+      <div className="my-3 flex items-center gap-3">
+        <div className="h-px flex-1 bg-[color-mix(in_srgb,var(--color-border)_70%,transparent)]" />
+        <span className="shrink-0 rounded-full border border-[color-mix(in_srgb,var(--color-border)_80%,transparent)] bg-[color-mix(in_srgb,var(--color-surface-strong)_60%,transparent)] px-3 py-1 text-[11px] text-(--color-text-muted)">
+          {message.body}
+        </span>
+        <div className="h-px flex-1 bg-[color-mix(in_srgb,var(--color-border)_70%,transparent)]" />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`group flex gap-3 rounded-xl px-2 py-1 transition-colors hover:bg-[color-mix(in_srgb,var(--color-border)_18%,transparent)] ${
+        isMine ? "bg-[color-mix(in_srgb,var(--color-brand-soft)_22%,transparent)]" : ""
+      } ${sameAuthorAsPrev ? "mt-0.5" : "mt-3"}`}
+    >
+      <div className="w-9 shrink-0 pt-0.5">
+        {!sameAuthorAsPrev ? (
+          <Avatar name={message.senderName} url={isMine ? context.myAvatarUrl : context.otherAvatarUrl} size={36} />
+        ) : null}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        {!sameAuthorAsPrev && (
+          <div className="mb-1 flex items-baseline gap-2">
+            <span className={`text-sm font-semibold ${isMine ? "text-(--color-brand-strong)" : "text-(--color-text-main)"}`}>
+              {message.senderName}
+            </span>
+            <ChatMessageTimestamp value={message.createdAt} className="text-[11px] text-(--color-text-muted)" />
+          </div>
+        )}
+
+        {mediaAtts.length > 0 && (
+          <div className="mb-1 grid gap-1.5 sm:grid-cols-2">
+            {mediaAtts.map((att) => (
+              <MediaPreview
+                key={att.url}
+                attachment={att}
+                optimistic={Boolean(message.optimistic)}
+                onOpen={context.openMediaPreview}
+              />
+            ))}
+          </div>
+        )}
+
+        {message.body ? (
+          (() => {
+            const emojiOnly = isSingleEmojiMessage(message.body);
+            return (
+              <p
+                className={`whitespace-pre-wrap text-sm leading-relaxed text-(--color-text-main) ${
+                  emojiOnly ? "inline-flex min-w-14 items-center justify-center rounded-2xl px-3 py-2" : ""
+                }`}
+                style={emojiOnly ? { fontSize: "3.25rem", lineHeight: 1 } : undefined}
+              >
+                {message.body}
+              </p>
+            );
+          })()
+        ) : null}
+
+        {docAtts.length > 0 && (
+          <div className="mt-1.5 flex flex-col gap-1.5">
+            {docAtts.map((att) => <DocPreview key={att.url} attachment={att} />)}
+          </div>
+        )}
+
+        {sameAuthorAsPrev && (
+          <div className="invisible mt-0.5 group-hover:visible">
+            <ChatMessageTimestamp value={message.createdAt} className="text-[11px] text-(--color-text-muted)" />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function ConversationThread({ conversationId }: { conversationId: string }) {
   const router = useRouter();
@@ -231,8 +335,9 @@ export default function ConversationThread({ conversationId }: { conversationId:
       refetchOnFocus: true,
       refetchOnReconnect: true,
     });
-  const { data: msgData, isLoading: msgLoading } =
-    useConversationsControllerGetMessagesQuery({ id: conversationId, before: "", limit: "100" }, {
+  const [historyCursor, setHistoryCursor] = useState<string | null>(null);
+  const { data: msgData, isLoading: msgLoading, isFetching: msgFetching } =
+    useConversationsControllerGetMessagesQuery({ id: conversationId, before: historyCursor ?? "", limit: String(CHAT_MESSAGE_PAGE_SIZE) }, {
       skip: !token || !conversationId,
       refetchOnFocus: true,
       refetchOnReconnect: true,
@@ -246,6 +351,10 @@ export default function ConversationThread({ conversationId }: { conversationId:
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [optimisticMessages, setOptimisticMessages] = useState<DisplayChatMessage[]>([]);
+  const [nextHistoryCursor, setNextHistoryCursor] = useState<string | null>(null);
+  const [hasMoreHistory, setHasMoreHistory] = useState(true);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+  const [firstItemIndex, setFirstItemIndex] = useState(0);
 
   const [body, setBody] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
@@ -258,9 +367,8 @@ export default function ConversationThread({ conversationId }: { conversationId:
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const emojiMenuRef = useRef<HTMLDivElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const shouldStickToBottomRef = useRef(true);
+  const virtuosoRef = useRef<VirtuosoHandle>(null);
+  const didInitialScrollRef = useRef(false);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
   const visibleMessages = useMemo<DisplayChatMessage[]>(() => {
@@ -299,6 +407,11 @@ export default function ConversationThread({ conversationId }: { conversationId:
     setMessages([]);
     setOptimisticMessages([]);
     setPatches({});
+    setHistoryCursor(null);
+    setNextHistoryCursor(null);
+    setHasMoreHistory(true);
+    setIsLoadingOlder(false);
+    setFirstItemIndex(0);
     setBody("");
     setSendError(null);
     setPendingAttachments((current) => {
@@ -309,30 +422,46 @@ export default function ConversationThread({ conversationId }: { conversationId:
     });
     setMediaPreview({ open: false, src: "", type: "IMAGE" });
     setEmojiPickerOpen(false);
-    shouldStickToBottomRef.current = true;
+    didInitialScrollRef.current = false;
   }, [conversationId]);
 
   useEffect(() => {
     if (!msgData) return;
-    setMessages((current) => mergeUniqueMessages(current, msgData as ChatMessage[]));
-  }, [conversationId, msgData]);
+    const page = msgData as ChatMessagePage;
+    const pageItems = page.items ?? [];
 
-  useEffect(() => {
-    const el = scrollContainerRef.current;
-    if (!el) return;
-
-    if (!shouldStickToBottomRef.current) {
-      return;
+    if (historyCursor === null) {
+      setMessages(pageItems);
+      setFirstItemIndex(0);
+    } else {
+      setMessages((current) => {
+        const merged = mergeUniqueMessages(pageItems, current);
+        const addedCount = merged.length - current.length;
+        if (addedCount > 0) {
+          setFirstItemIndex((value) => value - addedCount);
+        }
+        return merged;
+      });
     }
 
-    el.scrollTo({ top: el.scrollHeight, behavior: visibleMessages.length > 1 ? "smooth" : "auto" });
+    setNextHistoryCursor(page.nextCursor ?? null);
+    setHasMoreHistory(Boolean(page.hasMore));
+    setIsLoadingOlder(false);
+  }, [conversationId, historyCursor, msgData]);
 
-    const raf = requestAnimationFrame(() => {
-      el.scrollTo({ top: el.scrollHeight, behavior: "auto" });
-    });
+  useEffect(() => {
+    if (didInitialScrollRef.current) return;
+    if (visibleMessages.length === 0) return;
 
-    return () => cancelAnimationFrame(raf);
-  }, [conversationId, visibleMessages.length]);
+    virtuosoRef.current?.scrollToIndex({ index: visibleMessages.length - 1, align: "end" });
+    didInitialScrollRef.current = true;
+  }, [visibleMessages.length]);
+
+  const loadOlderMessages = useCallback(() => {
+    if (isLoadingOlder || msgFetching || !hasMoreHistory || !nextHistoryCursor) return;
+    setIsLoadingOlder(true);
+    setHistoryCursor(nextHistoryCursor);
+  }, [hasMoreHistory, isLoadingOlder, msgFetching, nextHistoryCursor]);
 
   useEffect(() => {
     if (!socket) return;
@@ -389,22 +518,63 @@ export default function ConversationThread({ conversationId }: { conversationId:
     const setErr = (msg: string) =>
       setPendingAttachments((prev) => prev.map((p) => p.localId === pending.localId ? { ...p, uploading: false, error: msg } : p));
     try {
-      const { signedUrl, publicUrl, objectName } = (await generateSignedUrl({
-        generateUploadUrlDto: { fileName: pending.file.name, mimeType: pending.file.type, folder: "chat-attachments" },
-      }).unwrap()) as { signedUrl: string; publicUrl: string; objectName: string };
+      // If image, create thumbnail first
+      let thumbFile: File | null = null;
+      if (pending.file.type.startsWith("image/")) {
+        try {
+          thumbFile = await createThumbnailFile(pending.file);
+        } catch (e) {
+          console.error(`[thumbnail] error localId=${pending.localId} name=${pending.file.name} message=Thumbnail creation failed`, e);
+        }
+      }
 
-      const res = await fetch(signedUrl, { method: "PUT", headers: { "Content-Type": pending.file.type }, body: pending.file });
-      if (!res.ok) throw new Error(`Upload failed (HTTP ${res.status})`);
+      // Request signed URLs for original and thumbnail (if any) in parallel
+      const origSignedPromise = generateSignedUrl({ generateUploadUrlDto: { fileName: pending.file.name, mimeType: pending.file.type, folder: "chat-attachments" } }).unwrap();
+      const thumbSignedPromise = thumbFile
+        ? (
+            generateSignedUrl({ generateUploadUrlDto: { fileName: thumbFile.name, mimeType: thumbFile.type, folder: "chat-attachments/thumbnails" } }).unwrap()
+          )
+        : Promise.resolve(null);
+
+      type Signed = { signedUrl: string; publicUrl: string; objectName: string } | null;
+      const [origSigned, thumbSigned] = await Promise.all([origSignedPromise, thumbSignedPromise]) as [Signed, Signed];
+      if (!origSigned) throw new Error('Failed to obtain signed URL for original');
+      const signedUrl = origSigned.signedUrl;
+      const publicUrl = origSigned.publicUrl;
+      const objectName = origSigned.objectName;
+
+      // Upload both files (original and thumbnail) concurrently
+      const origPut = fetch(signedUrl, { method: "PUT", headers: { "Content-Type": pending.file.type }, body: pending.file });
+      const thumbPut = thumbFile && thumbSigned
+        ? (
+            fetch(thumbSigned.signedUrl, { method: "PUT", headers: { "Content-Type": thumbFile.type }, body: thumbFile })
+          )
+        : Promise.resolve(null);
+
+      const [origRes, thumbRes] = await Promise.all([origPut, thumbPut]);
+      if (!(origRes as Response)?.ok) throw new Error(`Upload failed (HTTP ${(origRes as Response)?.status})`);
+
+      let thumbnailUrl: string | undefined = undefined;
+      if (thumbRes && (thumbRes as Response).ok && thumbSigned) {
+        thumbnailUrl = thumbSigned.publicUrl;
+      }
 
       const result: AttachmentDto = {
-        url: publicUrl, publicId: objectName, name: pending.file.name,
-        mimeType: pending.file.type, type: resolveAttachmentType(pending.file), size: pending.file.size,
+        url: publicUrl,
+        publicId: objectName,
+        name: pending.file.name,
+        mimeType: pending.file.type,
+        type: resolveAttachmentType(pending.file),
+        size: pending.file.size,
+        thumbnailUrl,
       };
+
       setPendingAttachments((prev) => prev.map((p) => p.localId === pending.localId ? { ...p, uploading: false, result } : p));
     } catch (err) {
       const msg = err instanceof Error ? err.message
         : typeof err === "object" && err !== null && "data" in err
-          ? String((err as { data?: unknown }).data ?? "Upload failed") : "Upload failed";
+          ? String((err as { data?: unknown }).data ?? "Upload failed")
+          : "Upload failed";
       setErr(msg);
     }
   };
@@ -413,7 +583,10 @@ export default function ConversationThread({ conversationId }: { conversationId:
     const files = Array.from(e.target.files ?? []);
     e.target.value = "";
     for (const file of files) {
-      if (file.type.startsWith("video/") && file.size > CHAT_VIDEO_UPLOAD_MAX_SIZE_BYTES) { setSendError("Video must be under 100 MB."); continue; }
+      if (file.type.startsWith("video/") && file.size > CHAT_VIDEO_UPLOAD_MAX_SIZE_BYTES) {
+        setSendError("Video must be under 100 MB.");
+        continue;
+      }
       const localId = `${Date.now()}-${Math.random()}`;
       const preview = file.type.startsWith("image/") || file.type.startsWith("video/") ? URL.createObjectURL(file) : null;
       const pending: PendingAttachment = { localId, file, preview, uploading: true, error: null, result: null };
@@ -439,7 +612,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
 
     const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const optimisticAttachments: MessageAttachment[] = readyAttachments.map((attachment) => ({
-      url: attachment.file.type.startsWith("image/") && attachment.preview ? attachment.preview : attachment.result.url,
+      url: (attachment.result.thumbnailUrl ?? (attachment.file.type.startsWith("image/") && attachment.preview ? attachment.preview : attachment.result.url)) as string,
       publicId: attachment.result.publicId,
       name: attachment.result.name,
       mimeType: attachment.result.mimeType,
@@ -481,7 +654,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
     && (body.trim().length > 0 || pendingAttachments.some((p) => p.result !== null));
 
   const hasLoadedMessages = messages.length > 0;
-  const showInitialLoading = (!conversation && convLoading) || (!hasLoadedMessages && msgLoading);
+  const showInitialLoading = (!conversation && convLoading) || (!hasLoadedMessages && msgLoading && !isLoadingOlder);
 
   if (showInitialLoading) {
     return (
@@ -514,7 +687,6 @@ export default function ConversationThread({ conversationId }: { conversationId:
       className="grid grid-rows-[auto_1fr_auto] overflow-hidden rounded-2xl bg-(--color-surface) shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18)]"
       style={{ height: "calc(100vh - 88px)" }}
     >
-      {/* ── Header ── */}
       <header className="flex items-center gap-3 px-5 py-3.5">
         <Avatar name={otherName} url={otherAvatarUrl} size={44} />
         <div className="min-w-0 flex-1">
@@ -545,124 +717,39 @@ export default function ConversationThread({ conversationId }: { conversationId:
         )}
       </header>
 
-      {/* ── Messages ── */}
-      <div
-        ref={scrollContainerRef}
-        onScroll={() => {
-          const el = scrollContainerRef.current;
-          if (!el) return;
-          const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-          shouldStickToBottomRef.current = distanceFromBottom < 160;
-        }}
-        className="overflow-y-auto px-5 py-4 hide-scrollbar"
-      >
-        <div className="flex flex-col gap-1">
-          {visibleMessages.map((message: DisplayChatMessage, idx) => {
-            const isMine = message.senderId === userId;
-            const isSystem = message.messageType === "SYSTEM";
-            const prev = visibleMessages[idx - 1];
-            const sameAuthorAsPrev = prev && prev.senderId === message.senderId && prev.messageType === message.messageType;
-
-            const mediaAtts = (message.attachments ?? []).filter((a) => inferAttachmentType(a) === "IMAGE" || inferAttachmentType(a) === "VIDEO");
-            const docAtts = (message.attachments ?? []).filter((a) => inferAttachmentType(a) === "DOCUMENT");
-
-            // System message
-            if (isSystem) {
-              return (
-                <div key={message.id} className="my-3 flex items-center gap-3">
-                  <div className="h-px flex-1 bg-[color-mix(in_srgb,var(--color-border)_70%,transparent)]" />
-                  <span className="shrink-0 rounded-full border border-[color-mix(in_srgb,var(--color-border)_80%,transparent)] bg-[color-mix(in_srgb,var(--color-surface-strong)_60%,transparent)] px-3 py-1 text-[11px] text-(--color-text-muted)">
-                    {message.body}
-                  </span>
-                  <div className="h-px flex-1 bg-[color-mix(in_srgb,var(--color-border)_70%,transparent)]" />
-                </div>
-              );
-            }
-
-            return (
-              <div
-                key={message.id}
-                className={`group flex gap-3 rounded-xl px-2 py-1 transition-colors hover:bg-[color-mix(in_srgb,var(--color-border)_18%,transparent)] ${
-                  isMine ? "bg-[color-mix(in_srgb,var(--color-brand-soft)_22%,transparent)]" : ""
-                } ${sameAuthorAsPrev ? "mt-0.5" : "mt-3"}`}
-              >
-                {/* Avatar — hidden if same author continues */}
-                <div className="w-9 shrink-0 pt-0.5">
-                  {!sameAuthorAsPrev ? (
-                    <Avatar
-                      name={message.senderName}
-                      url={isMine ? myAvatarUrl : otherAvatarUrl}
-                      size={36}
-                    />
-                  ) : null}
-                </div>
-
-                {/* Content */}
-                <div className="min-w-0 flex-1">
-                  {!sameAuthorAsPrev && (
-                    <div className="mb-1 flex items-baseline gap-2">
-                      <span className={`text-sm font-semibold ${isMine ? "text-(--color-brand-strong)" : "text-(--color-text-main)"}`}>
-                        {message.senderName}
-                      </span>
-                      <ChatMessageTimestamp value={message.createdAt} className="text-[11px] text-(--color-text-muted)" />
-                    </div>
-                  )}
-
-                  {/* Media */}
-                  {mediaAtts.length > 0 && (
-                    <div className="mb-1 grid gap-1.5 sm:grid-cols-2">
-                      {mediaAtts.map((att) => (
-                        <MediaPreview
-                          key={att.url}
-                          attachment={att}
-                          optimistic={Boolean(message.optimistic)}
-                          onOpen={openMediaPreview}
-                        />
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Text body */}
-                  {message.body ? (
-                    (() => {
-                      const emojiOnly = isSingleEmojiMessage(message.body);
-                      return (
-                    <p
-                      className={`whitespace-pre-wrap text-sm leading-relaxed text-(--color-text-main) ${
-                        emojiOnly ? "inline-flex min-w-14 items-center justify-center rounded-2xl px-3 py-2" : ""
-                      }`}
-                      style={emojiOnly ? { fontSize: "3.25rem", lineHeight: 1 } : undefined}
-                    >
-                      {message.body}
-                    </p>
-                      );
-                    })()
-                  ) : null}
-
-                  {/* Documents */}
-                  {docAtts.length > 0 && (
-                    <div className="mt-1.5 flex flex-col gap-1.5">
-                      {docAtts.map((att) => <DocPreview key={att.url} attachment={att} />)}
-                    </div>
-                  )}
-
-                  {/* Timestamp for continued messages */}
-                  {sameAuthorAsPrev && (
-                    <div className="invisible mt-0.5 group-hover:visible">
-                      <ChatMessageTimestamp value={message.createdAt} className="text-[11px] text-(--color-text-muted)" />
-                    </div>
-                  )}
-                </div>
+      <Virtuoso
+        key={conversationId}
+        ref={virtuosoRef}
+        data={visibleMessages}
+        className="min-h-0 px-5 py-4 hide-scrollbar"
+        style={{ height: "100%" }}
+        alignToBottom
+        firstItemIndex={firstItemIndex}
+        followOutput="auto"
+        increaseViewportBy={{ top: 800, bottom: 1000 }}
+        startReached={loadOlderMessages}
+        computeItemKey={(_, message) => message.id}
+        itemContent={(index, message) =>
+          renderMessageItemRow(index, message as DisplayChatMessage, {
+            visibleMessages,
+            userId,
+            myAvatarUrl,
+            otherAvatarUrl,
+            openMediaPreview,
+          })
+        }
+        components={{
+          Header: () =>
+            isLoadingOlder ? (
+              <div className="flex justify-center py-3 text-xs text-(--color-text-muted)">
+                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                Loading older messages...
               </div>
-            );
-          })}
-          <div ref={bottomRef} />
-        </div>
-      </div>
+            ) : null,
+        }}
+      />
 
-      {/* ── Composer ── */}
       <form onSubmit={handleSend} className="px-4 pb-4 pt-3">
-        {/* Pending attachments */}
         {pendingAttachments.length > 0 && (
           <div className="mb-3 flex flex-wrap gap-2">
             {pendingAttachments.map((p) => (
@@ -720,7 +807,6 @@ export default function ConversationThread({ conversationId }: { conversationId:
 
         {sendError && <p className="mt-1.5 text-xs text-red-500">{sendError}</p>}
 
-        {/* Composer */}
         <div className="mt-2.5 flex items-end gap-2">
           <input
             ref={fileInputRef}
