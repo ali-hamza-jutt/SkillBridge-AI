@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import { Building2, GraduationCap, Star, ExternalLink, FileText, ImageIcon, Loader2 } from "lucide-react";
 import { useAppSelector } from "@/lib/hooks";
-import { useUsersControllerFindOneQuery, usePortfolioGetByUserQuery, useCategoryControllerGetAllCategoriesQuery } from "@/lib/api";
+import { useUsersControllerFindOneQuery, usePortfolioControllerFindByUserQuery, useCategoryControllerGetAllCategoriesQuery } from "@/lib/api";
 import DashboardNavbar from "@/components/dashboard-navbar";
 import PortfolioProjectModal from "@/components/profile/portfolio-project-modal";
 import type { UserProfile, ExperienceEntry, EducationEntry, PortfolioProject } from "@/lib/types/profile";
@@ -136,7 +136,7 @@ export default function FreelancerProfilePage() {
   const [viewing, setViewing] = useState<PortfolioProject | null>(null);
 
   const { data: profileRaw, isLoading: profileLoading } = useUsersControllerFindOneQuery({ id: userId }, { skip: !token || !userId });
-  const { data: portfolioRaw = [], isLoading: portfolioLoading } = usePortfolioGetByUserQuery(userId, { skip: !token || !userId });
+  const { data: portfolioRaw = [], isLoading: portfolioLoading } = usePortfolioControllerFindByUserQuery({ userId }, { skip: !token || !userId });
   const { data: categoriesRaw = [] } = useCategoryControllerGetAllCategoriesQuery();
 
   const profile = profileRaw as UserProfile | undefined;

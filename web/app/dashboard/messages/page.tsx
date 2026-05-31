@@ -25,7 +25,10 @@ export default function MessagesPage() {
   });
 
   const conversations = (data as ConversationSummary[] | undefined) ?? [];
-  const loading = isLoading || isFetching;
+  // Only treat the request as "loading" during the initial fetch.
+  // `isFetching` is true for background refetches (focus/reconnect),
+  // which should not replace the existing list with the full "Loading..." text.
+  const loading = isLoading;
   const errorMessage =
     error && typeof error === "object" && "data" in error
       ? typeof (error as { data?: unknown }).data === "string"
@@ -57,7 +60,11 @@ export default function MessagesPage() {
           </div>
 
           <div className="grid gap-0 p-3 overflow-y-auto hide-scrollbar">
-            {loading ? <p className="px-2 py-3 text-sm text-(--color-text-muted)">Loading...</p> : null}
+            {loading ? (
+              <p className="px-2 py-3 text-sm text-(--color-text-muted)">Loading...</p>
+            ) : isFetching ? (
+              <p className="px-2 py-2 text-sm text-(--color-text-muted)">Refreshing…</p>
+            ) : null}
             {!loading && errorMessage ? <p className="px-2 text-sm text-red-600">{errorMessage}</p> : null}
             {!loading && !errorMessage && conversations.length === 0 ? (
               <p className="px-2 py-6 text-center text-sm text-(--color-text-muted)">No conversations yet.</p>
