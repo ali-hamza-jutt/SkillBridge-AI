@@ -1,1 +1,2 @@
 export const CHAT_VIDEO_UPLOAD_MAX_SIZE_BYTES = 100 * 1024 * 1024;
+export const CHAT_MESSAGE_PAGE_SIZE = 30;

@@ -50,3 +50,9 @@ export type ChatMessage = {
   createdAt: string | null;
   updatedAt: string | null;
 };
+
+export type ChatMessagePage = {
+  items: ChatMessage[];
+  nextCursor: string | null;
+  hasMore: boolean;
+};
