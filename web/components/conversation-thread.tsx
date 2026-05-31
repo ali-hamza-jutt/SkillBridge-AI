@@ -521,14 +521,8 @@ export default function ConversationThread({ conversationId }: { conversationId:
       // If image, create thumbnail first
       let thumbFile: File | null = null;
       if (pending.file.type.startsWith("image/")) {
-        console.log(`[thumbnail] start creating localId=${pending.localId} name=${pending.file.name}`);
         try {
           thumbFile = await createThumbnailFile(pending.file);
-          if (thumbFile) {
-            console.log(`[thumbnail] finished creating localId=${pending.localId} name=${pending.file.name} success=${thumbFile.name}`);
-          } else {
-            console.error(`[thumbnail] error localId=${pending.localId} name=${pending.file.name} message=Thumbnail creation returned null`);
-          }
         } catch (e) {
           console.error(`[thumbnail] error localId=${pending.localId} name=${pending.file.name} message=Thumbnail creation failed`, e);
         }
