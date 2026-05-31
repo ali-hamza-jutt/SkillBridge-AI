@@ -514,6 +514,7 @@ export class ConversationsService {
           mimeType: a.mimeType,
           type: a.type,
           size: a.size,
+          thumbnailUrl: (a as any).thumbnailUrl,
         }))
       : [];
 

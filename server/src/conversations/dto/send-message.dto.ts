@@ -35,6 +35,11 @@ export class AttachmentDto {
   @IsOptional()
   @IsNumber()
   size?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  thumbnailUrl?: string;
 }
 
 export class SendMessageDto {

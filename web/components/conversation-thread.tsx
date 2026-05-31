@@ -14,6 +14,7 @@ import EmojiPicker from "@/components/emoji-picker";
 import type { ChatMessage, ChatMessagePage, ConversationSummary, MessageAttachment } from "@/lib/types/chat";
 import type { AttachmentDto } from "@/lib/api";
 import { fileTypeMeta, formatFileSize, normalizeAttachmentUrl } from "@/lib/utils/formatting";
+import { createThumbnailFile } from "@/lib/utils/createThumbnailFile";
 import MediaModal from "@/components/media-modal";
 import { CHAT_MESSAGE_PAGE_SIZE, CHAT_VIDEO_UPLOAD_MAX_SIZE_BYTES } from "@/lib/constants/upload";
 import {
@@ -130,6 +131,8 @@ function MediaPreview({ attachment, optimistic = false, onOpen }: { attachment: 
   const attachmentType = inferAttachmentType(attachment);
   if (!url.startsWith("http") && !isLocalPreview) return null;
   if (attachmentType === "IMAGE") {
+    const displayUrl = optimistic || isLocalPreview ? url : (attachment.thumbnailUrl ?? url);
+
     if (optimistic || isLocalPreview) {
       return (
         <button
@@ -139,7 +142,7 @@ function MediaPreview({ attachment, optimistic = false, onOpen }: { attachment: 
           style={{ width: "min(380px, 100%)", aspectRatio: "4 / 3" }}
         >
           <Image
-            src={url}
+            src={displayUrl}
             alt={attachment.name}
             width={380}
             height={285}
@@ -162,7 +165,7 @@ function MediaPreview({ attachment, optimistic = false, onOpen }: { attachment: 
         className="block text-left"
       >
         <Image
-          src={url}
+          src={displayUrl}
           alt={attachment.name}
           width={380}
           height={285}
@@ -520,6 +523,24 @@ export default function ConversationThread({ conversationId }: { conversationId:
 
       const res = await fetch(signedUrl, { method: "PUT", headers: { "Content-Type": pending.file.type }, body: pending.file });
       if (!res.ok) throw new Error(`Upload failed (HTTP ${res.status})`);
+      let thumbnailUrl: string | undefined = undefined;
+      if (pending.file.type.startsWith("image/")) {
+        try {
+          const thumbFile = await createThumbnailFile(pending.file);
+          if (thumbFile) {
+            const thumbSigned = (await generateSignedUrl({
+              generateUploadUrlDto: { fileName: thumbFile.name, mimeType: thumbFile.type, folder: "chat-attachments/thumbnails" },
+            }).unwrap()) as { signedUrl: string; publicUrl: string; objectName: string };
+
+            const putRes = await fetch(thumbSigned.signedUrl, { method: "PUT", headers: { "Content-Type": thumbFile.type }, body: thumbFile });
+            if (putRes.ok) {
+              thumbnailUrl = thumbSigned.publicUrl;
+            }
+          }
+        } catch {
+          // ignore thumbnail errors; main upload succeeded
+        }
+      }
 
       const result: AttachmentDto = {
         url: publicUrl,
@@ -528,6 +549,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
         mimeType: pending.file.type,
         type: resolveAttachmentType(pending.file),
         size: pending.file.size,
+        thumbnailUrl,
       };
       setPendingAttachments((prev) => prev.map((p) => p.localId === pending.localId ? { ...p, uploading: false, result } : p));
     } catch (err) {
@@ -572,7 +594,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
 
     const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const optimisticAttachments: MessageAttachment[] = readyAttachments.map((attachment) => ({
-      url: attachment.file.type.startsWith("image/") && attachment.preview ? attachment.preview : attachment.result.url,
+      url: (attachment.result.thumbnailUrl ?? (attachment.file.type.startsWith("image/") && attachment.preview ? attachment.preview : attachment.result.url)) as string,
       publicId: attachment.result.publicId,
       name: attachment.result.name,
       mimeType: attachment.result.mimeType,

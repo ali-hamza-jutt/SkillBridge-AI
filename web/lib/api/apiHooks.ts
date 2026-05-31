@@ -780,6 +780,7 @@ export type AttachmentDto = {
   mimeType: string;
   type: "IMAGE" | "VIDEO" | "DOCUMENT";
   size?: number;
+  thumbnailUrl?: string;
 };
 export type SendMessageDto = {
   body?: string;

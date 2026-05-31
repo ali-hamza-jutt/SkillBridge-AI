@@ -12,6 +12,7 @@ export type MessageAttachment = {
   mimeType: string;
   type: MessageMediaType;
   size?: number;
+  thumbnailUrl?: string;
 };
 
 @Schema({ timestamps: true })
@@ -39,6 +40,9 @@ export class MessageMedia {
 
   @Prop()
   size?: number;
+
+  @Prop()
+  thumbnailUrl?: string;
 
   createdAt?: Date;
 

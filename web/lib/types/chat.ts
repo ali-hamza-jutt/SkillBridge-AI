@@ -10,6 +10,7 @@ export type MessageAttachment = {
   mimeType: string;
   type: AttachmentType;
   size?: number;
+  thumbnailUrl?: string;
 };
 
 export type ConversationSummary = {
