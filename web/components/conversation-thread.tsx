@@ -9,13 +9,13 @@ import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { useAppSelector } from "@/lib/hooks";
 import { useChatSocket } from "@/components/chat-socket-provider";
 import { markConversationRead } from "@/lib/useUnreadMessages";
-import ChatMessageTimestamp from "@/components/chat-message-timestamp";
 import EmojiPicker from "@/components/emoji-picker";
 import type { ChatMessage, ChatMessagePage, ConversationSummary, MessageAttachment } from "@/lib/types/chat";
 import type { AttachmentDto } from "@/lib/api";
-import { fileTypeMeta, formatFileSize, normalizeAttachmentUrl } from "@/lib/utils/formatting";
 import { createThumbnailFile } from "@/lib/utils/createThumbnailFile";
 import MediaModal from "@/components/media-modal";
+import Avatar from "@/components/conversation-thread/avatar";
+import { renderMessageItemRow, type DisplayChatMessage } from "@/components/conversation-thread/render-message-item-row";
 import { CHAT_MESSAGE_PAGE_SIZE, CHAT_VIDEO_UPLOAD_MAX_SIZE_BYTES } from "@/lib/constants/upload";
 import {
   useConversationsControllerGetConversationQuery,
@@ -34,37 +34,12 @@ type PendingAttachment = {
   result: AttachmentDto | null;
 };
 
-type DisplayChatMessage = ChatMessage & {
-  optimistic?: boolean;
-};
-
 function resolveAttachmentType(file: File): "IMAGE" | "VIDEO" | "DOCUMENT" {
   if (file.type.startsWith("image/")) return "IMAGE";
   if (file.type.startsWith("video/")) return "VIDEO";
   return "DOCUMENT";
 }
 
-function inferAttachmentType(attachment: MessageAttachment): "IMAGE" | "VIDEO" | "DOCUMENT" {
-  if (attachment.type === "IMAGE" || attachment.type === "VIDEO" || attachment.type === "DOCUMENT") {
-    return attachment.type;
-  }
-
-  const mimeType = attachment.mimeType.toLowerCase();
-  const name = attachment.name.toLowerCase();
-  const url = normalizeAttachmentUrl(attachment.url).toLowerCase();
-
-  if (mimeType.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg|heic)(\?|#|$)/.test(name) || /\.(png|jpe?g|gif|webp|bmp|svg|heic)(\?|#|$)/.test(url)) {
-    return "IMAGE";
-  }
-
-  if (mimeType.startsWith("video/") || /\.(mp4|mov|avi|mkv|webm|m4v)(\?|#|$)/.test(name) || /\.(mp4|mov|avi|mkv|webm|m4v)(\?|#|$)/.test(url)) {
-    return "VIDEO";
-  }
-
-  return "DOCUMENT";
-}
-
-const SINGLE_EMOJI_REGEX = /^(?:\p{Extended_Pictographic}|\p{Regional_Indicator}{2}|\p{Emoji_Presentation}|\p{Emoji}\uFE0F)(?:\u200D(?:\p{Extended_Pictographic}|\p{Emoji_Presentation}|\p{Emoji}\uFE0F))*$/u;
 const attachmentSignature = (attachments?: MessageAttachment[]) =>
   (attachments ?? [])
     .map((attachment) => `${attachment.name}|${attachment.mimeType}|${attachment.type}|${attachment.size ?? ""}`)
@@ -77,11 +52,6 @@ function messagesEquivalent(left: ChatMessage, right: ChatMessage) {
   return attachmentSignature(left.attachments) === attachmentSignature(right.attachments);
 }
 
-function isSingleEmojiMessage(text: string) {
-  const trimmed = text.trim();
-  return trimmed.length > 0 && SINGLE_EMOJI_REGEX.test(trimmed);
-}
-
 const mergeUniqueMessages = (current: ChatMessage[], incoming: ChatMessage[]) => {
   const byId = new Map<string, ChatMessage>();
   for (const m of current) byId.set(m.id, m);
@@ -92,231 +62,6 @@ const mergeUniqueMessages = (current: ChatMessage[], incoming: ChatMessage[]) =>
     return aT - bT;
   });
 };
-
-// ── Avatar helpers ────────────────────────────────────────────────────────────
-const AVATAR_COLORS = [
-  "#4f8ef7", "#7c6ef7", "#36b37e", "#f97316",
-  "#e11d48", "#0891b2", "#8b5cf6", "#059669",
-];
-function avatarColor(name: string) {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
-}
-function initials(name: string) {
-  const p = name.trim().split(/\s+/);
-  return p.length === 1 ? p[0].slice(0, 2).toUpperCase() : (p[0][0] + p[p.length - 1][0]).toUpperCase();
-}
-function Avatar({ name, url, size = 36 }: { name: string; url?: string | null; size?: number }) {
-  if (url) {
-    return (
-      <div className="shrink-0 overflow-hidden rounded-full" style={{ width: size, height: size }}>
-        <Image src={url} alt={name} width={size} height={size} className="h-full w-full object-cover" unoptimized />
-      </div>
-    );
-  }
-  return (
-    <div
-      className="shrink-0 flex items-center justify-center rounded-full text-white font-bold select-none"
-      style={{ width: size, height: size, fontSize: size * 0.35, backgroundColor: avatarColor(name) }}
-    >
-      {initials(name)}
-    </div>
-  );
-}
-
-// ── Attachment renderers ──────────────────────────────────────────────────────
-function MediaPreview({ attachment, optimistic = false, onOpen }: { attachment: MessageAttachment; optimistic?: boolean; onOpen?: (item: { url: string; type: "IMAGE" | "VIDEO"; name?: string }) => void }) {
-  const url = normalizeAttachmentUrl(attachment.url);
-  const isLocalPreview = url.startsWith("blob:");
-  const attachmentType = inferAttachmentType(attachment);
-  if (!url.startsWith("http") && !isLocalPreview) return null;
-  if (attachmentType === "IMAGE") {
-    const displayUrl = optimistic || isLocalPreview ? url : (attachment.thumbnailUrl ?? url);
-
-    if (optimistic || isLocalPreview) {
-      return (
-        <button
-          type="button"
-          onClick={() => onOpen?.({ url, type: "IMAGE", name: attachment.name })}
-          className="relative overflow-hidden rounded-xl text-left"
-          style={{ width: "min(380px, 100%)", aspectRatio: "4 / 3" }}
-        >
-          <Image
-            src={displayUrl}
-            alt={attachment.name}
-            width={380}
-            height={285}
-            unoptimized
-            sizes="380px"
-            className="h-full w-full rounded-xl object-cover blur-md scale-105"
-          />
-          <div className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-2 py-1 text-[11px] font-medium text-white shadow-sm backdrop-blur-sm">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            Sending...
-          </div>
-        </button>
-      );
-    }
-
-    return (
-      <button
-        type="button"
-        onClick={() => onOpen?.({ url, type: "IMAGE", name: attachment.name })}
-        className="block text-left"
-      >
-        <Image
-          src={displayUrl}
-          alt={attachment.name}
-          width={380}
-          height={285}
-          unoptimized
-          sizes="380px"
-          className="max-h-80 w-auto rounded-xl object-contain"
-          style={{ maxWidth: 380 }}
-        />
-      </button>
-    );
-  }
-  return (
-    <button
-      type="button"
-      onClick={() => onOpen?.({ url, type: "VIDEO", name: attachment.name })}
-      className="relative block overflow-hidden rounded-xl text-left"
-      aria-label={`Open ${attachment.name}`}
-      style={{ maxWidth: 380 }}
-    >
-      <video src={url} muted playsInline loop autoPlay className="max-h-80 rounded-xl object-cover" preload="metadata" />
-      <div className="absolute inset-0 bg-black/10" />
-      <div className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-1 text-[11px] font-medium text-white shadow-sm backdrop-blur-sm">
-        Tap to preview
-      </div>
-    </button>
-  );
-}
-
-function DocPreview({ attachment }: { attachment: MessageAttachment }) {
-  const meta = fileTypeMeta(attachment.mimeType);
-  const size = formatFileSize(attachment.size);
-  const url = normalizeAttachmentUrl(attachment.url);
-  return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group inline-flex items-center gap-3 rounded-xl border border-(--color-border) bg-[color-mix(in_srgb,var(--color-surface)_80%,transparent)] px-3 py-2.5 no-underline transition hover:border-[color-mix(in_srgb,var(--color-brand)_40%,var(--color-border))]"
-    >
-      <div className={`flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg ${meta.bg}`}>
-        <FileText className="h-4 w-4 text-white/80" />
-        <span className="text-[9px] font-black tracking-wider text-white">{meta.label}</span>
-      </div>
-      <div className="flex min-w-0 flex-col">
-        <span className="max-w-48 truncate text-sm font-semibold text-(--color-text-main) group-hover:underline">{attachment.name}</span>
-        {size && <span className="text-xs text-(--color-text-muted)">{size}</span>}
-      </div>
-    </a>
-  );
-}
-
-type RenderMessageItemContext = {
-  visibleMessages: DisplayChatMessage[];
-  userId: string | null;
-  myAvatarUrl?: string | null;
-  otherAvatarUrl: string | null;
-  openMediaPreview: (item: { url: string; type: "IMAGE" | "VIDEO"; name?: string }) => void;
-};
-
-function renderMessageItemRow(
-  idx: number,
-  message: DisplayChatMessage,
-  context: RenderMessageItemContext,
-) {
-  const isMine = message.senderId === context.userId;
-  const isSystem = message.messageType === "SYSTEM";
-  const prev = context.visibleMessages[idx - 1];
-  const sameAuthorAsPrev = prev && prev.senderId === message.senderId && prev.messageType === message.messageType;
-
-  const mediaAtts = (message.attachments ?? []).filter((a) => inferAttachmentType(a) === "IMAGE" || inferAttachmentType(a) === "VIDEO");
-  const docAtts = (message.attachments ?? []).filter((a) => inferAttachmentType(a) === "DOCUMENT");
-
-  if (isSystem) {
-    return (
-      <div className="my-3 flex items-center gap-3">
-        <div className="h-px flex-1 bg-[color-mix(in_srgb,var(--color-border)_70%,transparent)]" />
-        <span className="shrink-0 rounded-full border border-[color-mix(in_srgb,var(--color-border)_80%,transparent)] bg-[color-mix(in_srgb,var(--color-surface-strong)_60%,transparent)] px-3 py-1 text-[11px] text-(--color-text-muted)">
-          {message.body}
-        </span>
-        <div className="h-px flex-1 bg-[color-mix(in_srgb,var(--color-border)_70%,transparent)]" />
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className={`group flex gap-3 rounded-xl px-2 py-1 transition-colors hover:bg-[color-mix(in_srgb,var(--color-border)_18%,transparent)] ${
-        isMine ? "bg-[color-mix(in_srgb,var(--color-brand-soft)_22%,transparent)]" : ""
-      } ${sameAuthorAsPrev ? "mt-0.5" : "mt-3"}`}
-    >
-      <div className="w-9 shrink-0 pt-0.5">
-        {!sameAuthorAsPrev ? (
-          <Avatar name={message.senderName} url={isMine ? context.myAvatarUrl : context.otherAvatarUrl} size={36} />
-        ) : null}
-      </div>
-
-      <div className="min-w-0 flex-1">
-        {!sameAuthorAsPrev && (
-          <div className="mb-1 flex items-baseline gap-2">
-            <span className={`text-sm font-semibold ${isMine ? "text-(--color-brand-strong)" : "text-(--color-text-main)"}`}>
-              {message.senderName}
-            </span>
-            <ChatMessageTimestamp value={message.createdAt} className="text-[11px] text-(--color-text-muted)" />
-          </div>
-        )}
-
-        {mediaAtts.length > 0 && (
-          <div className="mb-1 grid gap-1.5 sm:grid-cols-2">
-            {mediaAtts.map((att) => (
-              <MediaPreview
-                key={att.url}
-                attachment={att}
-                optimistic={Boolean(message.optimistic)}
-                onOpen={context.openMediaPreview}
-              />
-            ))}
-          </div>
-        )}
-
-        {message.body ? (
-          (() => {
-            const emojiOnly = isSingleEmojiMessage(message.body);
-            return (
-              <p
-                className={`whitespace-pre-wrap text-sm leading-relaxed text-(--color-text-main) ${
-                  emojiOnly ? "inline-flex min-w-14 items-center justify-center rounded-2xl px-3 py-2" : ""
-                }`}
-                style={emojiOnly ? { fontSize: "3.25rem", lineHeight: 1 } : undefined}
-              >
-                {message.body}
-              </p>
-            );
-          })()
-        ) : null}
-
-        {docAtts.length > 0 && (
-          <div className="mt-1.5 flex flex-col gap-1.5">
-            {docAtts.map((att) => <DocPreview key={att.url} attachment={att} />)}
-          </div>
-        )}
-
-        {sameAuthorAsPrev && (
-          <div className="invisible mt-0.5 group-hover:visible">
-            <ChatMessageTimestamp value={message.createdAt} className="text-[11px] text-(--color-text-muted)" />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function ConversationThread({ conversationId }: { conversationId: string }) {
