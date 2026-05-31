@@ -11,9 +11,9 @@ import SectionCard, { FormField, Input, Textarea } from "./section-card";
 import SkillSuggestionInput from "@/components/skill-suggestion-input";
 import { useGcsControllerGenerateSignedUrlMutation, useSkillsControllerGetAllQuery } from "@/lib/api";
 import {
-  usePortfolioCreateMutation,
-  usePortfolioUpdateMutation,
-  usePortfolioDeleteMutation,
+  usePortfolioControllerCreateMutation,
+  usePortfolioControllerUpdateMutation,
+  usePortfolioControllerRemoveMutation,
   type CreatePortfolioProjectDto,
 } from "@/lib/api";
 import type { PortfolioProject, ProjectMedia } from "@/lib/types/profile";
@@ -533,13 +533,13 @@ export default function PortfolioSection({ projects, onRefresh }: Props) {
   const [editing, setEditing] = useState<PortfolioProject | null>(null);
   const [viewing, setViewing] = useState<PortfolioProject | null>(null);
 
-  const [createProject] = usePortfolioCreateMutation();
-  const [updateProject] = usePortfolioUpdateMutation();
-  const [deleteProject] = usePortfolioDeleteMutation();
+  const [createProject] = usePortfolioControllerCreateMutation();
+  const [updateProject] = usePortfolioControllerUpdateMutation();
+  const [deleteProject] = usePortfolioControllerRemoveMutation();
 
   const handleCreate = async (dto: CreatePortfolioProjectDto) => {
     try {
-      await createProject(dto).unwrap();
+      await createProject({ createPortfolioProjectDto: dto }).unwrap();
       onRefresh();
       toast.success("Project added");
     } catch (err) {
@@ -551,7 +551,7 @@ export default function PortfolioSection({ projects, onRefresh }: Props) {
   const handleUpdate = async (dto: CreatePortfolioProjectDto) => {
     if (!editing) return;
     try {
-      await updateProject({ id: editing._id, body: dto }).unwrap();
+      await updateProject({ id: editing._id, updatePortfolioProjectDto: dto }).unwrap();
       onRefresh();
       toast.success("Project updated");
     } catch (err) {
@@ -563,7 +563,7 @@ export default function PortfolioSection({ projects, onRefresh }: Props) {
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this project?")) return;
     try {
-      await deleteProject(id).unwrap();
+      await deleteProject({ id }).unwrap();
       onRefresh();
       toast.success("Project deleted");
     } catch (err) {
