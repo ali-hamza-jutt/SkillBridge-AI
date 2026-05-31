@@ -300,11 +300,17 @@ const injectedRtkApi = api.injectEndpoints({
     >({
       query: (queryArg) => ({ url: `/bids/${queryArg.id}`, method: "DELETE" }),
     }),
-    notificationsControllerGetUserNotifications: build.query<
-      NotificationsControllerGetUserNotificationsApiResponse,
-      NotificationsControllerGetUserNotificationsApiArg
+    notificationsControllerGetNotifications: build.query<
+      NotificationsControllerGetNotificationsApiResponse,
+      NotificationsControllerGetNotificationsApiArg
     >({
       query: () => ({ url: `/notifications` }),
+    }),
+    notificationsControllerMarkAllRead: build.mutation<
+      NotificationsControllerMarkAllReadApiResponse,
+      NotificationsControllerMarkAllReadApiArg
+    >({
+      query: () => ({ url: `/notifications/read-all`, method: "PATCH" }),
     }),
     notificationsControllerMarkAsRead: build.mutation<
       NotificationsControllerMarkAsReadApiResponse,
@@ -313,6 +319,26 @@ const injectedRtkApi = api.injectEndpoints({
       query: (queryArg) => ({
         url: `/notifications/${queryArg.id}/read`,
         method: "PATCH",
+      }),
+    }),
+    notificationsControllerSubscribe: build.mutation<
+      NotificationsControllerSubscribeApiResponse,
+      NotificationsControllerSubscribeApiArg
+    >({
+      query: (queryArg) => ({
+        url: `/notifications/subscribe`,
+        method: "POST",
+        body: queryArg.pushSubscribeDto,
+      }),
+    }),
+    notificationsControllerUnsubscribe: build.mutation<
+      NotificationsControllerUnsubscribeApiResponse,
+      NotificationsControllerUnsubscribeApiArg
+    >({
+      query: (queryArg) => ({
+        url: `/notifications/subscribe`,
+        method: "DELETE",
+        body: queryArg.pushUnsubscribeDto,
       }),
     }),
     conversationsControllerGetMyConversations: build.query<
@@ -377,6 +403,47 @@ const injectedRtkApi = api.injectEndpoints({
         url: `/storage/signed-url`,
         method: "POST",
         body: queryArg.generateUploadUrlDto,
+      }),
+    }),
+    portfolioControllerCreate: build.mutation<
+      PortfolioControllerCreateApiResponse,
+      PortfolioControllerCreateApiArg
+    >({
+      query: (queryArg) => ({
+        url: `/portfolio`,
+        method: "POST",
+        body: queryArg.createPortfolioProjectDto,
+      }),
+    }),
+    portfolioControllerFindMine: build.query<
+      PortfolioControllerFindMineApiResponse,
+      PortfolioControllerFindMineApiArg
+    >({
+      query: () => ({ url: `/portfolio/me` }),
+    }),
+    portfolioControllerFindByUser: build.query<
+      PortfolioControllerFindByUserApiResponse,
+      PortfolioControllerFindByUserApiArg
+    >({
+      query: (queryArg) => ({ url: `/portfolio/user/${queryArg.userId}` }),
+    }),
+    portfolioControllerUpdate: build.mutation<
+      PortfolioControllerUpdateApiResponse,
+      PortfolioControllerUpdateApiArg
+    >({
+      query: (queryArg) => ({
+        url: `/portfolio/${queryArg.id}`,
+        method: "PATCH",
+        body: queryArg.updatePortfolioProjectDto,
+      }),
+    }),
+    portfolioControllerRemove: build.mutation<
+      PortfolioControllerRemoveApiResponse,
+      PortfolioControllerRemoveApiArg
+    >({
+      query: (queryArg) => ({
+        url: `/portfolio/${queryArg.id}`,
+        method: "DELETE",
       }),
     }),
   }),
@@ -524,11 +591,21 @@ export type BidsControllerDeleteApiResponse = unknown;
 export type BidsControllerDeleteApiArg = {
   id: string;
 };
-export type NotificationsControllerGetUserNotificationsApiResponse = unknown;
-export type NotificationsControllerGetUserNotificationsApiArg = void;
+export type NotificationsControllerGetNotificationsApiResponse = unknown;
+export type NotificationsControllerGetNotificationsApiArg = void;
+export type NotificationsControllerMarkAllReadApiResponse = unknown;
+export type NotificationsControllerMarkAllReadApiArg = void;
 export type NotificationsControllerMarkAsReadApiResponse = unknown;
 export type NotificationsControllerMarkAsReadApiArg = {
   id: string;
+};
+export type NotificationsControllerSubscribeApiResponse = unknown;
+export type NotificationsControllerSubscribeApiArg = {
+  pushSubscribeDto: PushSubscribeDto;
+};
+export type NotificationsControllerUnsubscribeApiResponse = unknown;
+export type NotificationsControllerUnsubscribeApiArg = {
+  pushUnsubscribeDto: PushUnsubscribeDto;
 };
 export type ConversationsControllerGetMyConversationsApiResponse = unknown;
 export type ConversationsControllerGetMyConversationsApiArg = void;
@@ -559,6 +636,25 @@ export type GcsControllerGenerateSignedUrlApiResponse = unknown;
 export type GcsControllerGenerateSignedUrlApiArg = {
   generateUploadUrlDto: GenerateUploadUrlDto;
 };
+export type PortfolioControllerCreateApiResponse = unknown;
+export type PortfolioControllerCreateApiArg = {
+  createPortfolioProjectDto: CreatePortfolioProjectDto;
+};
+export type PortfolioControllerFindMineApiResponse = unknown;
+export type PortfolioControllerFindMineApiArg = void;
+export type PortfolioControllerFindByUserApiResponse = unknown;
+export type PortfolioControllerFindByUserApiArg = {
+  userId: string;
+};
+export type PortfolioControllerUpdateApiResponse = unknown;
+export type PortfolioControllerUpdateApiArg = {
+  id: string;
+  updatePortfolioProjectDto: UpdatePortfolioProjectDto;
+};
+export type PortfolioControllerRemoveApiResponse = unknown;
+export type PortfolioControllerRemoveApiArg = {
+  id: string;
+};
 export type SignupDto = {
   name: string;
   email: string;
@@ -583,10 +679,19 @@ export type CreateUserDto = {
   categoryId?: string;
   role?: "FREELANCER" | "HIRER" | "ADMIN";
 };
+export type ExperienceEntryDto = {};
+export type EducationEntryDto = {};
 export type UpdateUserDto = {
   name?: string;
   categoryId?: string;
   skills?: string[];
+  title?: string;
+  bio?: string;
+  avatarUrl?: string;
+  timezone?: string;
+  hourlyRate?: number;
+  experience?: ExperienceEntryDto[];
+  education?: EducationEntryDto[];
 };
 export type CreateSkillDto = {
   categoryId: string;
@@ -658,6 +763,8 @@ export type CreateBidDto = {
   /** Required when payoutType is module_based. Include each module detail and payment amount. */
   modules?: BidMilestoneDto[];
 };
+export type PushSubscribeDto = {};
+export type PushUnsubscribeDto = {};
 export type CreatePreHireConversationDto = {
   taskId: string;
   bidId: string;
@@ -685,6 +792,30 @@ export type GenerateUploadUrlDto = {
   mimeType: string;
   /** Folder prefix inside the bucket */
   folder?: string;
+};
+export type ProjectMediaDto = {
+  url: string;
+  publicId: string;
+  name: string;
+  mimeType: string;
+  type: string;
+  size?: number;
+};
+export type CreatePortfolioProjectDto = {
+  title: string;
+  description: string;
+  role: string;
+  techStack?: string[];
+  projectUrl?: string;
+  media?: ProjectMediaDto[];
+};
+export type UpdatePortfolioProjectDto = {
+  title?: string;
+  description?: string;
+  role?: string;
+  techStack?: string[];
+  projectUrl?: string;
+  media?: ProjectMediaDto[];
 };
 export const {
   useAppControllerGetHelloQuery,
@@ -724,8 +855,11 @@ export const {
   useBidsControllerCreateMutation,
   useBidsControllerFindByTaskQuery,
   useBidsControllerDeleteMutation,
-  useNotificationsControllerGetUserNotificationsQuery,
+  useNotificationsControllerGetNotificationsQuery,
+  useNotificationsControllerMarkAllReadMutation,
   useNotificationsControllerMarkAsReadMutation,
+  useNotificationsControllerSubscribeMutation,
+  useNotificationsControllerUnsubscribeMutation,
   useConversationsControllerGetMyConversationsQuery,
   useConversationsControllerCreatePreHireMutation,
   useConversationsControllerHireMutation,
@@ -733,47 +867,9 @@ export const {
   useConversationsControllerGetMessagesQuery,
   useConversationsControllerSendMessageMutation,
   useGcsControllerGenerateSignedUrlMutation,
+  usePortfolioControllerCreateMutation,
+  usePortfolioControllerFindMineQuery,
+  usePortfolioControllerFindByUserQuery,
+  usePortfolioControllerUpdateMutation,
+  usePortfolioControllerRemoveMutation,
 } = injectedRtkApi;
-
-// ── Portfolio API ─────────────────────────────────────────────────────────────
-import type { PortfolioProject, ProjectMedia } from "@/lib/types/profile";
-
-export type CreatePortfolioProjectDto = {
-  title: string;
-  description: string;
-  role: string;
-  techStack?: string[];
-  projectUrl?: string;
-  media?: ProjectMedia[];
-};
-
-export type UpdatePortfolioProjectDto = Partial<CreatePortfolioProjectDto>;
-
-const portfolioApi = injectedRtkApi.injectEndpoints({
-  endpoints: (build) => ({
-    portfolioGetMine: build.query<PortfolioProject[], void>({
-      query: () => ({ url: "/portfolio/me" }),
-    }),
-    portfolioGetByUser: build.query<PortfolioProject[], string>({
-      query: (userId) => ({ url: `/portfolio/user/${userId}` }),
-    }),
-    portfolioCreate: build.mutation<PortfolioProject, CreatePortfolioProjectDto>({
-      query: (body) => ({ url: "/portfolio", method: "POST", body }),
-    }),
-    portfolioUpdate: build.mutation<PortfolioProject, { id: string; body: UpdatePortfolioProjectDto }>({
-      query: ({ id, body }) => ({ url: `/portfolio/${id}`, method: "PATCH", body }),
-    }),
-    portfolioDelete: build.mutation<{ message: string }, string>({
-      query: (id) => ({ url: `/portfolio/${id}`, method: "DELETE" }),
-    }),
-  }),
-  overrideExisting: false,
-});
-
-export const {
-  usePortfolioGetMineQuery,
-  usePortfolioGetByUserQuery,
-  usePortfolioCreateMutation,
-  usePortfolioUpdateMutation,
-  usePortfolioDeleteMutation,
-} = portfolioApi;

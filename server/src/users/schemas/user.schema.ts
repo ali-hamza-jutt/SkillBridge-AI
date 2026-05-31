@@ -46,6 +46,9 @@ export class User {
   avatarUrl?: string;
 
   @Prop()
+  timezone?: string;
+
+  @Prop()
   hourlyRate?: number;
 
   @Prop({

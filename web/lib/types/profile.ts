@@ -50,6 +50,7 @@ export type UserProfile = {
   title?: string;
   bio?: string;
   avatarUrl?: string;
+  timezone?: string;
   hourlyRate?: number;
   experience?: ExperienceEntry[];
   education?: EducationEntry[];

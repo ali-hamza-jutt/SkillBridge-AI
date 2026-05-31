@@ -10,11 +10,12 @@ import {
   useSkillsControllerGetByCategoryQuery,
   useUsersControllerFindMeQuery,
   useUsersControllerUpdateMyProfileMutation,
-  usePortfolioGetMineQuery,
+  usePortfolioControllerFindMineQuery,
 } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import DashboardNavbar from "@/components/dashboard-navbar";
 import ProfileHeader from "@/components/profile/profile-header";
+import EmployerProfileEditor from "@/components/profile/employer-profile-editor";
 import AboutSection from "@/components/profile/about-section";
 import SkillsSection from "@/components/profile/skills-section";
 import PortfolioSection from "@/components/profile/portfolio-section";
@@ -30,10 +31,11 @@ export default function DashboardProfilePage() {
 
   const { data: categoriesRaw = [] } = useCategoryControllerGetAllCategoriesQuery();
   const { data: myProfileRaw, refetch: refetchProfile } = useUsersControllerFindMeQuery(undefined, { skip: !token });
-  const { data: portfolioRaw, refetch: refetchPortfolio } = usePortfolioGetMineQuery(undefined, { skip: !token || role !== "FREELANCER" });
+  const { data: portfolioRaw, refetch: refetchPortfolio } = usePortfolioControllerFindMineQuery(undefined, { skip: !token || role !== "FREELANCER" });
 
   const profile = myProfileRaw as UserProfile | undefined;
   const categoryId = profile?.categoryId;
+  const isEmployer = role === "HIRER";
 
   const { data: allSkillsRaw = [] } = useSkillsControllerGetAllQuery();
   const { data: categorySkillsRaw = [] } = useSkillsControllerGetByCategoryQuery(
@@ -51,21 +53,26 @@ export default function DashboardProfilePage() {
 
   const save = async (partial: Record<string, unknown>) => {
     try {
-      const updated = await updateProfile({ updateUserDto: partial as Parameters<typeof updateProfile>[0]["updateUserDto"] }).unwrap() as UserProfile;
+      const updated = (await updateProfile({ updateUserDto: partial as Parameters<typeof updateProfile>[0]["updateUserDto"] }).unwrap()) as UserProfile;
 
       const newAvatarUrl = (partial.avatarUrl as string | undefined) ?? updated.avatarUrl ?? storedAvatarUrl;
+      const nextCategoryId = updated.categoryId ?? profile?.categoryId ?? null;
 
       dispatch(setCredentials({
         userId: userId!,
         role: role!,
-        categoryId: (updated.categoryId ?? categoryId) as string,
+        categoryId: nextCategoryId,
         skills: (updated.skills ?? profile?.skills ?? []) as string[],
         avatarUrl: newAvatarUrl ?? null,
         token: token!,
         email: email!,
       }));
 
-      if (updated.categoryId) localStorage.setItem("auth_category_id", updated.categoryId);
+      if (nextCategoryId) {
+        localStorage.setItem("auth_category_id", nextCategoryId);
+      } else {
+        localStorage.removeItem("auth_category_id");
+      }
       localStorage.setItem("auth_skills", JSON.stringify(updated.skills ?? []));
       if (newAvatarUrl) localStorage.setItem("auth_avatar_url", newAvatarUrl);
 
@@ -77,7 +84,7 @@ export default function DashboardProfilePage() {
     }
   };
 
-  if (role !== "FREELANCER") {
+  if (role !== "FREELANCER" && role !== "HIRER") {
     return (
       <main className="min-h-screen py-16">
         <div className="mx-auto w-[min(100%-2rem,560px)] text-center">
@@ -110,30 +117,39 @@ export default function DashboardProfilePage() {
       <DashboardNavbar role={role} activeItem="profile" />
 
       <div className="mx-auto w-[min(100%-1.5rem,860px)] space-y-4 py-5">
-        <ProfileHeader
-          profile={profile}
-          categoryName={categoryName}
-          onAvatarChange={async (url) => { await save({ avatarUrl: url }); }}
-        />
-        <AboutSection
-          profile={profile}
-          onSave={async (data) => { await save(data as Record<string, unknown>); }}
-        />
-        <PortfolioSection projects={portfolioProjects} onRefresh={refetchPortfolio} />
-        <SkillsSection
-          profile={profile}
-          skillSuggestions={skillSuggestions}
-          skillFallback={skillFallback}
-          onSave={async (skills) => { await save({ skills }); }}
-        />
-        <ExperienceSection
-          profile={profile}
-          onSave={async (experience: ExperienceEntry[]) => { await save({ experience }); }}
-        />
-        <EducationSection
-          profile={profile}
-          onSave={async (education: EducationEntry[]) => { await save({ education }); }}
-        />
+        {isEmployer ? (
+          <EmployerProfileEditor
+            profile={profile}
+            onSave={async (data) => { await save(data as Record<string, unknown>); }}
+          />
+        ) : (
+          <>
+            <ProfileHeader
+              profile={profile}
+              categoryName={categoryName}
+              onAvatarChange={async (url) => { await save({ avatarUrl: url }); }}
+            />
+            <AboutSection
+              profile={profile}
+              onSave={async (data) => { await save(data as Record<string, unknown>); }}
+            />
+            <PortfolioSection projects={portfolioProjects} onRefresh={refetchPortfolio} />
+            <SkillsSection
+              profile={profile}
+              skillSuggestions={skillSuggestions}
+              skillFallback={skillFallback}
+              onSave={async (skills) => { await save({ skills }); }}
+            />
+            <ExperienceSection
+              profile={profile}
+              onSave={async (experience: ExperienceEntry[]) => { await save({ experience }); }}
+            />
+            <EducationSection
+              profile={profile}
+              onSave={async (education: EducationEntry[]) => { await save({ education }); }}
+            />
+          </>
+        )}
       </div>
     </main>
   );

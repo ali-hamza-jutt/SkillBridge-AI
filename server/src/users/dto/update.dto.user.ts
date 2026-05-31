@@ -62,6 +62,11 @@ export class UpdateUserDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @IsString()
+  timezone?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsNumber()
   @Min(0)
   hourlyRate?: number;
