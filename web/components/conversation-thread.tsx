@@ -264,6 +264,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const emojiMenuRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
   const visibleMessages = useMemo<DisplayChatMessage[]>(() => {
@@ -299,8 +300,31 @@ export default function ConversationThread({ conversationId }: { conversationId:
   }, [conversationId, joinConversation, leaveConversation, token]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [visibleMessages]);
+    const el = scrollContainerRef.current;
+    if (!el) return;
+
+    // Force-scroll to bottom immediately (no animation) to ensure we land
+    // at the end when opening a conversation or when new messages arrive.
+    el.scrollTop = el.scrollHeight;
+
+    // Also set on the next animation frame in case layout changes (images, videos).
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
+
+    // If images are loading, re-scroll after they finish so we remain at the bottom.
+    const imgs = Array.from(el.querySelectorAll("img")).filter((img) => !img.complete) as HTMLImageElement[];
+    const handlers: Array<() => void> = [];
+    imgs.forEach((img) => {
+      const h = () => { el.scrollTop = el.scrollHeight; img.removeEventListener("load", h); };
+      handlers.push(h);
+      img.addEventListener("load", h);
+    });
+
+    return () => {
+      handlers.forEach((h, i) => imgs[i]?.removeEventListener("load", h));
+    };
+  }, [conversationId, visibleMessages.length]);
 
   useEffect(() => {
     if (!socket) return;
@@ -511,7 +535,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
       </header>
 
       {/* ── Messages ── */}
-      <div className="overflow-y-auto px-5 py-4 hide-scrollbar">
+      <div ref={scrollContainerRef} className="overflow-y-auto px-5 py-4 hide-scrollbar">
         <div className="flex flex-col gap-1">
           {visibleMessages.map((message: DisplayChatMessage, idx) => {
             const isMine = message.senderId === userId;
