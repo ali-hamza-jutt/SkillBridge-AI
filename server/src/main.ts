@@ -6,10 +6,11 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 
 async function bootstrap() {
+      console.log('MONGODB_URI (main):', process.env.MONGODB_URI);
+  
   const app = await NestFactory.create(AppModule);
 
   const isDev = process.env.NODE_ENV !== 'production';
-    console.log('MONGODB_URI (main):', process.env.MONGODB_URI);
 
 
   // Bug 4 fix: strip trailing slashes so origin comparison is exact
