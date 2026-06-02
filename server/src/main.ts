@@ -12,35 +12,53 @@ async function bootstrap() {
     console.log('MONGODB_URI (main):', process.env.MONGODB_URI);
 
 
+  // Bug 4 fix: strip trailing slashes so origin comparison is exact
   const allowedOrigins = (process.env.FRONTEND_URL ?? 'http://localhost:3000')
     .split(',')
-    .map((o) => o.trim())
+    .map((o) => o.trim().replace(/\/$/, ''))   // <-- remove trailing slash
     .filter(Boolean);
 
   if (isDev) {
     Logger.log('CORS: development mode — allowing all origins');
   } else {
-    Logger.log(`CORS: allowed origins: ${allowedOrigins.join(',')}`);
+    Logger.log(`CORS: allowed origins: ${allowedOrigins.join(', ')}`);
   }
 
   app.enableCors({
     origin: isDev
       ? true
-      : (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      : (
+          origin: string | undefined,
+          callback: (err: Error | null, allow?: boolean) => void,
+        ) => {
+          // Bug 1 fix: pass null + false instead of throwing — throwing causes
+          // unhandled-exception crashes and returns a 500, not a 403.
           if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
           } else {
-            callback(new Error(`CORS: origin ${origin} not allowed`));
+            Logger.warn(`CORS: blocked origin "${origin}"`);
+            callback(null, false);   // <-- was: callback(new Error(...))
           }
         },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'Accept',
+      'Origin',
+    ],
+    // Bug 3 fix: expose Authorization so the browser can read it on credentialed requests
+    exposedHeaders: ['Authorization'],
     credentials: true,
   });
 
+  // Bug 2 fix: remove crossOriginResourcePolicy — it fights the CORS headers above.
+  // contentSecurityPolicy is also disabled in dev to avoid blocking Swagger UI.
   app.use(
     helmet({
-      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      crossOriginResourcePolicy: false,           // <-- was: { policy: 'cross-origin' }
+      contentSecurityPolicy: isDev ? false : undefined,
     }),
   );
 
@@ -59,6 +77,7 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
+
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.RMQ,
     options: {
@@ -71,7 +90,6 @@ async function bootstrap() {
   await app.startAllMicroservices();
   await app.listen(process.env.PORT ?? 3001);
 
-  // Cloud Run sends SIGTERM before killing the container — drain in-flight requests
   process.on('SIGTERM', async () => {
     await app.close();
   });
