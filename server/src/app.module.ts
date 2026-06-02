@@ -19,9 +19,15 @@ import { PortfolioModule } from './portfolio/portfolio.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
-    MongooseModule.forRoot(
-      process.env.MONGODB_URI || 'mongodb://localhost:27017/marketplace',
-    ),
+MongooseModule.forRootAsync({
+  useFactory: () => {
+    console.log('MONGODB_URI:', process.env.MONGODB_URI);
+
+    return {
+      uri: process.env.MONGODB_URI,
+    };
+  },
+}),
     AuthModule,
     TasksModule,
     UsersModule,
