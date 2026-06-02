@@ -8,7 +8,6 @@ import Link from "next/link";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { useAppSelector } from "@/lib/hooks";
 import { useChatSocket } from "@/components/chat-socket-provider";
-import { markConversationRead } from "@/lib/useUnreadMessages";
 import EmojiPicker from "@/components/emoji-picker";
 import type { ChatMessage, ChatMessagePage, ConversationSummary, MessageAttachment } from "@/lib/types/chat";
 import type { AttachmentDto } from "@/lib/api";
@@ -67,7 +66,7 @@ const mergeUniqueMessages = (current: ChatMessage[], incoming: ChatMessage[]) =>
 export default function ConversationThread({ conversationId }: { conversationId: string }) {
   const router = useRouter();
   const { token, userId, avatarUrl: myAvatarUrl } = useAppSelector((s) => s.auth);
-  const { socket, joinConversation, leaveConversation } = useChatSocket();
+  const { socket, joinConversation, leaveConversation, emitConversationRead, emitMessageDelivered } = useChatSocket();
   const myDisplayName = useMemo(() => {
     const fallback = "You";
     if (!token) return fallback;
@@ -143,10 +142,16 @@ export default function ConversationThread({ conversationId }: { conversationId:
 
   useEffect(() => {
     if (!token || !conversationId) return;
-    markConversationRead(conversationId);
     joinConversation(conversationId);
     return () => leaveConversation(conversationId);
   }, [conversationId, joinConversation, leaveConversation, token]);
+
+  useEffect(() => {
+    if (!conversationId || visibleMessages.length === 0) return;
+    const lastMessage = visibleMessages[visibleMessages.length - 1];
+    emitConversationRead(conversationId, lastMessage.id);
+    setPatches((prev) => ({ ...prev, unreadCount: 0 }));
+  }, [conversationId, emitConversationRead, visibleMessages]);
 
   useEffect(() => {
     setMessages([]);
@@ -215,7 +220,9 @@ export default function ConversationThread({ conversationId }: { conversationId:
       setMessages((cur) => cur.some((m) => m.id === p.id) ? cur : mergeUniqueMessages(cur, [p]));
       setOptimisticMessages((current) => current.filter((pendingMessage) => !messagesEquivalent(p, pendingMessage)));
       setPatches((prev) => ({ ...prev, lastMessageText: p.body, lastMessageAt: p.createdAt }));
-      markConversationRead(conversationId);
+      if (p.senderId !== userId) {
+        emitMessageDelivered(conversationId, p.id);
+      }
     };
     const onUpdated = (p: Partial<ConversationSummary> & { conversationId: string }) => {
       if (p.conversationId !== conversationId) return;
@@ -224,7 +231,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
     socket.on("message.created", onMessage);
     socket.on("conversation.updated", onUpdated);
     return () => { socket.off("message.created", onMessage); socket.off("conversation.updated", onUpdated); };
-  }, [conversationId, socket]);
+  }, [conversationId, emitMessageDelivered, socket, userId]);
 
   useEffect(() => {
     const onPointerDown = (event: MouseEvent) => {
@@ -388,7 +395,6 @@ export default function ConversationThread({ conversationId }: { conversationId:
       }).unwrap();
       setBody("");
       setPendingAttachments([]);
-      markConversationRead(conversationId);
     } catch {
       setOptimisticMessages((current) => current.filter((message) => message.id !== optimisticId));
       setSendError("Failed to send. Please try again.");
@@ -433,7 +439,13 @@ export default function ConversationThread({ conversationId }: { conversationId:
       style={{ height: "calc(100vh - 88px)" }}
     >
       <header className="flex items-center gap-3 px-5 py-3.5">
-        <Avatar name={otherName} url={otherAvatarUrl} size={44} />
+        <div className="relative">
+          <Avatar name={otherName} url={otherAvatarUrl} size={44} />
+          <span
+            className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-(--color-surface) ${conversation?.otherUserOnline ? "bg-emerald-500" : "bg-slate-400"}`}
+            aria-label={conversation?.otherUserOnline ? "Online" : "Offline"}
+          />
+        </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <h1 className="truncate text-base font-bold text-(--color-text-main)">{otherName}</h1>

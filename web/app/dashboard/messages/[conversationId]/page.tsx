@@ -9,7 +9,6 @@ import ConversationListItem from "@/components/conversation-list-item";
 import ConversationThread from "@/components/conversation-thread";
 import { useConversationsControllerGetMyConversationsQuery } from "@/lib/api";
 import type { ConversationSummary } from "@/lib/types/chat";
-import { useUnreadConversationCount } from "@/lib/useUnreadMessages";
 import { useConversationListRealtimeUpdates } from "@/lib/useConversationListRealtimeUpdates";
 
 export default function ConversationPage() {
@@ -24,7 +23,6 @@ export default function ConversationPage() {
   });
   const conversations = (data as ConversationSummary[] | undefined) ?? [];
   const loadingSidebar = isLoading || isFetching;
-  useUnreadConversationCount(); // keep badge count in sync while on this page
 
   if (role !== "HIRER" && role !== "FREELANCER") {
     return <RoleAccessNotice title="Messages unavailable" description="This area is available for active client and freelancer accounts." />;

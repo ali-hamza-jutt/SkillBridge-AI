@@ -26,6 +26,12 @@ function isSingleEmojiMessage(text: string) {
   return trimmed.length > 0 && SINGLE_EMOJI_REGEX.test(trimmed);
 }
 
+function formatMessageStatus(status?: string) {
+  if (status === "read") return "Seen";
+  if (status === "delivered") return "Delivered";
+  return "Sent";
+}
+
 export function renderMessageItemRow(
   idx: number,
   message: DisplayChatMessage,
@@ -113,6 +119,10 @@ export function renderMessageItemRow(
             <ChatMessageTimestamp value={message.createdAt} className="text-[11px] text-(--color-text-muted)" />
           </div>
         )}
+
+        {isMine && !isSystem ? (
+          <div className="mt-0.5 text-[11px] text-(--color-text-muted)">{formatMessageStatus(message.status)}</div>
+        ) : null}
       </div>
     </div>
   );

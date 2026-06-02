@@ -52,6 +52,7 @@ export class ConversationsGateway
 
       (client.data as { userId: string }).userId = payload.sub;
       await client.join(`user:${payload.sub}`);
+      await this.conversationsService.refreshPresence(payload.sub);
       this.logger.log(`Client connected: ${client.id} as user ${payload.sub}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -63,6 +64,17 @@ export class ConversationsGateway
 
   handleDisconnect(client: Socket) {
     this.logger.log(`Client disconnected: ${client.id}`);
+  }
+
+  @SubscribeMessage('presence.heartbeat')
+  async handleHeartbeat(@ConnectedSocket() client: Socket) {
+    const userId = (client.data as { userId?: string }).userId;
+    if (!userId) {
+      return { ok: false };
+    }
+
+    await this.conversationsService.refreshPresence(userId);
+    return { ok: true };
   }
 
   @SubscribeMessage('conversation.join')
@@ -95,6 +107,41 @@ export class ConversationsGateway
   ) {
     await client.leave(`conversation:${conversationId}`);
     return { ok: true };
+  }
+
+  @SubscribeMessage('message.delivered')
+  async handleDelivered(
+    @MessageBody() payload: { conversationId: string; messageId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const userId = (client.data as { userId?: string }).userId;
+    if (!userId) {
+      return { ok: false };
+    }
+
+    return this.conversationsService.markMessageDelivered(
+      payload.conversationId,
+      payload.messageId,
+      userId,
+    );
+  }
+
+  @SubscribeMessage('conversation.read')
+  async handleRead(
+    @MessageBody()
+    payload: { conversationId: string; lastReadMessageId?: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const userId = (client.data as { userId?: string }).userId;
+    if (!userId) {
+      return { ok: false };
+    }
+
+    return this.conversationsService.markConversationRead(
+      payload.conversationId,
+      userId,
+      payload.lastReadMessageId,
+    );
   }
 
   emitToConversation(conversationId: string, event: string, payload: any) {

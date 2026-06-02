@@ -13,6 +13,8 @@ import { UsersModule } from '../users/users.module';
 import { UtilityModule } from '../common/utility/utility.module';
 import { GCSModule } from '../gcs/gcs.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { CacheModule } from '../cache/cache.module';
+import { ReadReceipt, ReadReceiptSchema } from './schemas/read-receipt.schema';
 
 @Module({
   imports: [
@@ -23,12 +25,14 @@ import { NotificationsModule } from '../notifications/notifications.module';
       { name: Conversation.name, schema: ConversationSchema },
       { name: ChatMessage.name, schema: ChatMessageSchema },
       { name: MessageMedia.name, schema: MessageMediaSchema },
+      { name: ReadReceipt.name, schema: ReadReceiptSchema },
       { name: Task.name, schema: TaskSchema },
       { name: Bid.name, schema: BidSchema },
     ]),
     UsersModule,
     UtilityModule,
     GCSModule,
+    CacheModule,
     NotificationsModule,
   ],
   controllers: [ConversationsController],

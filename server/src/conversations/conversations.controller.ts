@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ConversationsService } from './conversations.service';
 import { CreatePreHireConversationDto } from './dto/create-pre-hire-conversation.dto';
 import { HireConversationDto } from './dto/hire-conversation.dto';
+import { MarkConversationReadDto } from './dto/mark-read.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 
 @ApiTags('Conversations')
@@ -52,6 +53,15 @@ export class ConversationsController {
       req.user.userId,
       limit ? Number(limit) : 50,
       before,
+    );
+  }
+
+  @Patch(':id/read')
+  markRead(@Param('id') id: string, @Body() dto: MarkConversationReadDto, @Req() req) {
+    return this.conversationsService.markConversationRead(
+      id,
+      req.user.userId,
+      dto.lastReadMessageId,
     );
   }
 

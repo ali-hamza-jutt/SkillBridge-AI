@@ -8,6 +8,12 @@ export enum ChatMessageType {
   SYSTEM = 'SYSTEM',
 }
 
+export enum ChatMessageStatus {
+  SENT = 'sent',
+  DELIVERED = 'delivered',
+  READ = 'read',
+}
+
 @Schema({ timestamps: true })
 export class ChatMessage {
   @Prop({ required: true })
@@ -24,6 +30,9 @@ export class ChatMessage {
 
   @Prop({ enum: ChatMessageType, default: ChatMessageType.TEXT })
   messageType!: ChatMessageType;
+
+  @Prop({ enum: ChatMessageStatus, default: ChatMessageStatus.SENT })
+  status!: ChatMessageStatus;
 
   createdAt?: Date;
 

@@ -32,14 +32,14 @@ function getInitials(name: string) {
 function Avatar({ name, url }: { name: string; url?: string | null }) {
   if (url) {
     return (
-      <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full">
+      <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full">
         <Image src={url} alt={name} width={44} height={44} className="h-full w-full object-cover" unoptimized />
       </div>
     );
   }
   return (
     <div
-      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+      className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
       style={{ backgroundColor: getAvatarColor(name) }}
     >
       {getInitials(name)}
@@ -79,6 +79,8 @@ function LastMessagePreview({ conversation }: { conversation: ConversationSummar
 }
 
 export default function ConversationListItem({ conversation, href, active }: ConversationListItemProps) {
+  const unreadCount = conversation.unreadCount ?? 0;
+
   return (
     <Link
       href={href}
@@ -86,25 +88,32 @@ export default function ConversationListItem({ conversation, href, active }: Con
         active ? "bg-(--background-color-chat-list-item)" : ""
       }`}
     >
-      <Avatar name={conversation.otherUserName} url={conversation.otherUserAvatarUrl} />
+      <div className="relative">
+        <Avatar name={conversation.otherUserName} url={conversation.otherUserAvatarUrl} />
+        <span
+          className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[color-mix(in_srgb,var(--background-color-chat-list-box)_95%,transparent)] ${conversation.otherUserOnline ? "bg-emerald-500" : "bg-slate-400"}`}
+          aria-label={conversation.otherUserOnline ? "Online" : "Offline"}
+        />
+      </div>
 
       <div className="min-w-0 flex-1">
-        {/* Name + timestamp */}
-        <div className="flex items-baseline justify-between gap-2">
-          <p className="truncate text-sm font-semibold text-(--color-text-main)">
-            {conversation.otherUserName}
-          </p>
-          <span className="shrink-0 text-[11px] text-(--color-text-muted)">
-            <ChatMessageTimestamp value={conversation.lastMessageAt ?? conversation.updatedAt} />
-          </span>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-(--color-text-main)">{conversation.otherUserName}</p>
+            <p className="truncate text-xs text-(--color-text-muted)">{conversation.taskTitle}</p>
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <span className="text-[11px] text-(--color-text-muted)">
+              <ChatMessageTimestamp value={conversation.lastMessageAt ?? conversation.updatedAt} />
+            </span>
+            {unreadCount > 0 ? (
+              <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            ) : null}
+          </div>
         </div>
 
-        {/* Task title */}
-        <p className="truncate text-xs font-semibold text-(--color-text-muted)">
-          {conversation.taskTitle}
-        </p>
-
-        {/* Last message */}
         <p className="mt-0.5 truncate text-xs text-(--color-text-muted)">
           <LastMessagePreview conversation={conversation} />
         </p>

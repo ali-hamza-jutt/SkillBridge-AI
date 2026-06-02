@@ -9,6 +9,9 @@ type ChatSocketContextValue = {
   connected: boolean;
   joinConversation: (conversationId: string) => void;
   leaveConversation: (conversationId: string) => void;
+  emitConversationRead: (conversationId: string, lastReadMessageId?: string) => void;
+  emitMessageDelivered: (conversationId: string, messageId: string) => void;
+  emitPresenceHeartbeat: () => void;
 };
 
 const ChatSocketContext = createContext<ChatSocketContextValue | null>(null);
@@ -46,7 +49,12 @@ export default function ChatSocketProvider({ children }: PropsWithChildren) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSocket(nextSocket);
 
+    const heartbeat = window.setInterval(() => {
+      nextSocket.emit("presence.heartbeat");
+    }, 25_000);
+
     return () => {
+      window.clearInterval(heartbeat);
       nextSocket.removeAllListeners();
       nextSocket.disconnect();
       setSocket(null);
@@ -91,6 +99,15 @@ export default function ChatSocketProvider({ children }: PropsWithChildren) {
       },
       leaveConversation: (conversationId: string) => {
         socket?.emit("conversation.leave", conversationId);
+      },
+      emitConversationRead: (conversationId: string, lastReadMessageId?: string) => {
+        socket?.emit("conversation.read", { conversationId, lastReadMessageId });
+      },
+      emitMessageDelivered: (conversationId: string, messageId: string) => {
+        socket?.emit("message.delivered", { conversationId, messageId });
+      },
+      emitPresenceHeartbeat: () => {
+        socket?.emit("presence.heartbeat");
       },
     }),
     [connected, socket],
