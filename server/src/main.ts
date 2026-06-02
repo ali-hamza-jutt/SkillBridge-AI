@@ -9,6 +9,8 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   const isDev = process.env.NODE_ENV !== 'production';
+    console.log('MONGODB_URI (main):', process.env.MONGODB_URI);
+
 
   const allowedOrigins = (process.env.FRONTEND_URL ?? 'http://localhost:3000')
     .split(',')
