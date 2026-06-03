@@ -7,6 +7,7 @@ import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 
 async function bootstrap() {
       console.log('MONGODB_URI (main):', process.env.MONGODB_URI);
+      console.log('REDIS_URL (main):', process.env.REDIS_URL);
   
   const app = await NestFactory.create(AppModule);
 
