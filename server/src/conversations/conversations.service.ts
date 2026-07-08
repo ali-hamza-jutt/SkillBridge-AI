@@ -386,6 +386,7 @@ export class ConversationsService {
         senderName: nameMap.get(message.senderId) ?? message.senderName ?? 'System',
         body: message.body,
         messageType: message.messageType,
+        status: message.status,
         attachments: dedupeAttachments([...legacyAttachments, ...storedAttachments]),
         createdAt: this.utilityService.toISOString(message.createdAt),
         updatedAt: this.utilityService.toISOString(message.updatedAt),

@@ -228,9 +228,27 @@ export default function ConversationThread({ conversationId }: { conversationId:
       if (p.conversationId !== conversationId) return;
       setPatches((prev) => ({ ...prev, ...p }));
     };
+    const onStatusUpdated = (p: { conversationId: string; messageId: string; status: "delivered" | "read" }) => {
+      if (p.conversationId !== conversationId) return;
+      setMessages((cur) => {
+        const idx = cur.findIndex((m) => m.id === p.messageId);
+        if (idx === -1) return cur;
+        return cur.map((m, i) => {
+          if (m.senderId !== userId || m.status === "read") return m;
+          if (p.status === "read" && i <= idx) return { ...m, status: "read" };
+          if (p.status === "delivered" && i === idx) return { ...m, status: "delivered" };
+          return m;
+        });
+      });
+    };
     socket.on("message.created", onMessage);
     socket.on("conversation.updated", onUpdated);
-    return () => { socket.off("message.created", onMessage); socket.off("conversation.updated", onUpdated); };
+    socket.on("message.status.updated", onStatusUpdated);
+    return () => {
+      socket.off("message.created", onMessage);
+      socket.off("conversation.updated", onUpdated);
+      socket.off("message.status.updated", onStatusUpdated);
+    };
   }, [conversationId, emitMessageDelivered, socket, userId]);
 
   useEffect(() => {
