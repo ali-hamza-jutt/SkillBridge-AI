@@ -53,7 +53,8 @@ export default function MediaPreview({
       <button
         type="button"
         onClick={() => onOpen?.({ url, type: "IMAGE", name: attachment.name })}
-        className="block text-left"
+        className="relative block overflow-hidden rounded-xl text-left"
+        style={{ width: "min(380px, 100%)", aspectRatio: "4 / 3" }}
       >
         <Image
           src={displayUrl}
@@ -62,8 +63,7 @@ export default function MediaPreview({
           height={285}
           unoptimized
           sizes="380px"
-          className="max-h-80 w-auto rounded-xl object-contain"
-          style={{ maxWidth: 380 }}
+          className="h-full w-full rounded-xl object-cover"
         />
       </button>
     );
