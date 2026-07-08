@@ -78,11 +78,9 @@ export default function MediaPreview({
       style={{ width: "min(380px, 100%)", aspectRatio: "4 / 3" }}
     >
       <video
-        src={url}
+        src={`${url}#t=0.1`}
         muted
         playsInline
-        loop
-        autoPlay
         className="h-full w-full rounded-xl object-cover"
         preload="metadata"
       />
