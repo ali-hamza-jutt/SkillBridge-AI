@@ -75,9 +75,17 @@ export default function MediaPreview({
       onClick={() => onOpen?.({ url, type: "VIDEO", name: attachment.name })}
       className="relative block overflow-hidden rounded-xl text-left"
       aria-label={`Open ${attachment.name}`}
-      style={{ maxWidth: 380 }}
+      style={{ width: "min(380px, 100%)", aspectRatio: "4 / 3" }}
     >
-      <video src={url} muted playsInline loop autoPlay className="max-h-80 rounded-xl object-cover" preload="metadata" />
+      <video
+        src={url}
+        muted
+        playsInline
+        loop
+        autoPlay
+        className="h-full w-full rounded-xl object-cover"
+        preload="metadata"
+      />
       <div className="absolute inset-0 bg-black/10" />
       <div className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-1 text-[11px] font-medium text-white shadow-sm backdrop-blur-sm">
         Tap to preview
