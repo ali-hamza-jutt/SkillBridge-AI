@@ -12,6 +12,7 @@ import { ConversationsModule } from './conversations/conversations.module';
 import { SkillsModule } from './skills/skills.module';
 import { GCSModule } from './gcs/gcs.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
+import { MeetingsModule } from './meetings/meetings.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ MongooseModule.forRootAsync({
     ConversationsModule,
     GCSModule,
     PortfolioModule,
+    MeetingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -253,6 +253,11 @@ export class ConversationsService {
     }
   }
 
+  async getParticipants(conversationId: string, userId: string) {
+    const conversation = await this.ensureAccess(conversationId, userId);
+    return { clientId: conversation.clientId, freelancerId: conversation.freelancerId };
+  }
+
   async findMyConversations(userId: string) {
     const conversations = await this.conversationModel
       .find({ $or: [{ clientId: userId }, { freelancerId: userId }] })

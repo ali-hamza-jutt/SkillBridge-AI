@@ -2,18 +2,20 @@
 
 import Image from "next/image";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Paperclip, X, FileText, Loader2, RotateCcw, Send, Smile, UserCircle } from "lucide-react";
+import { Paperclip, X, FileText, Loader2, RotateCcw, Send, Smile, UserCircle, Video, CalendarPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
+import { toast } from "sonner";
 import { useAppSelector } from "@/lib/hooks";
 import { useChatSocket } from "@/components/chat-socket-provider";
 import EmojiPicker from "@/components/emoji-picker";
-import type { ChatMessage, ChatMessagePage, ConversationSummary, MessageAttachment } from "@/lib/types/chat";
+import type { ChatMessage, ChatMessagePage, ConversationSummary, Meeting, MessageAttachment } from "@/lib/types/chat";
 import type { AttachmentDto } from "@/lib/api";
 import { createThumbnailFile } from "@/lib/utils/createThumbnailFile";
 import MediaModal from "@/components/media-modal";
 import Avatar from "@/components/conversation-thread/avatar";
+import ScheduleMeetingModal from "@/components/conversation-thread/schedule-meeting-modal";
 import { renderMessageItemRow, type DisplayChatMessage } from "@/components/conversation-thread/render-message-item-row";
 import { CHAT_MESSAGE_PAGE_SIZE, CHAT_VIDEO_UPLOAD_MAX_SIZE_BYTES } from "@/lib/constants/upload";
 import {
@@ -21,6 +23,8 @@ import {
   useConversationsControllerGetMessagesQuery,
   useConversationsControllerSendMessageMutation,
   useGcsControllerGenerateSignedUrlMutation,
+  useMeetingsControllerCreateInstantMutation,
+  useMeetingsControllerListUpcomingQuery,
 } from "@/lib/api";
 
 
@@ -88,6 +92,13 @@ export default function ConversationThread({ conversationId }: { conversationId:
     });
   const [sendMessage, { isLoading: sending }] = useConversationsControllerSendMessageMutation();
   const [generateSignedUrl] = useGcsControllerGenerateSignedUrlMutation();
+  const [createInstantMeeting, { isLoading: startingMeeting }] = useMeetingsControllerCreateInstantMutation();
+  const { data: upcomingMeetingsData, refetch: refetchUpcomingMeetings } = useMeetingsControllerListUpcomingQuery(
+    { conversationId },
+    { skip: !token || !conversationId, refetchOnFocus: true },
+  );
+  const upcomingMeeting = ((upcomingMeetingsData as Meeting[] | undefined) ?? [])[0] ?? null;
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
 
   const baseConversation = (convData as ConversationSummary | undefined) ?? null;
   const [patches, setPatches] = useState<Partial<ConversationSummary>>({});
@@ -241,15 +252,27 @@ export default function ConversationThread({ conversationId }: { conversationId:
         });
       });
     };
+    const onMeetingCreated = (meeting: Meeting) => {
+      if (meeting.conversationId !== conversationId) return;
+      refetchUpcomingMeetings();
+      if (meeting.type === "INSTANT" && meeting.hostUserId !== userId) {
+        toast("Video call started", {
+          description: meeting.topic,
+          action: { label: "Join", onClick: () => window.open(meeting.joinUrl, "_blank") },
+        });
+      }
+    };
     socket.on("message.created", onMessage);
     socket.on("conversation.updated", onUpdated);
     socket.on("message.status.updated", onStatusUpdated);
+    socket.on("meeting.created", onMeetingCreated);
     return () => {
       socket.off("message.created", onMessage);
       socket.off("conversation.updated", onUpdated);
       socket.off("message.status.updated", onStatusUpdated);
+      socket.off("meeting.created", onMeetingCreated);
     };
-  }, [conversationId, emitMessageDelivered, socket, userId]);
+  }, [conversationId, emitMessageDelivered, refetchUpcomingMeetings, socket, userId]);
 
   useEffect(() => {
     const onPointerDown = (event: MouseEvent) => {
@@ -419,6 +442,18 @@ export default function ConversationThread({ conversationId }: { conversationId:
     }
   };
 
+  const handleStartMeeting = async () => {
+    try {
+      const meeting = (await createInstantMeeting({
+        instantMeetingDto: { conversationId },
+      }).unwrap()) as Meeting;
+      refetchUpcomingMeetings();
+      window.open(meeting.startUrl ?? meeting.joinUrl, "_blank");
+    } catch {
+      toast.error("Failed to start the call. Please try again.");
+    }
+  };
+
   const canSend = !sending && !pendingAttachments.some((p) => p.uploading)
     && (body.trim().length > 0 || pendingAttachments.some((p) => p.result !== null));
 
@@ -456,6 +491,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
       className="grid grid-rows-[auto_1fr_auto] overflow-hidden rounded-2xl bg-(--color-surface) shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18)]"
       style={{ height: "calc(100vh - 88px)" }}
     >
+      <div>
       <header className="flex items-center gap-3 px-5 py-3.5">
         <div className="relative">
           <Avatar name={otherName} url={otherAvatarUrl} size={44} />
@@ -481,6 +517,27 @@ export default function ConversationThread({ conversationId }: { conversationId:
             <span className="truncate">{conversation?.taskTitle}</span>
           </div>
         </div>
+        {conversation?.status !== "ARCHIVED" && (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setScheduleModalOpen(true)}
+              className="flex h-8 items-center gap-1.5 rounded-lg border border-(--color-border) px-2.5 text-xs font-semibold text-(--color-text-muted) transition hover:border-(--color-brand) hover:text-(--color-brand-strong)"
+            >
+              <CalendarPlus className="h-3.5 w-3.5" />
+              Schedule
+            </button>
+            <button
+              type="button"
+              onClick={handleStartMeeting}
+              disabled={startingMeeting}
+              className="flex h-8 items-center gap-1.5 rounded-full bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] px-3 text-xs font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
+            >
+              {startingMeeting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Video className="h-3.5 w-3.5" />}
+              Start
+            </button>
+          </div>
+        )}
         {conversation?.otherUserRole === "FREELANCER" && conversation?.otherUserId && (
           <Link
             href={`/dashboard/profile/${conversation.otherUserId}`}
@@ -491,6 +548,25 @@ export default function ConversationThread({ conversationId }: { conversationId:
           </Link>
         )}
       </header>
+
+      {upcomingMeeting && (
+        <div className="flex items-center justify-between gap-3 border-y border-(--color-border) bg-[color-mix(in_srgb,var(--color-brand-soft)_18%,transparent)] px-5 py-2 text-xs">
+          <span className="flex items-center gap-1.5 font-medium text-(--color-text-main)">
+            <Video className="h-3.5 w-3.5 text-(--color-brand-strong)" />
+            Zoom meeting{upcomingMeeting.topic ? ` — ${upcomingMeeting.topic}` : ""} at{" "}
+            {new Date(upcomingMeeting.startTimeUtc).toLocaleString()}
+          </span>
+          <a
+            href={upcomingMeeting.startUrl ?? upcomingMeeting.joinUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="shrink-0 rounded-full bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] px-3 py-1 font-semibold text-white"
+          >
+            Join
+          </a>
+        </div>
+      )}
+      </div>
 
       <Virtuoso
         key={conversationId}
@@ -646,6 +722,16 @@ export default function ConversationThread({ conversationId }: { conversationId:
         type={mediaPreview.type}
         title={mediaPreview.title}
         onClose={closeMediaPreview}
+      />
+
+      <ScheduleMeetingModal
+        open={scheduleModalOpen}
+        conversationId={conversationId}
+        onClose={() => setScheduleModalOpen(false)}
+        onScheduled={() => {
+          refetchUpcomingMeetings();
+          toast.success("Meeting scheduled");
+        }}
       />
     </section>
   );
