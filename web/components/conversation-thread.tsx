@@ -21,6 +21,7 @@ import { CHAT_MESSAGE_PAGE_SIZE, CHAT_VIDEO_UPLOAD_MAX_SIZE_BYTES } from "@/lib/
 import {
   useConversationsControllerGetConversationQuery,
   useConversationsControllerGetMessagesQuery,
+  useLazyConversationsControllerGetMessagesQuery,
   useConversationsControllerSendMessageMutation,
   useGcsControllerGenerateSignedUrlMutation,
   useMeetingsControllerCreateInstantMutation,
@@ -62,9 +63,12 @@ const mergeUniqueMessages = (current: ChatMessage[], incoming: ChatMessage[]) =>
   return Array.from(byId.values()).sort((a, b) => {
     const aT = a.createdAt ? new Date(a.createdAt).getTime() : 0;
     const bT = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-    return aT - bT;
+    if (aT !== bT) return aT - bT;
+    return a.id.localeCompare(b.id);
   });
 };
+
+const VIRTUOSO_FIRST_ITEM_INDEX = 1_000_000;
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function ConversationThread({ conversationId }: { conversationId: string }) {
@@ -83,13 +87,13 @@ export default function ConversationThread({ conversationId }: { conversationId:
       refetchOnFocus: true,
       refetchOnReconnect: true,
     });
-  const [historyCursor, setHistoryCursor] = useState<string | null>(null);
-  const { data: msgData, isLoading: msgLoading, isFetching: msgFetching } =
-    useConversationsControllerGetMessagesQuery({ id: conversationId, before: historyCursor ?? "", limit: String(CHAT_MESSAGE_PAGE_SIZE) }, {
+  const { currentData: latestMessagesData, isLoading: msgLoading } =
+    useConversationsControllerGetMessagesQuery({ id: conversationId, before: "", limit: String(CHAT_MESSAGE_PAGE_SIZE) }, {
       skip: !token || !conversationId,
       refetchOnFocus: true,
       refetchOnReconnect: true,
     });
+  const [fetchOlderMessages] = useLazyConversationsControllerGetMessagesQuery();
   const [sendMessage, { isLoading: sending }] = useConversationsControllerSendMessageMutation();
   const [generateSignedUrl] = useGcsControllerGenerateSignedUrlMutation();
   const [createInstantMeeting, { isLoading: startingMeeting }] = useMeetingsControllerCreateInstantMutation();
@@ -109,7 +113,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
   const [nextHistoryCursor, setNextHistoryCursor] = useState<string | null>(null);
   const [hasMoreHistory, setHasMoreHistory] = useState(true);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
-  const [firstItemIndex, setFirstItemIndex] = useState(0);
+  const [firstItemIndex, setFirstItemIndex] = useState(VIRTUOSO_FIRST_ITEM_INDEX);
 
   const [body, setBody] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
@@ -124,6 +128,11 @@ export default function ConversationThread({ conversationId }: { conversationId:
   const emojiMenuRef = useRef<HTMLDivElement>(null);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const didInitialScrollRef = useRef(false);
+  const isLoadingOlderRef = useRef(false);
+  const hasLoadedOlderMessagesRef = useRef(false);
+  const activeConversationIdRef = useRef(conversationId);
+  activeConversationIdRef.current = conversationId;
+
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
   const visibleMessages = useMemo<DisplayChatMessage[]>(() => {
@@ -133,6 +142,11 @@ export default function ConversationThread({ conversationId }: { conversationId:
 
     return mergeUniqueMessages(messages, stillPending) as DisplayChatMessage[];
   }, [messages, optimisticMessages]);
+
+  const latestOutgoingMessageId = useMemo(() => {
+    const latestMessage = visibleMessages.findLast((message) => message.messageType !== "SYSTEM");
+    return latestMessage?.senderId === userId ? latestMessage.id : null;
+  }, [visibleMessages, userId]);
 
   const openMediaPreview = (item: { url: string; type: "IMAGE" | "VIDEO"; name?: string }) => {
     setMediaPreview({ open: true, src: item.url, type: item.type, title: item.name });
@@ -168,11 +182,12 @@ export default function ConversationThread({ conversationId }: { conversationId:
     setMessages([]);
     setOptimisticMessages([]);
     setPatches({});
-    setHistoryCursor(null);
     setNextHistoryCursor(null);
     setHasMoreHistory(true);
     setIsLoadingOlder(false);
-    setFirstItemIndex(0);
+    isLoadingOlderRef.current = false;
+    hasLoadedOlderMessagesRef.current = false;
+    setFirstItemIndex(VIRTUOSO_FIRST_ITEM_INDEX);
     setBody("");
     setSendError(null);
     setPendingAttachments((current) => {
@@ -187,28 +202,16 @@ export default function ConversationThread({ conversationId }: { conversationId:
   }, [conversationId]);
 
   useEffect(() => {
-    if (!msgData) return;
-    const page = msgData as ChatMessagePage;
+    if (!latestMessagesData) return;
+    const page = latestMessagesData as ChatMessagePage;
     const pageItems = page.items ?? [];
 
-    if (historyCursor === null) {
-      setMessages(pageItems);
-      setFirstItemIndex(0);
-    } else {
-      setMessages((current) => {
-        const merged = mergeUniqueMessages(pageItems, current);
-        const addedCount = merged.length - current.length;
-        if (addedCount > 0) {
-          setFirstItemIndex((value) => value - addedCount);
-        }
-        return merged;
-      });
+    setMessages((current) => mergeUniqueMessages(current, pageItems));
+    if (!hasLoadedOlderMessagesRef.current) {
+      setNextHistoryCursor(page.nextCursor ?? null);
+      setHasMoreHistory(Boolean(page.hasMore));
     }
-
-    setNextHistoryCursor(page.nextCursor ?? null);
-    setHasMoreHistory(Boolean(page.hasMore));
-    setIsLoadingOlder(false);
-  }, [conversationId, historyCursor, msgData]);
+  }, [conversationId, latestMessagesData]);
 
   useEffect(() => {
     if (didInitialScrollRef.current) return;
@@ -218,11 +221,49 @@ export default function ConversationThread({ conversationId }: { conversationId:
     didInitialScrollRef.current = true;
   }, [visibleMessages.length]);
 
-  const loadOlderMessages = useCallback(() => {
-    if (isLoadingOlder || msgFetching || !hasMoreHistory || !nextHistoryCursor) return;
+  const loadOlderMessages = useCallback(async () => {
+    const cursor = nextHistoryCursor;
+    if (isLoadingOlderRef.current || !hasMoreHistory || !cursor || !token) return;
+
+    const requestedConversationId = conversationId;
+    isLoadingOlderRef.current = true;
     setIsLoadingOlder(true);
-    setHistoryCursor(nextHistoryCursor);
-  }, [hasMoreHistory, isLoadingOlder, msgFetching, nextHistoryCursor]);
+
+    try {
+      const page = (await fetchOlderMessages(
+        {
+          id: requestedConversationId,
+          before: cursor,
+          limit: String(CHAT_MESSAGE_PAGE_SIZE),
+        },
+        true,
+      ).unwrap()) as ChatMessagePage;
+
+      if (activeConversationIdRef.current !== requestedConversationId) return;
+
+      const pageItems = page.items ?? [];
+      setMessages((current) => {
+        const merged = mergeUniqueMessages(current, pageItems);
+        const addedCount = merged.length - current.length;
+        if (addedCount > 0) {
+          setFirstItemIndex((value) => value - addedCount);
+        }
+        return merged;
+      });
+      hasLoadedOlderMessagesRef.current = true;
+      setNextHistoryCursor(page.nextCursor ?? null);
+      setHasMoreHistory(Boolean(page.hasMore));
+    } catch {
+      if (activeConversationIdRef.current === requestedConversationId) {
+        toast.error("Could not load older messages. Please try again.");
+      }
+    } finally {
+      if (activeConversationIdRef.current === requestedConversationId) {
+        isLoadingOlderRef.current = false;
+        setIsLoadingOlder(false);
+      }
+    }
+  }, [conversationId, fetchOlderMessages, hasMoreHistory, nextHistoryCursor, token]);
 
   useEffect(() => {
     if (!socket) return;
@@ -587,6 +628,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
             myAvatarUrl,
             otherAvatarUrl,
             openMediaPreview,
+            isLatestOutgoingMessage: message.id === latestOutgoingMessageId,
           })
         }
         components={{

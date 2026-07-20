@@ -17,7 +17,6 @@ export default function MessagesPage() {
   const {
     data,
     isLoading,
-    isFetching,
     error,
   } = useConversationsControllerGetMyConversationsQuery(undefined, {
     skip: !token || (role !== "HIRER" && role !== "FREELANCER"),
@@ -26,9 +25,7 @@ export default function MessagesPage() {
   });
 
   const conversations = (data as ConversationSummary[] | undefined) ?? [];
-  // Only treat the request as "loading" during the initial fetch.
-  // `isFetching` is true for background refetches (focus/reconnect),
-  // which should not replace the existing list with the full "Loading..." text.
+  // Keep the cached list visible while focus/reconnect refreshes run silently.
   const loading = isLoading;
   const errorMessage =
     error && typeof error === "object" && "data" in error
@@ -64,10 +61,6 @@ export default function MessagesPage() {
             {loading ? (
               <div className="flex items-center justify-center py-6">
                 <Loader2 className="h-8 w-8 animate-spin text-(--color-brand)" />
-              </div>
-            ) : isFetching ? (
-              <div className="px-2 py-2">
-                <Loader2 className="h-4 w-4 animate-spin text-(--color-text-muted)" />
               </div>
             ) : null}
             {!loading && errorMessage ? <p className="px-2 text-sm text-red-600">{errorMessage}</p> : null}

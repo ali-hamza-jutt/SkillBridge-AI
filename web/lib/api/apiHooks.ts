@@ -395,6 +395,16 @@ const injectedRtkApi = api.injectEndpoints({
         body: queryArg.sendMessageDto,
       }),
     }),
+    conversationsControllerMarkRead: build.mutation<
+      ConversationsControllerMarkReadApiResponse,
+      ConversationsControllerMarkReadApiArg
+    >({
+      query: (queryArg) => ({
+        url: `/conversations/${queryArg.id}/read`,
+        method: "PATCH",
+        body: queryArg.markConversationReadDto,
+      }),
+    }),
     gcsControllerGenerateSignedUrl: build.mutation<
       GcsControllerGenerateSignedUrlApiResponse,
       GcsControllerGenerateSignedUrlApiArg
@@ -444,6 +454,50 @@ const injectedRtkApi = api.injectEndpoints({
       query: (queryArg) => ({
         url: `/portfolio/${queryArg.id}`,
         method: "DELETE",
+      }),
+    }),
+    meetingsControllerCreateInstant: build.mutation<
+      MeetingsControllerCreateInstantApiResponse,
+      MeetingsControllerCreateInstantApiArg
+    >({
+      query: (queryArg) => ({
+        url: `/meetings/instant`,
+        method: "POST",
+        body: queryArg.instantMeetingDto,
+      }),
+    }),
+    meetingsControllerSchedule: build.mutation<
+      MeetingsControllerScheduleApiResponse,
+      MeetingsControllerScheduleApiArg
+    >({
+      query: (queryArg) => ({
+        url: `/meetings/schedule`,
+        method: "POST",
+        body: queryArg.scheduleMeetingDto,
+      }),
+    }),
+    meetingsControllerCheckConflicts: build.query<
+      MeetingsControllerCheckConflictsApiResponse,
+      MeetingsControllerCheckConflictsApiArg
+    >({
+      query: (queryArg) => ({
+        url: `/meetings/conflicts`,
+        params: {
+          conversationId: queryArg.conversationId,
+          startTimeUtc: queryArg.startTimeUtc,
+          durationMinutes: queryArg.durationMinutes,
+        },
+      }),
+    }),
+    meetingsControllerListUpcoming: build.query<
+      MeetingsControllerListUpcomingApiResponse,
+      MeetingsControllerListUpcomingApiArg
+    >({
+      query: (queryArg) => ({
+        url: `/meetings`,
+        params: {
+          conversationId: queryArg.conversationId,
+        },
       }),
     }),
   }),
@@ -632,6 +686,11 @@ export type ConversationsControllerSendMessageApiArg = {
   id: string;
   sendMessageDto: SendMessageDto;
 };
+export type ConversationsControllerMarkReadApiResponse = unknown;
+export type ConversationsControllerMarkReadApiArg = {
+  id: string;
+  markConversationReadDto: MarkConversationReadDto;
+};
 export type GcsControllerGenerateSignedUrlApiResponse = unknown;
 export type GcsControllerGenerateSignedUrlApiArg = {
   generateUploadUrlDto: GenerateUploadUrlDto;
@@ -654,6 +713,24 @@ export type PortfolioControllerUpdateApiArg = {
 export type PortfolioControllerRemoveApiResponse = unknown;
 export type PortfolioControllerRemoveApiArg = {
   id: string;
+};
+export type MeetingsControllerCreateInstantApiResponse = unknown;
+export type MeetingsControllerCreateInstantApiArg = {
+  instantMeetingDto: InstantMeetingDto;
+};
+export type MeetingsControllerScheduleApiResponse = unknown;
+export type MeetingsControllerScheduleApiArg = {
+  scheduleMeetingDto: ScheduleMeetingDto;
+};
+export type MeetingsControllerCheckConflictsApiResponse = unknown;
+export type MeetingsControllerCheckConflictsApiArg = {
+  conversationId: string;
+  startTimeUtc: string;
+  durationMinutes: string;
+};
+export type MeetingsControllerListUpcomingApiResponse = unknown;
+export type MeetingsControllerListUpcomingApiArg = {
+  conversationId: string;
 };
 export type SignupDto = {
   name: string;
@@ -786,6 +863,9 @@ export type SendMessageDto = {
   body?: string;
   attachments?: AttachmentDto[];
 };
+export type MarkConversationReadDto = {
+  lastReadMessageId?: string;
+};
 export type GenerateUploadUrlDto = {
   /** Original file name including extension */
   fileName: string;
@@ -817,6 +897,19 @@ export type UpdatePortfolioProjectDto = {
   techStack?: string[];
   projectUrl?: string;
   media?: ProjectMediaDto[];
+};
+export type InstantMeetingDto = {
+  conversationId: string;
+  topic?: string;
+};
+export type ScheduleMeetingDto = {
+  conversationId: string;
+  /** Meeting start time as a UTC ISO-8601 string */
+  startTimeUtc: string;
+  durationMinutes: number;
+  /** IANA timezone of the scheduling user, for display only */
+  timezone: string;
+  topic?: string;
 };
 export const {
   useAppControllerGetHelloQuery,
@@ -866,11 +959,17 @@ export const {
   useConversationsControllerHireMutation,
   useConversationsControllerGetConversationQuery,
   useConversationsControllerGetMessagesQuery,
+  useLazyConversationsControllerGetMessagesQuery,
   useConversationsControllerSendMessageMutation,
+  useConversationsControllerMarkReadMutation,
   useGcsControllerGenerateSignedUrlMutation,
   usePortfolioControllerCreateMutation,
   usePortfolioControllerFindMineQuery,
   usePortfolioControllerFindByUserQuery,
   usePortfolioControllerUpdateMutation,
   usePortfolioControllerRemoveMutation,
+  useMeetingsControllerCreateInstantMutation,
+  useMeetingsControllerScheduleMutation,
+  useMeetingsControllerCheckConflictsQuery,
+  useMeetingsControllerListUpcomingQuery,
 } = injectedRtkApi;
