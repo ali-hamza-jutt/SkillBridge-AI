@@ -16,13 +16,13 @@ export default function ConversationPage() {
   const conversationId = Array.isArray(params.conversationId) ? params.conversationId[0] : params.conversationId;
   const { role, token } = useAppSelector((state) => state.auth);
   useConversationListRealtimeUpdates();
-  const { data, isLoading, isFetching } = useConversationsControllerGetMyConversationsQuery(undefined, {
+  const { data, isLoading } = useConversationsControllerGetMyConversationsQuery(undefined, {
     skip: !token || (role !== "HIRER" && role !== "FREELANCER"),
     refetchOnFocus: true,
     refetchOnReconnect: true,
   });
   const conversations = (data as ConversationSummary[] | undefined) ?? [];
-  const loadingSidebar = isLoading || isFetching;
+  const loadingSidebar = isLoading;
 
   if (role !== "HIRER" && role !== "FREELANCER") {
     return <RoleAccessNotice title="Messages unavailable" description="This area is available for active client and freelancer accounts." />;

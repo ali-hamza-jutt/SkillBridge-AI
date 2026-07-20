@@ -61,3 +61,25 @@ export type ChatMessagePage = {
   nextCursor: string | null;
   hasMore: boolean;
 };
+
+export type MeetingType = "INSTANT" | "SCHEDULED";
+export type MeetingStatus = "SCHEDULED" | "STARTED" | "ENDED" | "CANCELLED";
+
+export type Meeting = {
+  id: string;
+  conversationId: string;
+  hostUserId: string;
+  type: MeetingType;
+  status: MeetingStatus;
+  topic: string;
+  startTimeUtc: string;
+  endTimeUtc: string;
+  durationMinutes: number;
+  timezone: string;
+  joinUrl: string;
+  startUrl?: string;
+};
+
+export type MeetingConflict =
+  | { conflict: true; startTimeUtc: string; endTimeUtc: string }
+  | { conflict: false };

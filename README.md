@@ -31,6 +31,7 @@ SkillBridge AI is a freelance task marketplace connecting clients and freelancer
 - API Docs: Swagger
 - Frontend: Next.js (App Router), Redux Toolkit, RTK Query
 - Realtime: Socket.IO
+- Video meetings: Zoom (Server-to-Server OAuth)
 - Storage: Google Cloud Storage
 
 ## Features
@@ -50,10 +51,18 @@ SkillBridge AI is a freelance task marketplace connecting clients and freelancer
 - Real-time chat
 	- Text messages, image/video/document attachments
 	- Delivered/read receipts
+	- Instant and scheduled Zoom video meetings, with double-booking conflict detection
 - Redis caching for selected task queries
 - Swagger API documentation
 - Redux Toolkit + RTK Query integration in frontend
 
+## Video Meetings (Zoom Integration)
+
+Each conversation's chat header has **Start** (instant call) and **Schedule** (book a future call) actions, backed by the Zoom REST API via a Server-to-Server OAuth app.
+
+- Meetings are stored in MongoDB (`server/src/meetings`) with UTC start/end times; a participant's availability is checked with a single indexed overlap query before a new meeting is scheduled, so double-booking is caught and surfaced to the user.
+- The Zoom OAuth access token is cached in Redis between calls (`server/src/zoom`).
+- Requires a Zoom Server-to-Server OAuth app — see `ZOOM_ACCOUNT_ID` / `ZOOM_CLIENT_ID` / `ZOOM_CLIENT_SECRET` in `server/.env.example`.
 ## Deployment
 
 - **Backend:** deployed to Google Cloud Run via a GitHub Actions CI/CD pipeline (`.github/workflows/deploy.yml`) — on every push to `main` that touches `server/**`, the workflow builds a Docker image, pushes it to Artifact Registry, and deploys it to Cloud Run. Authentication to GCP uses Workload Identity Federation (no long-lived service account keys), and runtime secrets (Mongo, Redis, RabbitMQ, JWT, VAPID, GCS) are pulled from Secret Manager at deploy time.
@@ -73,5 +82,6 @@ SkillBridge AI is a freelance task marketplace connecting clients and freelancer
 - Better error handling and observability
 - Automated tests for service and integration layers
 - Full Job Board features
+- Deployment and CI/CD setup
 - In-app video chat/meetings for client-freelancer conversations
 - AI-powered modules (e.g. task/bid matching, smart recommendations)

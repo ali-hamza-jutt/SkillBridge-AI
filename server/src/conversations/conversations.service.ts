@@ -253,6 +253,11 @@ export class ConversationsService {
     }
   }
 
+  async getParticipants(conversationId: string, userId: string) {
+    const conversation = await this.ensureAccess(conversationId, userId);
+    return { clientId: conversation.clientId, freelancerId: conversation.freelancerId };
+  }
+
   async findMyConversations(userId: string) {
     const conversations = await this.conversationModel
       .find({ $or: [{ clientId: userId }, { freelancerId: userId }] })
@@ -351,19 +356,24 @@ export class ConversationsService {
 
     const pageSize = Math.min(limit, 100);
 
-    const messages = (await this.messageModel
+    const messagesNewestFirst = (await this.messageModel
       .find(query)
       .sort({ createdAt: -1, _id: -1 })
       .limit(pageSize + 1)
       .lean()) as MessageLike[];
 
-    const hasMore = messages.length > pageSize;
-    if (hasMore) messages.pop();
+    const hasMore = messagesNewestFirst.length > pageSize;
+    if (hasMore) messagesNewestFirst.pop();
 
-    const userIds = messages.map((m) => m.senderId).filter((senderId): senderId is string => senderId.trim().length > 0);
+    // The query is newest-first, so its final item is the oldest item in this
+    // page and therefore the correct boundary for the next request. Capture it
+    // before producing the oldest-first response expected by the UI.
+    const oldestMessageInPage = messagesNewestFirst.at(-1) ?? null;
+
+    const userIds = messagesNewestFirst.map((m) => m.senderId).filter((senderId): senderId is string => senderId.trim().length > 0);
     const nameMap = await this.usersService.getUserNameMap(userIds);
 
-    const messageIds = messages.map((m) => String(m._id));
+    const messageIds = messagesNewestFirst.map((m) => String(m._id));
     const mediaDocs = messageIds.length
       ? ((await this.messageMediaModel.find({ messageId: { $in: messageIds } }).sort({ createdAt: 1, _id: 1 }).lean()) as MessageMediaLike[])
       : [];
@@ -375,7 +385,7 @@ export class ConversationsService {
       mediaMap.set(media.messageId, next);
     }
 
-    const items = messages.reverse().map((message) => {
+    const items = [...messagesNewestFirst].reverse().map((message) => {
       const legacyAttachments = getLegacyAttachments(message);
       const storedAttachments = mediaMap.get(String(message._id)) ?? [];
 
@@ -395,7 +405,7 @@ export class ConversationsService {
 
     return {
       items,
-      nextCursor: hasMore && messages.length > 0 ? encodeMessageCursor(messages[messages.length - 1]) : null,
+      nextCursor: hasMore && oldestMessageInPage ? encodeMessageCursor(oldestMessageInPage) : null,
       hasMore,
     };
   }

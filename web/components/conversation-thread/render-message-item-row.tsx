@@ -17,6 +17,7 @@ type RenderMessageItemContext = {
   myAvatarUrl?: string | null;
   otherAvatarUrl: string | null;
   openMediaPreview: (item: { url: string; type: "IMAGE" | "VIDEO"; name?: string }) => void;
+  isLatestOutgoingMessage: boolean;
 };
 
 const SINGLE_EMOJI_REGEX = /^(?:\p{Extended_Pictographic}|\p{Regional_Indicator}{2}|\p{Emoji_Presentation}|\p{Emoji}\uFE0F)(?:\u200D(?:\p{Extended_Pictographic}|\p{Emoji_Presentation}|\p{Emoji}\uFE0F))*$/u;
@@ -120,7 +121,7 @@ export function renderMessageItemRow(
           </div>
         )}
 
-        {isMine && !isSystem ? (
+        {isMine && context.isLatestOutgoingMessage ? (
           <div className="mt-0.5 text-[11px] text-(--color-text-muted)">{formatMessageStatus(message.status)}</div>
         ) : null}
       </div>
