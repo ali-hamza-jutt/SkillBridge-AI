@@ -10,7 +10,6 @@ type ChatSocketContextValue = {
   joinConversation: (conversationId: string) => void;
   leaveConversation: (conversationId: string) => void;
   emitConversationRead: (conversationId: string, lastReadMessageId?: string) => void;
-  emitMessageDelivered: (conversationId: string, messageId: string) => void;
   emitPresenceHeartbeat: () => void;
 };
 
@@ -46,6 +45,38 @@ export default function ChatSocketProvider({ children }: PropsWithChildren) {
       }
     });
 
+    const deliveredMessageIds = new Set<string>();
+    const onMessageCreated = (message: {
+      id?: string;
+      conversationId?: string;
+      senderId?: string;
+      recipientId?: string;
+    }) => {
+      if (
+        !message.id ||
+        !message.conversationId ||
+        !message.senderId ||
+        message.senderId === userId ||
+        (message.recipientId && message.recipientId !== userId) ||
+        deliveredMessageIds.has(message.id)
+      ) {
+        return;
+      }
+
+      deliveredMessageIds.add(message.id);
+      if (deliveredMessageIds.size > 500) {
+        const oldestMessageId = deliveredMessageIds.values().next().value;
+        if (oldestMessageId) deliveredMessageIds.delete(oldestMessageId);
+      }
+
+      nextSocket.emit("message.delivered", {
+        conversationId: message.conversationId,
+        messageId: message.id,
+      });
+    };
+
+    nextSocket.on("message.created", onMessageCreated);
+
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSocket(nextSocket);
 
@@ -69,7 +100,7 @@ export default function ChatSocketProvider({ children }: PropsWithChildren) {
       if (socket && !connected) {
         try {
           socket.connect();
-        } catch (e) {
+        } catch {
           // ignore
         }
       }
@@ -102,9 +133,6 @@ export default function ChatSocketProvider({ children }: PropsWithChildren) {
       },
       emitConversationRead: (conversationId: string, lastReadMessageId?: string) => {
         socket?.emit("conversation.read", { conversationId, lastReadMessageId });
-      },
-      emitMessageDelivered: (conversationId: string, messageId: string) => {
-        socket?.emit("message.delivered", { conversationId, messageId });
       },
       emitPresenceHeartbeat: () => {
         socket?.emit("presence.heartbeat");

@@ -7,6 +7,12 @@ import { store } from "@/lib/store";
 import { setCredentials, setHydrated } from "@/lib/features/auth/authSlice";
 import ChatSocketProvider from "@/components/chat-socket-provider";
 import { NotificationsProvider } from "@/lib/notifications-context";
+import { useConversationListRealtimeUpdates } from "@/lib/useConversationListRealtimeUpdates";
+
+function ConversationRealtimeSync() {
+  useConversationListRealtimeUpdates();
+  return null;
+}
 
 function AuthBootstrap() {
   useEffect(() => {
@@ -48,6 +54,7 @@ export default function Providers({ children }: PropsWithChildren) {
       <AuthBootstrap />
       <Toaster position="top-right" richColors closeButton duration={5000} />
       <ChatSocketProvider>
+        <ConversationRealtimeSync />
         <NotificationsProvider>{children}</NotificationsProvider>
       </ChatSocketProvider>
     </Provider>

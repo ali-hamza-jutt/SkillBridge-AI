@@ -11,7 +11,8 @@ export function useUnreadConversationCount(): number {
 
   const { data } = useConversationsControllerGetMyConversationsQuery(undefined, {
     skip,
-    pollingInterval: 30_000,
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
   });
 
   return useMemo(() => {
