@@ -9,7 +9,7 @@ async function bootstrap() {
       console.log('MONGODB_URI (main):', process.env.MONGODB_URI);
       console.log('REDIS_URL (main):', process.env.REDIS_URL);
   
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   const isDev = process.env.NODE_ENV !== 'production';
 
@@ -92,8 +92,8 @@ async function bootstrap() {
   await app.startAllMicroservices();
   await app.listen(process.env.PORT ?? 3001);
 
-  process.on('SIGTERM', async () => {
-    await app.close();
+  process.on('SIGTERM', () => {
+    void app.close();
   });
 }
 bootstrap().catch(console.error);

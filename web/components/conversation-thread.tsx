@@ -69,6 +69,8 @@ const mergeUniqueMessages = (current: ChatMessage[], incoming: ChatMessage[]) =>
 };
 
 const VIRTUOSO_FIRST_ITEM_INDEX = 1_000_000;
+const MEETING_STATUS_POLL_INTERVAL_MS = 60_000;
+const MAX_BROWSER_TIMEOUT_MS = 2_147_000_000;
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function ConversationThread({ conversationId }: { conversationId: string }) {
@@ -99,9 +101,29 @@ export default function ConversationThread({ conversationId }: { conversationId:
   const [createInstantMeeting, { isLoading: startingMeeting }] = useMeetingsControllerCreateInstantMutation();
   const { data: upcomingMeetingsData, refetch: refetchUpcomingMeetings } = useMeetingsControllerListUpcomingQuery(
     { conversationId },
-    { skip: !token || !conversationId, refetchOnFocus: true },
+    {
+      skip: !token || !conversationId,
+      refetchOnFocus: true,
+      refetchOnReconnect: true,
+      pollingInterval: MEETING_STATUS_POLL_INTERVAL_MS,
+      skipPollingIfUnfocused: true,
+    },
   );
-  const upcomingMeeting = ((upcomingMeetingsData as Meeting[] | undefined) ?? [])[0] ?? null;
+  const [meetingClock, setMeetingClock] = useState(() => Date.now());
+  const [endedMeetingIds, setEndedMeetingIds] = useState<ReadonlySet<string>>(() => new Set());
+  const upcomingMeeting = useMemo(
+    () =>
+      ((upcomingMeetingsData as Meeting[] | undefined) ?? []).find((meeting) => {
+        const endTime = new Date(meeting.endTimeUtc).getTime();
+        return (
+          !endedMeetingIds.has(meeting.id) &&
+          (meeting.status === "SCHEDULED" || meeting.status === "STARTED") &&
+          Number.isFinite(endTime) &&
+          endTime > meetingClock
+        );
+      }) ?? null,
+    [endedMeetingIds, meetingClock, upcomingMeetingsData],
+  );
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
 
   const baseConversation = (convData as ConversationSummary | undefined) ?? null;
@@ -182,6 +204,8 @@ export default function ConversationThread({ conversationId }: { conversationId:
     setMessages([]);
     setOptimisticMessages([]);
     setPatches({});
+    setMeetingClock(Date.now());
+    setEndedMeetingIds(new Set());
     setNextHistoryCursor(null);
     setHasMoreHistory(true);
     setIsLoadingOlder(false);
@@ -200,6 +224,21 @@ export default function ConversationThread({ conversationId }: { conversationId:
     setEmojiPickerOpen(false);
     didInitialScrollRef.current = false;
   }, [conversationId]);
+  useEffect(() => {
+    if (!upcomingMeeting) return;
+
+    const endTime = new Date(upcomingMeeting.endTimeUtc).getTime();
+    if (!Number.isFinite(endTime)) return;
+
+    const remaining = Math.max(endTime - Date.now(), 0);
+    const timeout = window.setTimeout(() => {
+      setMeetingClock(Date.now());
+      void refetchUpcomingMeetings();
+    }, Math.min(remaining + 250, MAX_BROWSER_TIMEOUT_MS));
+
+    return () => window.clearTimeout(timeout);
+  }, [refetchUpcomingMeetings, upcomingMeeting]);
+
 
   useEffect(() => {
     if (!latestMessagesData) return;
@@ -295,7 +334,16 @@ export default function ConversationThread({ conversationId }: { conversationId:
     };
     const onMeetingCreated = (meeting: Meeting) => {
       if (meeting.conversationId !== conversationId) return;
-      refetchUpcomingMeetings();
+
+      setMeetingClock(Date.now());
+      setEndedMeetingIds((current) => {
+        if (!current.has(meeting.id)) return current;
+        const next = new Set(current);
+        next.delete(meeting.id);
+        return next;
+      });
+      void refetchUpcomingMeetings();
+
       if (meeting.type === "INSTANT" && meeting.hostUserId !== userId) {
         toast("Video call started", {
           description: meeting.topic,
@@ -303,15 +351,24 @@ export default function ConversationThread({ conversationId }: { conversationId:
         });
       }
     };
+    const onMeetingEnded = (meeting: Pick<Meeting, "id" | "conversationId">) => {
+      if (meeting.conversationId !== conversationId) return;
+
+      setEndedMeetingIds((current) => new Set(current).add(meeting.id));
+      setMeetingClock(Date.now());
+      void refetchUpcomingMeetings();
+    };
     socket.on("message.created", onMessage);
     socket.on("conversation.updated", onUpdated);
     socket.on("message.status.updated", onStatusUpdated);
     socket.on("meeting.created", onMeetingCreated);
+    socket.on("meeting.ended", onMeetingEnded);
     return () => {
       socket.off("message.created", onMessage);
       socket.off("conversation.updated", onUpdated);
       socket.off("message.status.updated", onStatusUpdated);
       socket.off("meeting.created", onMeetingCreated);
+      socket.off("meeting.ended", onMeetingEnded);
     };
   }, [conversationId, emitMessageDelivered, refetchUpcomingMeetings, socket, userId]);
 
