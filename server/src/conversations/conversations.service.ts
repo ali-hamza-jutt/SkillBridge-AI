@@ -20,6 +20,7 @@ import {
 import {
   ChatMessage,
   ChatMessageDocument,
+  ChatMessageStatus,
   ChatMessageType,
 } from './schemas/message.schema';
 import {
@@ -271,19 +272,25 @@ export class ConversationsService {
     await this.ensureAccess(conversationId, userId);
 
     const lastMessage = lastReadMessageId
-      ? await this.messageModel.findById(lastReadMessageId).lean()
+      ? await this.messageModel.findOne({ _id: lastReadMessageId, conversationId }).lean()
       : await this.messageModel.findOne({ conversationId }).sort({ createdAt: -1, _id: -1 }).lean();
 
     if (!lastMessage) {
+      if (lastReadMessageId) return { ok: true };
       await this.cacheService.hSet(this.unreadKey(userId), conversationId, 0);
       this.gateway.emitToUser(userId, 'conversation.updated', { conversationId, unreadCount: 0 });
       return { ok: true };
     }
 
     const lastReadId = String(lastMessage._id);
-    await this.messageModel.updateMany(
-      { conversationId, senderId: { $ne: userId }, _id: { $lte: new Types.ObjectId(lastReadId) } },
-      { $set: { status: 'read' } },
+    const readResult = await this.messageModel.updateMany(
+      {
+        conversationId,
+        senderId: { $ne: userId },
+        _id: { $lte: new Types.ObjectId(lastReadId) },
+        status: { $ne: ChatMessageStatus.READ },
+      },
+      { $set: { status: ChatMessageStatus.READ } },
     );
 
     await this.readReceiptModel.findOneAndUpdate(
@@ -296,14 +303,16 @@ export class ConversationsService {
 
     this.gateway.emitToUser(userId, 'conversation.read', { conversationId, lastReadMessageId: lastReadId, unreadCount: 0 });
 
-    const peers = await this.getConversationPeers(conversationId, userId);
-    for (const peerId of peers) {
-      this.gateway.emitToUser(peerId, 'message.status.updated', {
-        conversationId,
-        messageId: lastReadId,
-        status: 'read',
-        seenByUserId: userId,
-      });
+    if (readResult.modifiedCount > 0) {
+      const peers = await this.getConversationPeers(conversationId, userId);
+      for (const peerId of peers) {
+        this.gateway.emitToUser(peerId, 'message.status.updated', {
+          conversationId,
+          messageId: lastReadId,
+          status: ChatMessageStatus.READ,
+          seenByUserId: userId,
+        });
+      }
     }
 
     return { ok: true };
@@ -321,17 +330,19 @@ export class ConversationsService {
       return { ok: true };
     }
 
-    await this.messageModel.updateOne(
-      { _id: message._id },
-      { $set: { status: 'delivered' } },
+    const deliveryResult = await this.messageModel.updateOne(
+      { _id: message._id, status: ChatMessageStatus.SENT },
+      { $set: { status: ChatMessageStatus.DELIVERED } },
     );
 
-    this.gateway.emitToUser(message.senderId, 'message.status.updated', {
-      conversationId,
-      messageId: String(message._id),
-      status: 'delivered',
-      seenByUserId: userId,
-    });
+    if (deliveryResult.modifiedCount > 0) {
+      this.gateway.emitToUser(message.senderId, 'message.status.updated', {
+        conversationId,
+        messageId: String(message._id),
+        status: ChatMessageStatus.DELIVERED,
+        seenByUserId: userId,
+      });
+    }
 
     return { ok: true };
   }

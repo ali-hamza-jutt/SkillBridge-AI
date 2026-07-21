@@ -20,7 +20,7 @@ export function useConversationListRealtimeUpdates() {
     endpointName: string,
     arg: void,
     updateRecipe: (draft: ConversationSummary[]) => void,
-  ) => any;
+  ) => ReturnType<typeof emptySplitApi.util.updateQueryData>;
 
   useEffect(() => {
     if (!socket || !token || (role !== "HIRER" && role !== "FREELANCER")) {

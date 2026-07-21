@@ -189,8 +189,13 @@ export default function DashboardNavbar({ role, activeItem, onPostJob }: Dashboa
           <div className="flex min-w-0 items-center gap-3 flex-nowrap">
             <nav className="flex min-w-0 flex-wrap items-center gap-2 whitespace-nowrap" aria-label="Dashboard navigation">
               {navItems.map((item) => (
-                <Link key={item.label} href={item.href} className={navButtonClass}>
+                <Link key={item.label} href={item.href} className={`${navButtonClass} relative inline-flex items-center`}>
                   {item.label}
+                  {item.label === "Messages" && unreadCount > 0 ? (
+                    <span className="ml-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  ) : null}
                 </Link>
               ))}
             </nav>
@@ -220,11 +225,6 @@ export default function DashboardNavbar({ role, activeItem, onPostJob }: Dashboa
             aria-label="Notifications"
           >
             <Bell className="h-5 w-5 shrink-0" />
-            {unreadCount > 0 ? (
-              <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-(--color-brand) px-1 text-[10px] font-bold leading-none text-white">
-                {unreadCount > 99 ? "99+" : unreadCount}
-              </span>
-            ) : null}
           </button>
 
           <ProfileAvatar

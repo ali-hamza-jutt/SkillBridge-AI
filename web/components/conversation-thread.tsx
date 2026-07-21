@@ -76,7 +76,7 @@ const MAX_BROWSER_TIMEOUT_MS = 2_147_000_000;
 export default function ConversationThread({ conversationId }: { conversationId: string }) {
   const router = useRouter();
   const { token, userId, avatarUrl: myAvatarUrl } = useAppSelector((s) => s.auth);
-  const { socket, joinConversation, leaveConversation, emitConversationRead, emitMessageDelivered } = useChatSocket();
+  const { socket, connected, joinConversation, leaveConversation, emitConversationRead } = useChatSocket();
   const myDisplayName = useMemo(() => {
     const fallback = "You";
     if (!token) return fallback;
@@ -136,6 +136,10 @@ export default function ConversationThread({ conversationId }: { conversationId:
   const [hasMoreHistory, setHasMoreHistory] = useState(true);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const [firstItemIndex, setFirstItemIndex] = useState(VIRTUOSO_FIRST_ITEM_INDEX);
+  const [isAtBottom, setIsAtBottom] = useState(false);
+  const [isWindowActive, setIsWindowActive] = useState(
+    () => typeof document !== "undefined" && document.visibilityState === "visible" && document.hasFocus(),
+  );
 
   const [body, setBody] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
@@ -153,6 +157,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
   const isLoadingOlderRef = useRef(false);
   const hasLoadedOlderMessagesRef = useRef(false);
   const activeConversationIdRef = useRef(conversationId);
+  const lastReadMessageIdRef = useRef<string | null>(null);
   activeConversationIdRef.current = conversationId;
 
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
@@ -194,11 +199,33 @@ export default function ConversationThread({ conversationId }: { conversationId:
   }, [conversationId, joinConversation, leaveConversation, token]);
 
   useEffect(() => {
-    if (!conversationId || visibleMessages.length === 0) return;
-    const lastMessage = visibleMessages[visibleMessages.length - 1];
-    emitConversationRead(conversationId, lastMessage.id);
+    if (!conversationId || !userId || !connected || !isAtBottom || !isWindowActive) return;
+    const lastIncomingMessage = visibleMessages.findLast(
+      (message) =>
+        message.conversationId === conversationId &&
+        message.messageType !== "SYSTEM" && message.senderId !== userId,
+    );
+    if (!lastIncomingMessage || lastReadMessageIdRef.current === lastIncomingMessage.id) return;
+
+    lastReadMessageIdRef.current = lastIncomingMessage.id;
+    emitConversationRead(conversationId, lastIncomingMessage.id);
     setPatches((prev) => ({ ...prev, unreadCount: 0 }));
-  }, [conversationId, emitConversationRead, visibleMessages]);
+  }, [connected, conversationId, emitConversationRead, isAtBottom, isWindowActive, userId, visibleMessages]);
+
+  useEffect(() => {
+    const updateWindowActivity = () => {
+      setIsWindowActive(document.visibilityState === "visible" && document.hasFocus());
+    };
+
+    document.addEventListener("visibilitychange", updateWindowActivity);
+    window.addEventListener("focus", updateWindowActivity);
+    window.addEventListener("blur", updateWindowActivity);
+    return () => {
+      document.removeEventListener("visibilitychange", updateWindowActivity);
+      window.removeEventListener("focus", updateWindowActivity);
+      window.removeEventListener("blur", updateWindowActivity);
+    };
+  }, []);
 
   useEffect(() => {
     setMessages([]);
@@ -212,6 +239,8 @@ export default function ConversationThread({ conversationId }: { conversationId:
     isLoadingOlderRef.current = false;
     hasLoadedOlderMessagesRef.current = false;
     setFirstItemIndex(VIRTUOSO_FIRST_ITEM_INDEX);
+    setIsAtBottom(false);
+    lastReadMessageIdRef.current = null;
     setBody("");
     setSendError(null);
     setPendingAttachments((current) => {
@@ -311,9 +340,6 @@ export default function ConversationThread({ conversationId }: { conversationId:
       setMessages((cur) => cur.some((m) => m.id === p.id) ? cur : mergeUniqueMessages(cur, [p]));
       setOptimisticMessages((current) => current.filter((pendingMessage) => !messagesEquivalent(p, pendingMessage)));
       setPatches((prev) => ({ ...prev, lastMessageText: p.body, lastMessageAt: p.createdAt }));
-      if (p.senderId !== userId) {
-        emitMessageDelivered(conversationId, p.id);
-      }
     };
     const onUpdated = (p: Partial<ConversationSummary> & { conversationId: string }) => {
       if (p.conversationId !== conversationId) return;
@@ -370,7 +396,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
       socket.off("meeting.created", onMeetingCreated);
       socket.off("meeting.ended", onMeetingEnded);
     };
-  }, [conversationId, emitMessageDelivered, refetchUpcomingMeetings, socket, userId]);
+  }, [conversationId, refetchUpcomingMeetings, socket, userId]);
 
   useEffect(() => {
     const onPointerDown = (event: MouseEvent) => {
@@ -675,6 +701,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
         alignToBottom
         firstItemIndex={firstItemIndex}
         followOutput="auto"
+        atBottomStateChange={setIsAtBottom}
         increaseViewportBy={{ top: 800, bottom: 1000 }}
         startReached={loadOlderMessages}
         computeItemKey={(_, message) => message.id}
