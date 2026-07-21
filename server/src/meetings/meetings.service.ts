@@ -102,14 +102,50 @@ export class MeetingsService {
     };
   }
 
+  async markZoomMeetingEnded(zoomMeetingId: string) {
+    if (!zoomMeetingId) return false;
+
+    const endedAt = new Date();
+    const meeting = (await this.meetingModel
+      .findOneAndUpdate(
+        {
+          zoomMeetingId,
+          status: { $in: [MeetingStatus.SCHEDULED, MeetingStatus.STARTED] },
+        },
+        { $set: { status: MeetingStatus.ENDED, endTimeUtc: endedAt } },
+        { new: true },
+      )
+      .lean()) as MeetingLike | null;
+
+    if (!meeting) return false;
+
+    this.gateway.emitToConversation(
+      meeting.conversationId,
+      'meeting.ended',
+      this.toPublicPayload(meeting),
+    );
+    return true;
+  }
+
   async listUpcomingForConversation(conversationId: string, userId: string) {
     await this.conversationsService.getParticipants(conversationId, userId);
+
+    const now = new Date();
+
+    await this.meetingModel.updateMany(
+      {
+        conversationId,
+        status: { $in: [MeetingStatus.SCHEDULED, MeetingStatus.STARTED] },
+        endTimeUtc: { $lte: now },
+      },
+      { $set: { status: MeetingStatus.ENDED } },
+    );
 
     const meetings = (await this.meetingModel
       .find({
         conversationId,
         status: { $in: [MeetingStatus.SCHEDULED, MeetingStatus.STARTED] },
-        endTimeUtc: { $gt: new Date() },
+        endTimeUtc: { $gt: now },
       })
       .sort({ startTimeUtc: 1 })
       .limit(5)
