@@ -12,7 +12,7 @@ export type DisplayChatMessage = ChatMessage & {
 };
 
 type RenderMessageItemContext = {
-  visibleMessages: DisplayChatMessage[];
+  previousMessage?: DisplayChatMessage;
   userId: string | null;
   myAvatarUrl?: string | null;
   otherAvatarUrl: string | null;
@@ -34,13 +34,12 @@ function formatMessageStatus(status?: string) {
 }
 
 export function renderMessageItemRow(
-  idx: number,
   message: DisplayChatMessage,
   context: RenderMessageItemContext,
 ) {
   const isMine = message.senderId === context.userId;
   const isSystem = message.messageType === "SYSTEM";
-  const prev = context.visibleMessages[idx - 1];
+  const prev = context.previousMessage;
   const sameAuthorAsPrev = prev && prev.senderId === message.senderId && prev.messageType === message.messageType;
 
   const mediaAtts = (message.attachments ?? []).filter((a) => inferAttachmentType(a) === "IMAGE" || inferAttachmentType(a) === "VIDEO");
