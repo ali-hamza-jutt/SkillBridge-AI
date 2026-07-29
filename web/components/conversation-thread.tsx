@@ -5,7 +5,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Paperclip, X, FileText, Loader2, RotateCcw, Send, Smile, UserCircle, Video, CalendarPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
+import { Virtuoso, type Components } from "react-virtuoso";
 import { toast } from "sonner";
 import { useAppSelector } from "@/lib/hooks";
 import { useChatSocket } from "@/components/chat-socket-provider";
@@ -72,6 +72,32 @@ const VIRTUOSO_FIRST_ITEM_INDEX = 1_000_000;
 const MEETING_STATUS_POLL_INTERVAL_MS = 60_000;
 const MAX_BROWSER_TIMEOUT_MS = 2_147_000_000;
 
+type MessageListContext = {
+  isLoadingOlder: boolean;
+};
+
+function MessageListHeader({ context }: { context: MessageListContext }) {
+  return (
+    <div className="px-5 pt-4">
+      {context.isLoadingOlder ? (
+        <div className="flex justify-center py-3 text-xs text-(--color-text-muted)">
+          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+          Loading older messages...
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function MessageListFooter() {
+  return <div aria-hidden="true" className="h-4" />;
+}
+
+const MESSAGE_LIST_COMPONENTS: Components<DisplayChatMessage, MessageListContext> = {
+  Header: MessageListHeader,
+  Footer: MessageListFooter,
+};
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function ConversationThread({ conversationId }: { conversationId: string }) {
   const router = useRouter();
@@ -89,7 +115,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
       refetchOnFocus: true,
       refetchOnReconnect: true,
     });
-  const { currentData: latestMessagesData, isLoading: msgLoading } =
+  const { currentData: latestMessagesData, isError: messagesQueryFailed } =
     useConversationsControllerGetMessagesQuery({ id: conversationId, before: "", limit: String(CHAT_MESSAGE_PAGE_SIZE) }, {
       skip: !token || !conversationId,
       refetchOnFocus: true,
@@ -137,6 +163,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const [firstItemIndex, setFirstItemIndex] = useState(VIRTUOSO_FIRST_ITEM_INDEX);
   const [isAtBottom, setIsAtBottom] = useState(false);
+  const [loadedMessagesConversationId, setLoadedMessagesConversationId] = useState<string | null>(null);
   const [isWindowActive, setIsWindowActive] = useState(
     () => typeof document !== "undefined" && document.visibilityState === "visible" && document.hasFocus(),
   );
@@ -152,8 +179,6 @@ export default function ConversationThread({ conversationId }: { conversationId:
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const emojiMenuRef = useRef<HTMLDivElement>(null);
-  const virtuosoRef = useRef<VirtuosoHandle>(null);
-  const didInitialScrollRef = useRef(false);
   const isLoadingOlderRef = useRef(false);
   const hasLoadedOlderMessagesRef = useRef(false);
   const activeConversationIdRef = useRef(conversationId);
@@ -240,6 +265,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
     hasLoadedOlderMessagesRef.current = false;
     setFirstItemIndex(VIRTUOSO_FIRST_ITEM_INDEX);
     setIsAtBottom(false);
+    setLoadedMessagesConversationId(null);
     lastReadMessageIdRef.current = null;
     setBody("");
     setSendError(null);
@@ -251,7 +277,6 @@ export default function ConversationThread({ conversationId }: { conversationId:
     });
     setMediaPreview({ open: false, src: "", type: "IMAGE" });
     setEmojiPickerOpen(false);
-    didInitialScrollRef.current = false;
   }, [conversationId]);
   useEffect(() => {
     if (!upcomingMeeting) return;
@@ -279,16 +304,21 @@ export default function ConversationThread({ conversationId }: { conversationId:
       setNextHistoryCursor(page.nextCursor ?? null);
       setHasMoreHistory(Boolean(page.hasMore));
     }
+    setLoadedMessagesConversationId(conversationId);
   }, [conversationId, latestMessagesData]);
 
   useEffect(() => {
-    if (didInitialScrollRef.current) return;
-    if (visibleMessages.length === 0) return;
+    isLoadingOlderRef.current = isLoadingOlder;
+  }, [isLoadingOlder]);
 
-    virtuosoRef.current?.scrollToIndex({ index: visibleMessages.length - 1, align: "end" });
-    didInitialScrollRef.current = true;
-  }, [visibleMessages.length]);
+  const followNewMessages = useCallback((atBottom: boolean): "smooth" | false => {
+    // Prepending history and following appended messages both adjust scrollTop.
+    // Never let those two Virtuoso modes compete for the same render.
+    if (isLoadingOlderRef.current) return false;
+    return atBottom ? "smooth" : false;
+  }, []);
 
+  const messageListContext = useMemo(() => ({ isLoadingOlder }), [isLoadingOlder]);
   const loadOlderMessages = useCallback(async () => {
     const cursor = nextHistoryCursor;
     if (isLoadingOlderRef.current || !hasMoreHistory || !cursor || !token) return;
@@ -327,7 +357,6 @@ export default function ConversationThread({ conversationId }: { conversationId:
       }
     } finally {
       if (activeConversationIdRef.current === requestedConversationId) {
-        isLoadingOlderRef.current = false;
         setIsLoadingOlder(false);
       }
     }
@@ -581,8 +610,8 @@ export default function ConversationThread({ conversationId }: { conversationId:
   const canSend = !sending && !pendingAttachments.some((p) => p.uploading)
     && (body.trim().length > 0 || pendingAttachments.some((p) => p.result !== null));
 
-  const hasLoadedMessages = messages.length > 0;
-  const showInitialLoading = (!conversation && convLoading) || (!hasLoadedMessages && msgLoading && !isLoadingOlder);
+  const showInitialLoading =
+    (!conversation && convLoading) || (loadedMessagesConversationId !== conversationId && !messagesQueryFailed);
 
   if (showInitialLoading) {
     return (
@@ -612,8 +641,8 @@ export default function ConversationThread({ conversationId }: { conversationId:
 
   return (
     <section
-      className="grid grid-rows-[auto_1fr_auto] overflow-hidden rounded-2xl bg-(--color-surface) shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18)]"
-      style={{ height: "calc(100vh - 88px)" }}
+      className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-2xl bg-(--color-surface) shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18)]"
+      style={{ height: "calc(100dvh - 88px)" }}
     >
       <div>
       <header className="flex items-center gap-3 px-5 py-3.5">
@@ -694,39 +723,38 @@ export default function ConversationThread({ conversationId }: { conversationId:
 
       <Virtuoso
         key={conversationId}
-        ref={virtuosoRef}
         data={visibleMessages}
-        className="min-h-0 px-5 py-4 hide-scrollbar"
-        style={{ height: "100%" }}
+        context={messageListContext}
+        components={MESSAGE_LIST_COMPONENTS}
+        className="min-h-0 hide-scrollbar"
+        style={{ height: "100%", overflowAnchor: "none", overscrollBehavior: "contain" }}
         alignToBottom
         firstItemIndex={firstItemIndex}
-        followOutput="auto"
+        initialTopMostItemIndex={{ index: "LAST", align: "end" }}
+        followOutput={followNewMessages}
         atBottomStateChange={setIsAtBottom}
-        increaseViewportBy={{ top: 800, bottom: 1000 }}
+        atBottomThreshold={32}
+        increaseViewportBy={{ top: 600, bottom: 400 }}
         startReached={loadOlderMessages}
         computeItemKey={(_, message) => message.id}
-        itemContent={(index, message) =>
-          renderMessageItemRow(index, message as DisplayChatMessage, {
-            visibleMessages,
-            userId,
-            myAvatarUrl,
-            otherAvatarUrl,
-            openMediaPreview,
-            isLatestOutgoingMessage: message.id === latestOutgoingMessageId,
-          })
-        }
-        components={{
-          Header: () =>
-            isLoadingOlder ? (
-              <div className="flex justify-center py-3 text-xs text-(--color-text-muted)">
-                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                Loading older messages...
-              </div>
-            ) : null,
+        itemContent={(index, message) => {
+          const itemIndex = index - firstItemIndex;
+          return (
+            <div className="px-5">
+              {renderMessageItemRow(message, {
+                previousMessage: visibleMessages[itemIndex - 1],
+                userId,
+                myAvatarUrl,
+                otherAvatarUrl,
+                openMediaPreview,
+                isLatestOutgoingMessage: message.id === latestOutgoingMessageId,
+              })}
+            </div>
+          );
         }}
       />
 
-      <form onSubmit={handleSend} className="px-4 pb-4 pt-3">
+      <form onSubmit={handleSend} className="border-t border-(--color-border) bg-(--color-surface) px-4 pb-4 pt-3">
         {pendingAttachments.length > 0 && (
           <div className="mb-3 flex flex-wrap gap-2">
             {pendingAttachments.map((p) => (
