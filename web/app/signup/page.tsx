@@ -11,10 +11,13 @@ import {
 import { setCredentials } from "@/lib/features/auth/authSlice";
 import { useAppDispatch } from "@/lib/hooks";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
+import { LoadingSpinner } from "@/components/app-loader";
+import { useNavigationLoading } from "@/components/navigation-loading-provider";
 
 export default function SignupPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const { startRouteLoading } = useNavigationLoading();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -99,6 +102,7 @@ export default function SignupPage() {
       }
       localStorage.setItem("auth_skills", JSON.stringify(userSkills));
 
+      startRouteLoading("/dashboard");
       router.push("/dashboard");
     } catch (error) {
       setStatus(getApiErrorMessage(error, "Signup failed. Please verify your details and try again."));
@@ -253,7 +257,12 @@ export default function SignupPage() {
                   type="submit"
                   disabled={isSigningUp || isLoggingIn}
                 >
-                  {isSigningUp || isLoggingIn ? "Creating Account..." : "Sign Up"}
+                  {isSigningUp || isLoggingIn ? (
+                    <>
+                      <LoadingSpinner size="sm" className="!text-white" />
+                      Creating account...
+                    </>
+                  ) : "Sign Up"}
                 </button>
               </form>
             </div>

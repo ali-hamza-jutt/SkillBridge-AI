@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Loader2, MessageSquare, Search } from "lucide-react";
+import { MessageSquare, Search } from "lucide-react";
+import { LoadingSpinner } from "@/components/app-loader";
 import ConversationListItem from "@/components/conversation-list-item";
 import type { ConversationSummary } from "@/lib/types/chat";
 
@@ -89,7 +90,7 @@ export default function MessagesSidebar({
       <div className="ui-scrollbar min-h-0 flex-1 overflow-y-auto p-2">
         {loading ? (
           <div className="flex items-center justify-center py-10" aria-label="Loading conversations">
-            <Loader2 className="h-5 w-5 animate-spin text-(--color-brand)" />
+            <LoadingSpinner />
           </div>
         ) : null}
 
