@@ -69,6 +69,9 @@ const mergeUniqueMessages = (current: ChatMessage[], incoming: ChatMessage[]) =>
 };
 
 const VIRTUOSO_FIRST_ITEM_INDEX = 1_000_000;
+const MESSAGE_ROW_ESTIMATED_HEIGHT_PX = 72;
+const MESSAGE_OVERSCAN_PX = 1_200;
+const MESSAGE_OVERSCAN_ITEMS = 8;
 const MEETING_STATUS_POLL_INTERVAL_MS = 60_000;
 const MAX_BROWSER_TIMEOUT_MS = 2_147_000_000;
 
@@ -200,13 +203,13 @@ export default function ConversationThread({ conversationId }: { conversationId:
     return latestMessage?.senderId === userId ? latestMessage.id : null;
   }, [visibleMessages, userId]);
 
-  const openMediaPreview = (item: { url: string; type: "IMAGE" | "VIDEO"; name?: string }) => {
+  const openMediaPreview = useCallback((item: { url: string; type: "IMAGE" | "VIDEO"; name?: string }) => {
     setMediaPreview({ open: true, src: item.url, type: item.type, title: item.name });
-  };
+  }, []);
 
-  const closeMediaPreview = () => {
+  const closeMediaPreview = useCallback(() => {
     setMediaPreview((current) => ({ ...current, open: false }));
-  };
+  }, []);
 
   const queryError = useMemo(() => {
     if (!convError) return null;
@@ -730,11 +733,13 @@ export default function ConversationThread({ conversationId }: { conversationId:
         style={{ height: "100%", overflowAnchor: "none", overscrollBehavior: "contain" }}
         alignToBottom
         firstItemIndex={firstItemIndex}
+        defaultItemHeight={MESSAGE_ROW_ESTIMATED_HEIGHT_PX}
         initialTopMostItemIndex={{ index: "LAST", align: "end" }}
         followOutput={followNewMessages}
         atBottomStateChange={setIsAtBottom}
         atBottomThreshold={32}
-        increaseViewportBy={{ top: 600, bottom: 400 }}
+        increaseViewportBy={{ top: MESSAGE_OVERSCAN_PX, bottom: MESSAGE_OVERSCAN_PX }}
+        minOverscanItemCount={{ top: MESSAGE_OVERSCAN_ITEMS, bottom: MESSAGE_OVERSCAN_ITEMS }}
         startReached={loadOlderMessages}
         computeItemKey={(_, message) => message.id}
         itemContent={(index, message) => {
