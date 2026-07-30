@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { ArrowLeft, CalendarPlus, Loader2, Paperclip, Send, Smile, UserCircle, Video } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Virtuoso, type Components } from "react-virtuoso";
+import { Virtuoso, type Components, type VirtuosoHandle } from "react-virtuoso";
 import { toast } from "sonner";
 import { useAppSelector } from "@/lib/hooks";
 import { useChatSocket } from "@/components/chat-socket-provider";
@@ -59,6 +59,17 @@ function messagesEquivalent(left: ChatMessage, right: ChatMessage) {
   return attachmentSignature(left.attachments) === attachmentSignature(right.attachments);
 }
 
+function confirmsOptimisticMessage(message: ChatMessage, pendingMessage: DisplayChatMessage) {
+  if (!messagesEquivalent(message, pendingMessage)) return false;
+  if (!message.createdAt || !pendingMessage.createdAt) return false;
+
+  const messageTime = new Date(message.createdAt).getTime();
+  const pendingTime = new Date(pendingMessage.createdAt).getTime();
+  if (!Number.isFinite(messageTime) || !Number.isFinite(pendingTime)) return false;
+
+  const confirmationDelay = messageTime - pendingTime;
+  return confirmationDelay >= -5_000 && confirmationDelay <= 120_000;
+}
 const mergeUniqueMessages = (current: ChatMessage[], incoming: ChatMessage[]) => {
   const byId = new Map<string, ChatMessage>();
   for (const m of current) byId.set(m.id, m);
@@ -131,7 +142,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
       refetchOnReconnect: true,
     });
   const [fetchOlderMessages] = useLazyConversationsControllerGetMessagesQuery();
-  const [sendMessage, { isLoading: sending }] = useConversationsControllerSendMessageMutation();
+  const [sendMessage] = useConversationsControllerSendMessageMutation();
   const [generateSignedUrl] = useGcsControllerGenerateSignedUrlMutation();
   const [createInstantMeeting, { isLoading: startingMeeting }] = useMeetingsControllerCreateInstantMutation();
   const [cancelMeeting, { isLoading: cancellingMeeting }] = useMeetingsControllerCancelMutation();
@@ -186,7 +197,6 @@ export default function ConversationThread({ conversationId }: { conversationId:
 
   const [body, setBody] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
-  const [isSubmittingMessage, setIsSubmittingMessage] = useState(false);
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const [attachmentPickerKind, setAttachmentPickerKind] = useState<AttachmentPickerKind>("IMAGE");
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
@@ -197,7 +207,8 @@ export default function ConversationThread({ conversationId }: { conversationId:
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const attachmentMenuRef = useRef<HTMLDivElement>(null);
-  const activeUploadControllerRef = useRef<AbortController | null>(null);
+  const activeUploadControllersRef = useRef<Map<string, AbortController>>(new Map());
+  const virtuosoRef = useRef<VirtuosoHandle>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const emojiMenuRef = useRef<HTMLDivElement>(null);
   const isLoadingOlderRef = useRef(false);
@@ -208,13 +219,10 @@ export default function ConversationThread({ conversationId }: { conversationId:
 
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
 
-  const visibleMessages = useMemo<DisplayChatMessage[]>(() => {
-    const stillPending = optimisticMessages.filter((pendingMessage) => {
-      return !messages.some((message) => messagesEquivalent(message, pendingMessage));
-    });
-
-    return mergeUniqueMessages(messages, stillPending) as DisplayChatMessage[];
-  }, [messages, optimisticMessages]);
+  const visibleMessages = useMemo<DisplayChatMessage[]>(
+    () => mergeUniqueMessages(messages, optimisticMessages) as DisplayChatMessage[],
+    [messages, optimisticMessages],
+  );
 
   const latestOutgoingMessageId = useMemo(() => {
     const latestMessage = visibleMessages.findLast((message) => message.messageType !== "SYSTEM");
@@ -274,9 +282,10 @@ export default function ConversationThread({ conversationId }: { conversationId:
   }, []);
 
   useEffect(() => {
-    activeUploadControllerRef.current?.abort(new DOMException("Conversation changed", "AbortError"));
-    activeUploadControllerRef.current = null;
-    setIsSubmittingMessage(false);
+    for (const controller of activeUploadControllersRef.current.values()) {
+      controller.abort(new DOMException("Conversation changed", "AbortError"));
+    }
+    activeUploadControllersRef.current.clear();
     setAttachmentMenuOpen(false);
     setMessages([]);
     setOptimisticMessages([]);
@@ -398,7 +407,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
     const onMessage = (p: ChatMessage) => {
       if (p.conversationId !== conversationId) return;
       setMessages((cur) => cur.some((m) => m.id === p.id) ? cur : mergeUniqueMessages(cur, [p]));
-      setOptimisticMessages((current) => current.filter((pendingMessage) => !messagesEquivalent(p, pendingMessage)));
+      setOptimisticMessages((current) => current.filter((pendingMessage) => !confirmsOptimisticMessage(p, pendingMessage)));
       setPatches((prev) => ({ ...prev, lastMessageText: p.body, lastMessageAt: p.createdAt }));
     };
     const onUpdated = (p: Partial<ConversationSummary> & { conversationId: string }) => {
@@ -462,7 +471,8 @@ export default function ConversationThread({ conversationId }: { conversationId:
 
   useEffect(() => () => {
     activeConversationIdRef.current = "";
-    activeUploadControllerRef.current?.abort();
+    for (const controller of activeUploadControllersRef.current.values()) controller.abort();
+    activeUploadControllersRef.current.clear();
   }, []);
 
   useEffect(() => {
@@ -648,7 +658,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
     event.preventDefault();
     const trimmed = body.trim();
     const selectedAttachments = pendingAttachments;
-    if ((!trimmed && selectedAttachments.length === 0) || !token || isSubmittingMessage) {
+    if ((!trimmed && selectedAttachments.length === 0) || !token) {
       return;
     }
 
@@ -693,13 +703,15 @@ export default function ConversationThread({ conversationId }: { conversationId:
         }, uploadTimeoutMs)
       : null;
 
-    activeUploadControllerRef.current = uploadController;
-    setIsSubmittingMessage(true);
+    activeUploadControllersRef.current.set(optimisticId, uploadController);
     setSendError(null);
     setOptimisticMessages((current) => [...current, optimisticMessage]);
     setBody("");
     setPendingAttachments([]);
-    window.requestAnimationFrame(() => textareaRef.current?.focus());
+    window.requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+      virtuosoRef.current?.scrollToIndex({ index: "LAST", align: "end", behavior: "smooth" });
+    });
 
     try {
       await Promise.all(
@@ -775,11 +787,8 @@ export default function ConversationThread({ conversationId }: { conversationId:
       }
     } finally {
       if (uploadTimeout !== null) window.clearTimeout(uploadTimeout);
-      if (activeUploadControllerRef.current === uploadController) {
-        activeUploadControllerRef.current = null;
-      }
-      if (activeConversationIdRef.current === requestedConversationId) {
-        setIsSubmittingMessage(false);
+      if (activeUploadControllersRef.current.get(optimisticId) === uploadController) {
+        activeUploadControllersRef.current.delete(optimisticId);
       }
     }
   };
@@ -811,10 +820,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
     }
   };
 
-  const canSend =
-    !sending &&
-    !isSubmittingMessage &&
-    (body.trim().length > 0 || pendingAttachments.length > 0);
+  const canSend = body.trim().length > 0 || pendingAttachments.length > 0;
 
   const showInitialLoading =
     (!conversation && convLoading) || (loadedMessagesConversationId !== conversationId && !messagesQueryFailed);
@@ -961,6 +967,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
       </div>
 
       <Virtuoso
+        ref={virtuosoRef}
         key={conversationId}
         data={visibleMessages}
         context={messageListContext}
@@ -1031,11 +1038,10 @@ export default function ConversationThread({ conversationId }: { conversationId:
             <button
               type="button"
               onClick={() => setAttachmentMenuOpen((open) => !open)}
-              disabled={isSubmittingMessage}
               aria-label="Attach media or document"
               title="Attach media or document"
               aria-expanded={attachmentMenuOpen}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-(--color-text-muted) transition hover:bg-(--color-hover) hover:text-(--color-text-main) disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-(--color-text-muted) transition hover:bg-(--color-hover) hover:text-(--color-text-main)"
             >
               <Paperclip className="h-4 w-4" />
             </button>
