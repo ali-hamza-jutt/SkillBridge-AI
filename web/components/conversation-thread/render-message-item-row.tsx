@@ -79,6 +79,7 @@ export function renderMessageItemRow(
   const documentAttachments = (message.attachments ?? []).filter(
     (attachment) => inferAttachmentType(attachment) === "DOCUMENT",
   );
+  const hasAttachments = mediaAttachments.length > 0 || documentAttachments.length > 0;
 
   const dateDivider = startsNewDay ? (
     <div className="flex items-center gap-3 py-4" role="separator" aria-label={formatDateDivider(message.createdAt)}>
@@ -129,7 +130,7 @@ export function renderMessageItemRow(
 
             <div
               className={`min-w-16 overflow-hidden rounded-[var(--radius-md)] px-3.5 py-2.5 text-sm leading-6 shadow-(--shadow-sm) ${
-                isMine
+                isMine && !hasAttachments
                   ? "bg-(--color-message-own) text-white"
                   : "border border-(--color-border) bg-(--color-message-other) text-(--color-text-main)"
               } ${message.optimistic ? "opacity-70" : ""}`}
@@ -158,7 +159,7 @@ export function renderMessageItemRow(
               {documentAttachments.length > 0 ? (
                 <div className={`flex flex-col gap-2 ${message.body || mediaAttachments.length > 0 ? "mt-2" : ""}`}>
                   {documentAttachments.map((attachment) => (
-                    <DocPreview key={attachment.url} attachment={attachment} tone={isMine ? "inverse" : "default"} />
+                    <DocPreview key={attachment.url} attachment={attachment} />
                   ))}
                 </div>
               ) : null}

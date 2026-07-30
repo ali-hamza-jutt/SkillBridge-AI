@@ -7,10 +7,13 @@ import { useAuthControllerLoginMutation } from "@/lib/api";
 import { setCredentials } from "@/lib/features/auth/authSlice";
 import { useAppDispatch } from "@/lib/hooks";
 import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
+import { LoadingSpinner } from "@/components/app-loader";
+import { useNavigationLoading } from "@/components/navigation-loading-provider";
 
 export default function LoginPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const { startRouteLoading } = useNavigationLoading();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -82,6 +85,7 @@ export default function LoginPage() {
       }
       localStorage.setItem("auth_skills", JSON.stringify(skills));
 
+      startRouteLoading("/dashboard");
       router.push("/dashboard");
     } catch (error) {
       setStatus(getApiErrorMessage(error, "Login failed. Please verify your credentials."));
@@ -178,7 +182,12 @@ export default function LoginPage() {
                   type="submit"
                   disabled={isLoading}
                 >
-                  {isLoading ? "Signing In..." : "Log In"}
+                  {isLoading ? (
+                    <>
+                      <LoadingSpinner size="sm" className="!text-white" />
+                      Signing in...
+                    </>
+                  ) : "Log In"}
                 </button>
               </form>
             </div>

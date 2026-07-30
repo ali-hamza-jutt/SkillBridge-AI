@@ -9,6 +9,8 @@ import { Virtuoso, type Components } from "react-virtuoso";
 import { toast } from "sonner";
 import { useAppSelector } from "@/lib/hooks";
 import { useChatSocket } from "@/components/chat-socket-provider";
+import { useNavigationLoading } from "@/components/navigation-loading-provider";
+import AppLoader from "@/components/app-loader";
 import EmojiPicker from "@/components/emoji-picker";
 import type { ChatMessage, ChatMessagePage, ConversationSummary, Meeting, MessageAttachment } from "@/lib/types/chat";
 import type { AttachmentDto } from "@/lib/api";
@@ -104,6 +106,7 @@ const MESSAGE_LIST_COMPONENTS: Components<DisplayChatMessage, MessageListContext
 // Main conversation thread
 export default function ConversationThread({ conversationId }: { conversationId: string }) {
   const router = useRouter();
+  const { startRouteLoading } = useNavigationLoading();
   const { token, userId, avatarUrl: myAvatarUrl } = useAppSelector((s) => s.auth);
   const { socket, connected, joinConversation, leaveConversation, emitConversationRead } = useChatSocket();
   const myDisplayName = useMemo(() => {
@@ -643,8 +646,8 @@ export default function ConversationThread({ conversationId }: { conversationId:
 
   if (showInitialLoading) {
     return (
-      <div className="flex h-full min-h-0 items-center justify-center bg-(--color-surface)">
-        <Loader2 className="h-5 w-5 animate-spin text-(--color-brand)" />
+      <div className="h-full min-h-0 bg-(--color-surface)">
+        <AppLoader label="Loading conversation..." className="h-full min-h-0" />
       </div>
     );
   }
@@ -653,7 +656,10 @@ export default function ConversationThread({ conversationId }: { conversationId:
     return (
       <div className="flex h-full min-h-0 flex-col items-center justify-center gap-4 bg-(--color-surface) px-6 text-center">
         <p className="text-sm text-(--color-text-secondary)">{queryError}</p>
-        <button type="button" onClick={() => router.push("/dashboard/messages")} className="ui-primary-button">
+        <button type="button" onClick={() => {
+            startRouteLoading("/dashboard/messages");
+            router.push("/dashboard/messages");
+          }} className="ui-primary-button">
           Back to Messages
         </button>
       </div>

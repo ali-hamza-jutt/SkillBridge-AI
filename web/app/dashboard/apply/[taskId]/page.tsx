@@ -8,6 +8,7 @@ import DashboardNavbar from "@/components/dashboard-navbar";
 import RoleAccessNotice from "@/components/role-access-notice";
 import TaskSummaryPanel from "@/components/task-summary-panel";
 import BidApplicationForm from "@/components/bid-application-form";
+import AppLoader from "@/components/app-loader";
 
 type Task = {
   _id: string;
@@ -45,10 +46,8 @@ export default function ApplyPage() {
 
   if (isFetching) {
     return (
-      <main className="min-h-screen bg-[var(--color-bg)] py-10">
-        <div className="mx-auto w-[min(100%-2rem,1200px)]">
-          <p className="text-sm text-[var(--color-text-muted)]">Loading job details...</p>
-        </div>
+      <main className="flex min-h-screen items-center justify-center bg-(--color-bg)">
+        <AppLoader label="Loading job details..." />
       </main>
     );
   }
