@@ -26,6 +26,7 @@ import {
   useLazyConversationsControllerGetMessagesQuery,
   useConversationsControllerSendMessageMutation,
   useGcsControllerGenerateSignedUrlMutation,
+  useMeetingsControllerCancelMutation,
   useMeetingsControllerCreateInstantMutation,
   useMeetingsControllerListUpcomingQuery,
 } from "@/lib/api";
@@ -131,6 +132,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
   const [sendMessage, { isLoading: sending }] = useConversationsControllerSendMessageMutation();
   const [generateSignedUrl] = useGcsControllerGenerateSignedUrlMutation();
   const [createInstantMeeting, { isLoading: startingMeeting }] = useMeetingsControllerCreateInstantMutation();
+  const [cancelMeeting, { isLoading: cancellingMeeting }] = useMeetingsControllerCancelMutation();
   const { data: upcomingMeetingsData, refetch: refetchUpcomingMeetings } = useMeetingsControllerListUpcomingQuery(
     { conversationId },
     {
@@ -142,19 +144,25 @@ export default function ConversationThread({ conversationId }: { conversationId:
     },
   );
   const [meetingClock, setMeetingClock] = useState(() => Date.now());
-  const [endedMeetingIds, setEndedMeetingIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [inactiveMeetingIds, setInactiveMeetingIds] = useState<ReadonlySet<string>>(() => new Set());
   const upcomingMeeting = useMemo(
     () =>
       ((upcomingMeetingsData as Meeting[] | undefined) ?? []).find((meeting) => {
         const endTime = new Date(meeting.endTimeUtc).getTime();
         return (
-          !endedMeetingIds.has(meeting.id) &&
+          !inactiveMeetingIds.has(meeting.id) &&
           (meeting.status === "SCHEDULED" || meeting.status === "STARTED") &&
           Number.isFinite(endTime) &&
           endTime > meetingClock
         );
       }) ?? null,
-    [endedMeetingIds, meetingClock, upcomingMeetingsData],
+    [inactiveMeetingIds, meetingClock, upcomingMeetingsData],
+  );
+  const canCancelUpcomingMeeting = Boolean(
+    upcomingMeeting &&
+      upcomingMeeting.status === "SCHEDULED" &&
+      upcomingMeeting.hostUserId === userId &&
+      new Date(upcomingMeeting.startTimeUtc).getTime() > meetingClock,
   );
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
 
@@ -263,7 +271,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
     setOptimisticMessages([]);
     setPatches({});
     setMeetingClock(Date.now());
-    setEndedMeetingIds(new Set());
+    setInactiveMeetingIds(new Set());
     setNextHistoryCursor(null);
     setHasMoreHistory(true);
     setIsLoadingOlder(false);
@@ -287,17 +295,23 @@ export default function ConversationThread({ conversationId }: { conversationId:
   useEffect(() => {
     if (!upcomingMeeting) return;
 
+    const now = Date.now();
+    const startTime = new Date(upcomingMeeting.startTimeUtc).getTime();
     const endTime = new Date(upcomingMeeting.endTimeUtc).getTime();
     if (!Number.isFinite(endTime)) return;
 
-    const remaining = Math.max(endTime - Date.now(), 0);
+    const nextBoundary =
+      upcomingMeeting.status === "SCHEDULED" && Number.isFinite(startTime) && startTime > now
+        ? startTime
+        : endTime;
+    const remaining = Math.max(nextBoundary - now, 0);
     const timeout = window.setTimeout(() => {
       setMeetingClock(Date.now());
       void refetchUpcomingMeetings();
     }, Math.min(remaining + 250, MAX_BROWSER_TIMEOUT_MS));
 
     return () => window.clearTimeout(timeout);
-  }, [refetchUpcomingMeetings, upcomingMeeting]);
+  }, [meetingClock, refetchUpcomingMeetings, upcomingMeeting]);
 
 
   useEffect(() => {
@@ -397,7 +411,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
       if (meeting.conversationId !== conversationId) return;
 
       setMeetingClock(Date.now());
-      setEndedMeetingIds((current) => {
+      setInactiveMeetingIds((current) => {
         if (!current.has(meeting.id)) return current;
         const next = new Set(current);
         next.delete(meeting.id);
@@ -412,10 +426,10 @@ export default function ConversationThread({ conversationId }: { conversationId:
         });
       }
     };
-    const onMeetingEnded = (meeting: Pick<Meeting, "id" | "conversationId">) => {
+    const onMeetingInactive = (meeting: Pick<Meeting, "id" | "conversationId">) => {
       if (meeting.conversationId !== conversationId) return;
 
-      setEndedMeetingIds((current) => new Set(current).add(meeting.id));
+      setInactiveMeetingIds((current) => new Set(current).add(meeting.id));
       setMeetingClock(Date.now());
       void refetchUpcomingMeetings();
     };
@@ -423,13 +437,15 @@ export default function ConversationThread({ conversationId }: { conversationId:
     socket.on("conversation.updated", onUpdated);
     socket.on("message.status.updated", onStatusUpdated);
     socket.on("meeting.created", onMeetingCreated);
-    socket.on("meeting.ended", onMeetingEnded);
+    socket.on("meeting.ended", onMeetingInactive);
+    socket.on("meeting.cancelled", onMeetingInactive);
     return () => {
       socket.off("message.created", onMessage);
       socket.off("conversation.updated", onUpdated);
       socket.off("message.status.updated", onStatusUpdated);
       socket.off("meeting.created", onMeetingCreated);
-      socket.off("meeting.ended", onMeetingEnded);
+      socket.off("meeting.ended", onMeetingInactive);
+      socket.off("meeting.cancelled", onMeetingInactive);
     };
   }, [conversationId, refetchUpcomingMeetings, socket, userId]);
 
@@ -638,6 +654,21 @@ export default function ConversationThread({ conversationId }: { conversationId:
     }
   };
 
+  const handleCancelMeeting = async () => {
+    if (!upcomingMeeting || !canCancelUpcomingMeeting) return;
+
+    const meetingId = upcomingMeeting.id;
+    try {
+      await cancelMeeting({ id: meetingId }).unwrap();
+      setInactiveMeetingIds((current) => new Set(current).add(meetingId));
+      setMeetingClock(Date.now());
+      await refetchUpcomingMeetings();
+      toast.success("Meeting cancelled");
+    } catch {
+      toast.error("Failed to cancel the meeting. Please try again.");
+    }
+  };
+
   const canSend = !sending && !pendingAttachments.some((p) => p.uploading)
     && (body.trim().length > 0 || pendingAttachments.some((p) => p.result !== null));
 
@@ -760,14 +791,27 @@ export default function ConversationThread({ conversationId }: { conversationId:
                 {upcomingMeeting.topic || "Upcoming meeting"} - {new Date(upcomingMeeting.startTimeUtc).toLocaleString()}
               </span>
             </span>
-            <a
-              href={upcomingMeeting.startUrl ?? upcomingMeeting.joinUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="ui-primary-button h-8 shrink-0 px-3 text-xs"
-            >
-              Join
-            </a>
+            <div className="flex shrink-0 items-center gap-2">
+              {canCancelUpcomingMeeting ? (
+                <button
+                  type="button"
+                  onClick={handleCancelMeeting}
+                  disabled={cancellingMeeting}
+                  className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[var(--radius-sm)] border border-[color-mix(in_srgb,var(--color-danger)_28%,var(--color-border))] bg-(--color-surface) px-3 text-xs font-semibold text-(--color-danger) transition-colors hover:bg-[color-mix(in_srgb,var(--color-danger)_6%,var(--color-surface))] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {cancellingMeeting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                  Cancel
+                </button>
+              ) : null}
+              <a
+                href={upcomingMeeting.startUrl ?? upcomingMeeting.joinUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="ui-primary-button h-8 shrink-0 px-3 text-xs"
+              >
+                Join
+              </a>
+            </div>
           </div>
         ) : null}
       </div>

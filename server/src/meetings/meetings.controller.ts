@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { MeetingsService } from './meetings.service';
@@ -19,6 +19,11 @@ export class MeetingsController {
   @Post('schedule')
   schedule(@Body() dto: ScheduleMeetingDto, @Req() req) {
     return this.meetingsService.schedule(dto.conversationId, req.user.userId, dto);
+  }
+
+  @Patch(':id/cancel')
+  cancel(@Param('id') id: string, @Req() req) {
+    return this.meetingsService.cancelScheduledMeeting(id, req.user.userId);
   }
 
   @Get('conflicts')

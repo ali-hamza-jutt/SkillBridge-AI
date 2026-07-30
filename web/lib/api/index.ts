@@ -13,3 +13,4 @@
 
 // Re-export all hooks from the auto-generated apiHooks file
 export * from './apiHooks';
+export * from './meetingsApi';

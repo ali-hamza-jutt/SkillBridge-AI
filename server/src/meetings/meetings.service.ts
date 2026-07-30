@@ -1,4 +1,4 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Meeting, MeetingDocument, MeetingStatus, MeetingType } from './schemas/meeting.schema';
@@ -86,6 +86,62 @@ export class MeetingsService {
 
     this.notifyMeetingCreated(meeting);
     return this.toResponse(meeting, userId);
+  }
+
+  async cancelScheduledMeeting(meetingId: string, userId: string) {
+    if (!Types.ObjectId.isValid(meetingId)) {
+      throw new NotFoundException('Meeting not found.');
+    }
+
+    const meeting = (await this.meetingModel.findById(meetingId).lean()) as MeetingLike | null;
+    if (!meeting) {
+      throw new NotFoundException('Meeting not found.');
+    }
+
+    await this.conversationsService.getParticipants(meeting.conversationId, userId);
+
+    if (meeting.hostUserId !== userId) {
+      throw new ForbiddenException('Only the meeting organizer can cancel this meeting.');
+    }
+
+    if (meeting.status === MeetingStatus.CANCELLED) {
+      return this.toResponse(meeting, userId);
+    }
+
+    const startTime = new Date(meeting.startTimeUtc).getTime();
+    if (meeting.status !== MeetingStatus.SCHEDULED || !Number.isFinite(startTime) || startTime <= Date.now()) {
+      throw new BadRequestException('A meeting cannot be cancelled after it has started.');
+    }
+
+    await this.zoomService.deleteMeeting(meeting.zoomMeetingId);
+
+    const cancelledMeeting = (await this.meetingModel
+      .findOneAndUpdate(
+        {
+          _id: meeting._id,
+          hostUserId: userId,
+          status: MeetingStatus.SCHEDULED,
+        },
+        { $set: { status: MeetingStatus.CANCELLED } },
+        { new: true },
+      )
+      .lean()) as MeetingLike | null;
+
+    if (!cancelledMeeting) {
+      const currentMeeting = (await this.meetingModel.findById(meeting._id).lean()) as MeetingLike | null;
+      if (currentMeeting?.status === MeetingStatus.CANCELLED) {
+        return this.toResponse(currentMeeting, userId);
+      }
+      throw new BadRequestException('This meeting has already started or is no longer available.');
+    }
+
+    this.gateway.emitToConversation(
+      cancelledMeeting.conversationId,
+      'meeting.cancelled',
+      this.toPublicPayload(cancelledMeeting),
+    );
+
+    return this.toResponse(cancelledMeeting, userId);
   }
 
   async checkConflicts(conversationId: string, userId: string, startTimeUtc: Date, durationMinutes: number) {

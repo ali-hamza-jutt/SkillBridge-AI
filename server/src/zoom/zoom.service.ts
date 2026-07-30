@@ -87,4 +87,20 @@ export class ZoomService {
     const data = (await response.json()) as { id: number; join_url: string; start_url: string };
     return { id: data.id, joinUrl: data.join_url, startUrl: data.start_url };
   }
+
+  async deleteMeeting(meetingId: string): Promise<void> {
+    const accessToken = await this.getAccessToken();
+    const response = await fetch(`${ZOOM_API_BASE}/meetings/${encodeURIComponent(meetingId)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    // Zoom returns 404 when the meeting was already removed. Treat that as the
+    // desired final state so cancellation remains safe to retry.
+    if (response.ok || response.status === 404) return;
+
+    throw new InternalServerErrorException(
+      `Zoom delete meeting failed: ${response.status} ${await response.text()}`,
+    );
+  }
 }
