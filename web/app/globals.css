@@ -241,3 +241,16 @@ textarea:disabled,
     line-height: 1;
   }
 }
+
+.chat-composer:focus-within {
+  border-color: var(--color-border);
+  outline: none;
+  background: var(--color-surface-tint);
+  box-shadow: none;
+}
+
+.chat-composer textarea:focus,
+.chat-composer textarea:focus-visible {
+  outline: none;
+  box-shadow: none;
+}

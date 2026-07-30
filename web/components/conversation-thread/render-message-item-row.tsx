@@ -4,6 +4,7 @@ import ChatMessageTimestamp from "@/components/chat-message-timestamp";
 import Avatar from "@/components/conversation-thread/avatar";
 import DocPreview from "@/components/conversation-thread/doc-preview";
 import MediaPreview from "@/components/conversation-thread/media-preview";
+import { Loader2 } from "lucide-react";
 import type { ChatMessage } from "@/lib/types/chat";
 import { inferAttachmentType } from "@/lib/utils/chatAttachmentType";
 
@@ -169,8 +170,13 @@ export function renderMessageItemRow(
               }`}
             >
               <ChatMessageTimestamp value={message.createdAt} format="time" />
-              {isMine && context.isLatestOutgoingMessage ? (
-                <span>· {formatMessageStatus(message.status)}</span>
+              {isMine && message.optimistic ? (
+                <span className="flex items-center gap-1" aria-label="Sending message">
+                  <Loader2 className="h-3 w-3 animate-spin text-(--color-brand)" />
+                  Sending
+                </span>
+              ) : isMine && context.isLatestOutgoingMessage ? (
+                <span>{formatMessageStatus(message.status)}</span>
               ) : null}
             </div>
           </div>

@@ -101,7 +101,7 @@ const MESSAGE_LIST_COMPONENTS: Components<DisplayChatMessage, MessageListContext
   Footer: MessageListFooter,
 };
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Main component Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// Main conversation thread
 export default function ConversationThread({ conversationId }: { conversationId: string }) {
   const router = useRouter();
   const { token, userId, avatarUrl: myAvatarUrl } = useAppSelector((s) => s.auth);
@@ -555,13 +555,28 @@ export default function ConversationThread({ conversationId }: { conversationId:
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = body.trim();
-    const readyAttachments = pendingAttachments.filter((p): p is PendingAttachment & { result: AttachmentDto } => p.result !== null);
-    const ready = readyAttachments.map((p) => p.result);
-    if ((!trimmed && ready.length === 0) || !token || pendingAttachments.some((p) => p.uploading)) return;
+    const readyAttachments = pendingAttachments.filter(
+      (pending): pending is PendingAttachment & { result: AttachmentDto } => pending.result !== null,
+    );
+    const ready = readyAttachments.map((pending) => pending.result);
+    if (
+      (!trimmed && ready.length === 0) ||
+      !token ||
+      pendingAttachments.some((pending) => pending.uploading)
+    ) {
+      return;
+    }
 
     const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const optimisticAttachments: MessageAttachment[] = readyAttachments.map((attachment) => ({
-      url: (attachment.result.thumbnailUrl ?? (attachment.file.type.startsWith("image/") && attachment.preview ? attachment.preview : attachment.result.url)) as string,
+      url: (
+        attachment.result.thumbnailUrl ??
+        (
+          attachment.file.type.startsWith("image/") && attachment.preview
+            ? attachment.preview
+            : attachment.result.url
+        )
+      ) as string,
       publicId: attachment.result.publicId,
       name: attachment.result.name,
       mimeType: attachment.result.mimeType,
@@ -582,18 +597,28 @@ export default function ConversationThread({ conversationId }: { conversationId:
       optimistic: true,
     };
 
+    setSendError(null);
     setOptimisticMessages((current) => [...current, optimisticMessage]);
+    setBody("");
+    setPendingAttachments([]);
+    window.requestAnimationFrame(() => textareaRef.current?.focus());
 
     try {
-      setSendError(null);
       await sendMessage({
         id: conversationId,
-        sendMessageDto: { ...(trimmed ? { body: trimmed } : {}), ...(ready.length > 0 ? { attachments: ready } : {}) },
+        sendMessageDto: {
+          ...(trimmed ? { body: trimmed } : {}),
+          ...(ready.length > 0 ? { attachments: ready } : {}),
+        },
       }).unwrap();
-      setBody("");
-      setPendingAttachments([]);
     } catch {
-      setOptimisticMessages((current) => current.filter((message) => message.id !== optimisticId));
+      setOptimisticMessages((current) =>
+        current.filter((message) => message.id !== optimisticId),
+      );
+      setBody((current) => current || trimmed);
+      setPendingAttachments((current) =>
+        current.length > 0 ? current : readyAttachments,
+      );
       setSendError("Failed to send. Please try again.");
     }
   };
@@ -669,11 +694,11 @@ export default function ConversationThread({ conversationId }: { conversationId:
               <span className={conversation?.otherUserOnline ? "text-(--color-success)" : ""}>
                 {conversation?.otherUserOnline ? "Active now" : "Offline"}
               </span>
-              <span aria-hidden="true">Â·</span>
+              <span aria-hidden="true" className="h-1 w-1 shrink-0 rounded-full bg-(--color-text-muted)" />
               <span className="hidden font-medium text-(--color-brand) sm:inline">
                 {conversation?.type === "CONTRACT" ? "Contract" : "Pre-hire"}
               </span>
-              <span className="hidden sm:inline" aria-hidden="true">Â·</span>
+              <span aria-hidden="true" className="hidden h-1 w-1 shrink-0 rounded-full bg-(--color-text-muted) sm:inline-block" />
               <span className="truncate">{conversation?.taskTitle}</span>
             </div>
           </div>
@@ -726,7 +751,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
             <span className="flex min-w-0 items-center gap-2 font-medium text-(--color-text-main)">
               <Video className="h-3.5 w-3.5 shrink-0 text-(--color-brand)" />
               <span className="truncate">
-                {upcomingMeeting.topic || "Upcoming meeting"} Â· {new Date(upcomingMeeting.startTimeUtc).toLocaleString()}
+                {upcomingMeeting.topic || "Upcoming meeting"} - {new Date(upcomingMeeting.startTimeUtc).toLocaleString()}
               </span>
             </span>
             <a
@@ -854,7 +879,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
 
         {sendError ? <p className="mb-2 text-xs text-(--color-danger)">{sendError}</p> : null}
 
-        <div className="ui-input-shell flex min-w-0 items-end gap-1 p-1.5">
+        <div className="ui-input-shell chat-composer flex min-w-0 items-end gap-1 p-1.5">
           <input
             ref={fileInputRef}
             type="file"
@@ -909,7 +934,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
             aria-label="Send message"
             className="ui-primary-button h-10 min-w-10 shrink-0 px-3 disabled:cursor-not-allowed disabled:opacity-40 sm:min-w-[86px]"
           >
-            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            <Send className="h-4 w-4" />
             <span className="hidden sm:inline">Send</span>
           </button>
         </div>
