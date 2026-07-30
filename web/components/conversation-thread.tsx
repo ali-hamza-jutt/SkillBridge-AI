@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Paperclip, X, FileText, Loader2, RotateCcw, Send, Smile, UserCircle, Video, CalendarPlus } from "lucide-react";
+import { ArrowLeft, CalendarPlus, FileText, Loader2, Paperclip, RotateCcw, Send, Smile, UserCircle, Video, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Virtuoso, type Components } from "react-virtuoso";
@@ -101,7 +101,7 @@ const MESSAGE_LIST_COMPONENTS: Components<DisplayChatMessage, MessageListContext
   Footer: MessageListFooter,
 };
 
-// ── Main component ────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Main component Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 export default function ConversationThread({ conversationId }: { conversationId: string }) {
   const router = useRouter();
   const { token, userId, avatarUrl: myAvatarUrl } = useAppSelector((s) => s.auth);
@@ -618,21 +618,17 @@ export default function ConversationThread({ conversationId }: { conversationId:
 
   if (showInitialLoading) {
     return (
-      <div className="flex h-full items-center justify-center rounded-2xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-(--color-surface)">
-        <Loader2 className="h-5 w-5 animate-spin text-(--color-text-muted)" />
+      <div className="flex h-full min-h-0 items-center justify-center bg-(--color-surface)">
+        <Loader2 className="h-5 w-5 animate-spin text-(--color-brand)" />
       </div>
     );
   }
 
   if (queryError && !conversation) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-(--color-border) bg-(--color-surface) text-center">
-        <p className="text-sm text-(--color-text-muted)">{queryError}</p>
-        <button
-          type="button"
-          onClick={() => router.push("/dashboard/messages")}
-          className="rounded-full bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] px-5 py-2 text-sm font-semibold text-white"
-        >
+      <div className="flex h-full min-h-0 flex-col items-center justify-center gap-4 bg-(--color-surface) px-6 text-center">
+        <p className="text-sm text-(--color-text-secondary)">{queryError}</p>
+        <button type="button" onClick={() => router.push("/dashboard/messages")} className="ui-primary-button">
           Back to Messages
         </button>
       </div>
@@ -643,85 +639,106 @@ export default function ConversationThread({ conversationId }: { conversationId:
   const otherAvatarUrl = conversation?.otherUserAvatarUrl ?? null;
 
   return (
-    <section
-      className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-2xl bg-(--color-surface) shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18)]"
-      style={{ height: "calc(100dvh - 88px)" }}
-    >
+    <section className="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-(--color-surface)">
       <div>
-      <header className="flex items-center gap-3 px-5 py-3.5">
-        <div className="relative">
-          <Avatar name={otherName} url={otherAvatarUrl} size={44} />
-          <span
-            className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-(--color-surface) ${conversation?.otherUserOnline ? "bg-emerald-500" : "bg-slate-400"}`}
-            aria-label={conversation?.otherUserOnline ? "Online" : "Offline"}
-          />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <h1 className="truncate text-base font-bold text-(--color-text-main)">{otherName}</h1>
-            {conversation?.status === "ARCHIVED" && (
-              <span className="shrink-0 rounded-full border border-(--color-border) px-2 py-0.5 text-[10px] font-semibold text-(--color-text-muted)">
-                Archived
-              </span>
-            )}
-          </div>
-          <div className="mt-0.5 flex items-center gap-2 text-xs text-(--color-text-muted)">
-            <span className="font-medium text-(--color-brand-strong)">
-              {conversation?.type === "CONTRACT" ? "Contract" : "Pre-hire"}
-            </span>
-            <span className="opacity-40">·</span>
-            <span className="truncate">{conversation?.taskTitle}</span>
-          </div>
-        </div>
-        {conversation?.status !== "ARCHIVED" && (
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setScheduleModalOpen(true)}
-              className="flex h-8 items-center gap-1.5 rounded-lg border border-(--color-border) px-2.5 text-xs font-semibold text-(--color-text-muted) transition hover:border-(--color-brand) hover:text-(--color-brand-strong)"
-            >
-              <CalendarPlus className="h-3.5 w-3.5" />
-              Schedule
-            </button>
-            <button
-              type="button"
-              onClick={handleStartMeeting}
-              disabled={startingMeeting}
-              className="flex h-8 items-center gap-1.5 rounded-full bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] px-3 text-xs font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
-            >
-              {startingMeeting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Video className="h-3.5 w-3.5" />}
-              Start
-            </button>
-          </div>
-        )}
-        {conversation?.otherUserRole === "FREELANCER" && conversation?.otherUserId && (
-          <Link
-            href={`/dashboard/profile/${conversation.otherUserId}`}
-            className="flex h-8 items-center gap-1.5 rounded-lg border border-(--color-border) px-2.5 text-xs font-semibold text-(--color-text-muted) transition hover:border-(--color-brand) hover:text-(--color-brand-strong)"
-          >
-            <UserCircle className="h-3.5 w-3.5" />
-            Profile
+        <header className="flex min-w-0 items-center gap-2 border-b border-(--color-border) px-3 py-3 sm:gap-3 sm:px-5">
+          <Link href="/dashboard/messages" className="ui-icon-button lg:hidden" aria-label="Back to conversations">
+            <ArrowLeft className="h-4 w-4" />
           </Link>
-        )}
-      </header>
 
-      {upcomingMeeting && (
-        <div className="flex items-center justify-between gap-3 border-y border-(--color-border) bg-[color-mix(in_srgb,var(--color-brand-soft)_18%,transparent)] px-5 py-2 text-xs">
-          <span className="flex items-center gap-1.5 font-medium text-(--color-text-main)">
-            <Video className="h-3.5 w-3.5 text-(--color-brand-strong)" />
-            Zoom meeting{upcomingMeeting.topic ? ` — ${upcomingMeeting.topic}` : ""} at{" "}
-            {new Date(upcomingMeeting.startTimeUtc).toLocaleString()}
-          </span>
-          <a
-            href={upcomingMeeting.startUrl ?? upcomingMeeting.joinUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="shrink-0 rounded-full bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] px-3 py-1 font-semibold text-white"
-          >
-            Join
-          </a>
-        </div>
-      )}
+          <div className="relative shrink-0">
+            <Avatar name={otherName} url={otherAvatarUrl} size={40} />
+            <span
+              className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-(--color-surface) ${
+                conversation?.otherUserOnline ? "bg-(--color-success)" : "bg-(--color-text-muted)"
+              }`}
+              aria-label={conversation?.otherUserOnline ? "Online" : "Offline"}
+            />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h1 className="truncate text-sm font-bold text-(--color-text-main) sm:text-base">{otherName}</h1>
+              {conversation?.status === "ARCHIVED" ? (
+                <span className="shrink-0 rounded-[var(--radius-sm)] border border-(--color-border) px-2 py-0.5 text-[10px] font-semibold text-(--color-text-muted)">
+                  Archived
+                </span>
+              ) : null}
+            </div>
+            <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-(--color-text-muted)">
+              <span className={conversation?.otherUserOnline ? "text-(--color-success)" : ""}>
+                {conversation?.otherUserOnline ? "Active now" : "Offline"}
+              </span>
+              <span aria-hidden="true">Â·</span>
+              <span className="hidden font-medium text-(--color-brand) sm:inline">
+                {conversation?.type === "CONTRACT" ? "Contract" : "Pre-hire"}
+              </span>
+              <span className="hidden sm:inline" aria-hidden="true">Â·</span>
+              <span className="truncate">{conversation?.taskTitle}</span>
+            </div>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1.5">
+            {conversation?.status !== "ARCHIVED" ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setScheduleModalOpen(true)}
+                  className="ui-icon-button"
+                  aria-label="Schedule a meeting"
+                  title="Schedule a meeting"
+                >
+                  <CalendarPlus className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStartMeeting}
+                  disabled={startingMeeting}
+                  className="ui-primary-button h-9 min-w-9 px-2.5 sm:px-3"
+                  aria-label="Start video call"
+                  title="Start video call"
+                >
+                  {startingMeeting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Video className="h-4 w-4" />
+                  )}
+                  <span className="hidden xl:inline">Start call</span>
+                </button>
+              </>
+            ) : null}
+
+            {conversation?.otherUserRole === "FREELANCER" && conversation?.otherUserId ? (
+              <Link
+                href={`/dashboard/profile/${conversation.otherUserId}`}
+                className="ui-icon-button hidden sm:inline-flex"
+                aria-label="View profile"
+                title="View profile"
+              >
+                <UserCircle className="h-4 w-4" />
+              </Link>
+            ) : null}
+          </div>
+        </header>
+
+        {upcomingMeeting ? (
+          <div className="flex items-center justify-between gap-3 border-b border-(--color-border) bg-(--color-brand-soft) px-3 py-2 text-xs sm:px-5">
+            <span className="flex min-w-0 items-center gap-2 font-medium text-(--color-text-main)">
+              <Video className="h-3.5 w-3.5 shrink-0 text-(--color-brand)" />
+              <span className="truncate">
+                {upcomingMeeting.topic || "Upcoming meeting"} Â· {new Date(upcomingMeeting.startTimeUtc).toLocaleString()}
+              </span>
+            </span>
+            <a
+              href={upcomingMeeting.startUrl ?? upcomingMeeting.joinUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="ui-primary-button h-8 shrink-0 px-3 text-xs"
+            >
+              Join
+            </a>
+          </div>
+        ) : null}
       </div>
 
       <Virtuoso
@@ -729,7 +746,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
         data={visibleMessages}
         context={messageListContext}
         components={MESSAGE_LIST_COMPONENTS}
-        className="min-h-0 hide-scrollbar"
+        className="ui-scrollbar min-h-0 bg-(--color-bg)"
         style={{ height: "100%", overflowAnchor: "none", overscrollBehavior: "contain" }}
         alignToBottom
         firstItemIndex={firstItemIndex}
@@ -745,7 +762,7 @@ export default function ConversationThread({ conversationId }: { conversationId:
         itemContent={(index, message) => {
           const itemIndex = index - firstItemIndex;
           return (
-            <div className="px-5">
+            <div className="px-3 sm:px-5">
               {renderMessageItemRow(message, {
                 previousMessage: visibleMessages[itemIndex - 1],
                 userId,
@@ -759,65 +776,85 @@ export default function ConversationThread({ conversationId }: { conversationId:
         }}
       />
 
-      <form onSubmit={handleSend} className="border-t border-(--color-border) bg-(--color-surface) px-4 pb-4 pt-3">
-        {pendingAttachments.length > 0 && (
-          <div className="mb-3 flex flex-wrap gap-2">
-            {pendingAttachments.map((p) => (
+      <form onSubmit={handleSend} className="border-t border-(--color-border) bg-(--color-surface) p-3 sm:p-4">
+        {pendingAttachments.length > 0 ? (
+          <div className="ui-scrollbar mb-3 flex max-h-28 flex-wrap gap-2 overflow-y-auto">
+            {pendingAttachments.map((pending) => (
               <div
-                key={p.localId}
-                className={`relative flex items-center gap-3 rounded-xl border p-3 ${
-                  p.error ? "border-red-300 bg-red-50" : "border-(--color-border) bg-[color-mix(in_srgb,var(--color-surface-strong)_60%,transparent)]"
+                key={pending.localId}
+                className={`relative flex items-center gap-2 rounded-[var(--radius-md)] border p-2 ${
+                  pending.error
+                    ? "border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-danger)_6%,var(--color-surface))]"
+                    : "border-(--color-border) bg-(--color-surface-tint)"
                 }`}
               >
-                {p.file.type.startsWith("image/") && p.preview ? (
-                  <Image src={p.preview} alt={p.file.name} width={60} height={60} className="h-14 w-14 rounded-lg object-cover" unoptimized />
-                ) : p.file.type.startsWith("video/") && p.preview ? (
-                  <video src={p.preview} className="h-14 w-14 rounded-lg object-cover" muted />
+                {pending.file.type.startsWith("image/") && pending.preview ? (
+                  <Image
+                    src={pending.preview}
+                    alt={pending.file.name}
+                    width={48}
+                    height={48}
+                    className="h-12 w-12 rounded-[var(--radius-sm)] object-cover"
+                    unoptimized
+                  />
+                ) : pending.file.type.startsWith("video/") && pending.preview ? (
+                  <video src={pending.preview} className="h-12 w-12 rounded-[var(--radius-sm)] object-cover" muted />
                 ) : (
-                  <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-[color-mix(in_srgb,var(--color-surface)_80%,transparent)]">
-                    <FileText className="h-6 w-6 text-(--color-text-muted)" />
+                  <div className="flex h-12 w-12 items-center justify-center rounded-[var(--radius-sm)] bg-(--color-hover)">
+                    <FileText className="h-5 w-5 text-(--color-text-muted)" />
                   </div>
                 )}
-                <div className="flex flex-col gap-0.5 pr-4">
-                  {p.uploading ? (
+
+                <div className="flex min-w-0 flex-col gap-0.5 pr-5">
+                  {pending.uploading ? (
                     <div className="flex items-center gap-1.5">
                       <Loader2 className="h-3.5 w-3.5 animate-spin text-(--color-brand)" />
-                      <span className="text-[11px] text-(--color-text-muted)">Uploading…</span>
+                      <span className="text-[11px] text-(--color-text-muted)">Uploading...</span>
                     </div>
-                  ) : p.error ? (
+                  ) : pending.error ? (
                     <>
-                      <span className="text-[11px] font-medium text-red-500">Failed</span>
+                      <span className="text-[11px] font-medium text-(--color-danger)">Upload failed</span>
                       <button
                         type="button"
                         onClick={() => {
-                          setPendingAttachments((prev) => prev.map((a) => a.localId === p.localId ? { ...a, uploading: true, error: null } : a));
-                          uploadFile({ ...p, uploading: true, error: null });
+                          setPendingAttachments((current) =>
+                            current.map((item) =>
+                              item.localId === pending.localId
+                                ? { ...item, uploading: true, error: null }
+                                : item,
+                            ),
+                          );
+                          uploadFile({ ...pending, uploading: true, error: null });
                         }}
                         className="flex items-center gap-1 text-[11px] font-semibold text-(--color-brand) hover:underline"
                       >
-                        <RotateCcw className="h-3 w-3" /> Retry
+                        <RotateCcw className="h-3 w-3" />
+                        Retry
                       </button>
                     </>
                   ) : (
-                    <span className="max-w-32 truncate text-[11px] text-(--color-text-muted)">{p.file.name}</span>
+                    <span className="max-w-36 truncate text-[11px] text-(--color-text-secondary)">
+                      {pending.file.name}
+                    </span>
                   )}
                 </div>
+
                 <button
                   type="button"
-                  onClick={() => removePending(p.localId)}
-                  className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-(--color-surface-strong) text-(--color-text-muted) shadow-sm"
-                  aria-label="Remove"
+                  onClick={() => removePending(pending.localId)}
+                  className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-[var(--radius-sm)] text-(--color-text-muted) transition hover:bg-(--color-hover) hover:text-(--color-text-main)"
+                  aria-label="Remove attachment"
                 >
                   <X className="h-3 w-3" />
                 </button>
               </div>
             ))}
           </div>
-        )}
+        ) : null}
 
-        {sendError && <p className="mt-1.5 text-xs text-red-500">{sendError}</p>}
+        {sendError ? <p className="mb-2 text-xs text-(--color-danger)">{sendError}</p> : null}
 
-        <div className="mt-2.5 flex items-end gap-2">
+        <div className="ui-input-shell flex min-w-0 items-end gap-1 p-1.5">
           <input
             ref={fileInputRef}
             type="file"
@@ -830,37 +867,39 @@ export default function ConversationThread({ conversationId }: { conversationId:
             type="button"
             onClick={() => fileInputRef.current?.click()}
             aria-label="Attach file"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-(--color-text-muted) transition hover:bg-[color-mix(in_srgb,var(--color-border)_40%,transparent)] hover:text-(--color-text-main)"
+            title="Attach file"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-(--color-text-muted) transition hover:bg-(--color-hover) hover:text-(--color-text-main)"
           >
             <Paperclip className="h-4 w-4" />
           </button>
-          <div className="relative" ref={emojiMenuRef}>
+
+          <div className="relative shrink-0" ref={emojiMenuRef}>
             <button
               type="button"
-              aria-label="Emoji"
+              aria-label="Choose emoji"
+              title="Choose emoji"
               aria-expanded={emojiPickerOpen}
               onClick={() => setEmojiPickerOpen((open) => !open)}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-(--color-text-muted) transition hover:bg-[color-mix(in_srgb,var(--color-border)_40%,transparent)] hover:text-(--color-text-main)"
+              className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-sm)] text-(--color-text-muted) transition hover:bg-(--color-hover) hover:text-(--color-text-main)"
             >
               <Smile className="h-4 w-4" />
             </button>
-
             <EmojiPicker open={emojiPickerOpen} onSelect={insertEmoji} onClose={() => setEmojiPickerOpen(false)} />
           </div>
 
           <textarea
             ref={textareaRef}
             value={body}
-            onChange={(e) => setBody(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                if (canSend) handleSend(e as unknown as React.FormEvent);
+            onChange={(event) => setBody(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                if (canSend) handleSend(event as unknown as React.FormEvent);
               }
             }}
             rows={1}
-            placeholder="Send a message..."
-            className="min-h-10 flex-1 resize-none rounded-xl border border-(--color-border) bg-[color-mix(in_srgb,var(--color-surface-strong)_50%,transparent)] px-4 py-2.5 text-sm text-(--color-text-main) outline-none placeholder:text-(--color-text-muted) focus:border-[color-mix(in_srgb,var(--color-brand)_40%,var(--color-border))] focus:ring-0"
+            placeholder="Write a message..."
+            className="min-h-10 min-w-0 flex-1 resize-none bg-transparent px-2 py-2.5 text-sm leading-5 text-(--color-text-main) outline-none placeholder:text-(--color-text-muted)"
             style={{ maxHeight: 160 }}
           />
 
@@ -868,9 +907,10 @@ export default function ConversationThread({ conversationId }: { conversationId:
             type="submit"
             disabled={!canSend}
             aria-label="Send message"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] text-white shadow-sm transition hover:opacity-90 disabled:opacity-35"
+            className="ui-primary-button h-10 min-w-10 shrink-0 px-3 disabled:cursor-not-allowed disabled:opacity-40 sm:min-w-[86px]"
           >
-            {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            <span className="hidden sm:inline">Send</span>
           </button>
         </div>
       </form>

@@ -103,21 +103,21 @@ export default function ScheduleMeetingModal({ open, conversationId, onClose, on
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-(--color-overlay) p-4" onClick={onClose}>
       <div
-        className="relative w-full max-w-md rounded-2xl bg-(--color-surface) p-5 shadow-xl"
+        className="relative w-full max-w-md rounded-[var(--radius-lg)] border border-(--color-border) bg-(--color-surface) p-5 shadow-(--shadow-panel)" role="dialog" aria-modal="true" aria-labelledby="schedule-meeting-title"
         onClick={(event) => event.stopPropagation()}
       >
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-full text-(--color-text-muted) hover:bg-[color-mix(in_srgb,var(--color-border)_40%,transparent)]"
+          className="ui-icon-button absolute right-3 top-3 h-8 w-8"
           aria-label="Close"
         >
           <X className="h-4 w-4" />
         </button>
 
-        <h2 className="text-base font-bold text-(--color-text-main)">Schedule a Zoom meeting</h2>
+        <h2 id="schedule-meeting-title" className="text-base font-bold text-(--color-text-main)">Schedule a Zoom meeting</h2>
 
         <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3">
           <label className="flex flex-col gap-1 text-sm">
@@ -128,7 +128,7 @@ export default function ScheduleMeetingModal({ open, conversationId, onClose, on
               min={toLocalDateTimeInputMin()}
               value={dateTimeLocal}
               onChange={(e) => setDateTimeLocal(e.target.value)}
-              className="rounded-lg border border-(--color-border) bg-[color-mix(in_srgb,var(--color-surface-strong)_50%,transparent)] px-3 py-2 text-sm text-(--color-text-main) outline-none focus:border-[color-mix(in_srgb,var(--color-brand)_40%,var(--color-border))]"
+              className="rounded-[var(--radius-sm)] border border-(--color-border) bg-(--color-surface-tint) px-3 py-2 text-sm text-(--color-text-main) outline-none focus:border-[color-mix(in_srgb,var(--color-brand)_40%,var(--color-border))]"
             />
           </label>
 
@@ -137,7 +137,7 @@ export default function ScheduleMeetingModal({ open, conversationId, onClose, on
             <select
               value={durationMinutes}
               onChange={(e) => setDurationMinutes(Number(e.target.value))}
-              className="rounded-lg border border-(--color-border) bg-[color-mix(in_srgb,var(--color-surface-strong)_50%,transparent)] px-3 py-2 text-sm text-(--color-text-main) outline-none focus:border-[color-mix(in_srgb,var(--color-brand)_40%,var(--color-border))]"
+              className="rounded-[var(--radius-sm)] border border-(--color-border) bg-(--color-surface-tint) px-3 py-2 text-sm text-(--color-text-main) outline-none focus:border-[color-mix(in_srgb,var(--color-brand)_40%,var(--color-border))]"
             >
               {MEETING_DURATION_OPTIONS_MINUTES.map((minutes) => (
                 <option key={minutes} value={minutes}>
@@ -154,7 +154,7 @@ export default function ScheduleMeetingModal({ open, conversationId, onClose, on
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               placeholder="e.g. Project kickoff call"
-              className="rounded-lg border border-(--color-border) bg-[color-mix(in_srgb,var(--color-surface-strong)_50%,transparent)] px-3 py-2 text-sm text-(--color-text-main) outline-none placeholder:text-(--color-text-muted) focus:border-[color-mix(in_srgb,var(--color-brand)_40%,var(--color-border))]"
+              className="rounded-[var(--radius-sm)] border border-(--color-border) bg-(--color-surface-tint) px-3 py-2 text-sm text-(--color-text-main) outline-none placeholder:text-(--color-text-muted) focus:border-[color-mix(in_srgb,var(--color-brand)_40%,var(--color-border))]"
             />
           </label>
 
@@ -165,19 +165,19 @@ export default function ScheduleMeetingModal({ open, conversationId, onClose, on
           )}
 
           {conflict && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+            <p className="rounded-[var(--radius-sm)] bg-[color-mix(in_srgb,var(--color-danger)_7%,transparent)] px-3 py-2 text-xs text-(--color-danger)">
               This slot overlaps another meeting already booked between{" "}
               {new Date(conflict.startTimeUtc).toLocaleString()} and{" "}
               {new Date(conflict.endTimeUtc).toLocaleString()}. Please pick a different time.
             </p>
           )}
 
-          {submitError && <p className="text-xs text-red-500">{submitError}</p>}
+          {submitError && <p className="text-xs text-(--color-danger)">{submitError}</p>}
 
           <button
             type="submit"
             disabled={!canSubmit}
-            className="mt-1 flex h-10 items-center justify-center gap-2 rounded-lg bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-40"
+            className="ui-primary-button mt-1 w-full disabled:opacity-40"
           >
             {scheduling ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             Schedule meeting

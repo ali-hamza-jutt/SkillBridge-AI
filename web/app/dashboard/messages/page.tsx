@@ -1,91 +1,59 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useAppSelector } from "@/lib/hooks";
+import { MessageSquareText } from "lucide-react";
 import DashboardNavbar from "@/components/dashboard-navbar";
+import MessagesSidebar from "@/components/messages-sidebar";
 import RoleAccessNotice from "@/components/role-access-notice";
-import ConversationListItem from "@/components/conversation-list-item";
-import type { ConversationSummary } from "@/lib/types/chat";
 import { useConversationsControllerGetMyConversationsQuery } from "@/lib/api";
-import { Loader2 } from "lucide-react";
+import { useAppSelector } from "@/lib/hooks";
+import type { ConversationSummary } from "@/lib/types/chat";
+
+function getConversationError(error: unknown) {
+  if (!error || typeof error !== "object" || !("data" in error)) return null;
+  return typeof (error as { data?: unknown }).data === "string"
+    ? (error as { data: string }).data
+    : "Failed to load conversations";
+}
 
 export default function MessagesPage() {
-  const router = useRouter();
   const { role, token } = useAppSelector((state) => state.auth);
-  const {
-    data,
-    isLoading,
-    error,
-  } = useConversationsControllerGetMyConversationsQuery(undefined, {
+  const { data, isLoading, error } = useConversationsControllerGetMyConversationsQuery(undefined, {
     skip: !token || (role !== "HIRER" && role !== "FREELANCER"),
     refetchOnFocus: true,
     refetchOnReconnect: true,
   });
 
   const conversations = (data as ConversationSummary[] | undefined) ?? [];
-  // Keep the cached list visible while focus/reconnect refreshes run silently.
-  const loading = isLoading;
-  const errorMessage =
-    error && typeof error === "object" && "data" in error
-      ? typeof (error as { data?: unknown }).data === "string"
-        ? (error as { data?: string }).data ?? "Failed to load conversations"
-        : "Failed to load conversations"
-      : null;
 
   if (role !== "HIRER" && role !== "FREELANCER") {
-    return <RoleAccessNotice title="Messages unavailable" description="This area is available for active client and freelancer accounts." />;
+    return (
+      <RoleAccessNotice
+        title="Messages unavailable"
+        description="This area is available for active client and freelancer accounts."
+      />
+    );
   }
 
   return (
     <main className="min-h-screen bg-(--color-bg)">
       <DashboardNavbar role={role} activeItem="messages" />
 
-      <div className="mx-auto grid w-[min(100%-1rem,1440px)] gap-3 py-4 lg:grid-cols-[300px_1fr]">
-        <section className="rounded-2xl bg-(--background-color-chat-list-box)" style={{ maxHeight: "calc(100vh - 88px)" }}>
-          <div className="flex items-center justify-between gap-3 px-4 py-3">
-            <div>
-              <h1 className="text-lg font-bold tracking-tight text-(--color-text-main)">Messages</h1>
-            </div>
-            <button
-              type="button"
-              className="rounded-full border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] px-3 py-1.5 text-xs font-semibold text-(--color-text-main) transition hover:bg-[color-mix(in_srgb,var(--color-surface)_80%,transparent)]"
-              onClick={() => router.push("/dashboard")}
-            >
-              Back
-            </button>
-          </div>
+      <div className="h-[calc(100dvh-64px)] p-2 sm:p-3 lg:p-4">
+        <div className="ui-surface mx-auto grid h-full w-full max-w-[1500px] min-w-0 overflow-hidden lg:grid-cols-[320px_minmax(0,1fr)]">
+          <MessagesSidebar conversations={conversations} loading={isLoading} errorMessage={getConversationError(error)} />
 
-          <div className="grid gap-0 p-3 overflow-y-auto hide-scrollbar">
-            {loading ? (
-              <div className="flex items-center justify-center py-6">
-                <Loader2 className="h-8 w-8 animate-spin text-(--color-brand)" />
-              </div>
-            ) : null}
-            {!loading && errorMessage ? <p className="px-2 text-sm text-red-600">{errorMessage}</p> : null}
-            {!loading && !errorMessage && conversations.length === 0 ? (
-              <p className="px-2 py-6 text-center text-sm text-(--color-text-muted)">No conversations yet.</p>
-            ) : null}
-            {conversations.map((conversation) => (
-              <ConversationListItem
-                key={conversation.conversationId}
-                conversation={conversation}
-                href={`/dashboard/messages/${conversation.conversationId}`}
-              />
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-2xl border border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_94%,transparent)] shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18)]">
-          <div className="flex min-h-[70vh] items-center justify-center text-center">
-            <div className="max-w-xs">
-              <p className="text-2xl">💬</p>
-              <h2 className="mt-3 text-lg font-bold tracking-tight text-(--color-text-main)">Select a conversation</h2>
-              <p className="mt-1.5 text-sm leading-6 text-(--color-text-muted)">
-                Choose a chat from the list to start messaging in real time.
+          <section className="hidden min-w-0 items-center justify-center bg-(--color-bg) px-8 text-center lg:flex">
+            <div className="max-w-sm">
+              <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-[var(--radius-lg)] border border-(--color-border) bg-(--color-surface) text-(--color-brand) shadow-(--shadow-sm)">
+                <MessageSquareText className="h-5 w-5" />
+              </span>
+              <h2 className="mt-4 text-lg font-bold tracking-tight text-(--color-text-main)">Select a conversation</h2>
+              <p className="mt-1.5 text-sm leading-6 text-(--color-text-secondary)">
+                Choose a conversation from the sidebar to view its messages and continue where you left off.
               </p>
             </div>
-          </div>
-        </section>
+          </section>
+        </div>
       </div>
     </main>
   );

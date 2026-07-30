@@ -1,60 +1,57 @@
 "use client";
 
-import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useAppSelector } from "@/lib/hooks";
-import DashboardNavbar from "@/components/dashboard-navbar";
-import RoleAccessNotice from "@/components/role-access-notice";
-import ConversationListItem from "@/components/conversation-list-item";
 import ConversationThread from "@/components/conversation-thread";
+import DashboardNavbar from "@/components/dashboard-navbar";
+import MessagesSidebar from "@/components/messages-sidebar";
+import RoleAccessNotice from "@/components/role-access-notice";
 import { useConversationsControllerGetMyConversationsQuery } from "@/lib/api";
+import { useAppSelector } from "@/lib/hooks";
 import type { ConversationSummary } from "@/lib/types/chat";
+
+function getConversationError(error: unknown) {
+  if (!error || typeof error !== "object" || !("data" in error)) return null;
+  return typeof (error as { data?: unknown }).data === "string"
+    ? (error as { data: string }).data
+    : "Failed to load conversations";
+}
 
 export default function ConversationPage() {
   const params = useParams<{ conversationId: string }>();
   const conversationId = Array.isArray(params.conversationId) ? params.conversationId[0] : params.conversationId;
   const { role, token } = useAppSelector((state) => state.auth);
-  const { data, isLoading } = useConversationsControllerGetMyConversationsQuery(undefined, {
+  const { data, isLoading, error } = useConversationsControllerGetMyConversationsQuery(undefined, {
     skip: !token || (role !== "HIRER" && role !== "FREELANCER"),
     refetchOnFocus: true,
     refetchOnReconnect: true,
   });
+
   const conversations = (data as ConversationSummary[] | undefined) ?? [];
-  const loadingSidebar = isLoading;
 
   if (role !== "HIRER" && role !== "FREELANCER") {
-    return <RoleAccessNotice title="Messages unavailable" description="This area is available for active client and freelancer accounts." />;
+    return (
+      <RoleAccessNotice
+        title="Messages unavailable"
+        description="This area is available for active client and freelancer accounts."
+      />
+    );
   }
 
   return (
     <main className="min-h-screen bg-(--color-bg)">
       <DashboardNavbar role={role} activeItem="messages" />
 
-      <div className="mx-auto grid w-[min(100%-1rem,1440px)] gap-3 py-4 lg:grid-cols-[300px_1fr]">
-        <section className="rounded-2xl bg-(--background-color-chat-list-box)">
-          <div className="flex items-center justify-between gap-3 px-4 py-3">
-            <div>
-              <h1 className="text-lg font-bold tracking-tight text-(--color-text-main)">Messages</h1>
-            </div>
-            <Link href="/dashboard/messages" className="text-xs font-semibold text-(--color-brand-strong) no-underline hover:underline">
-              All
-            </Link>
-          </div>
-
-          <div className="grid gap-0 p-3">
-            {loadingSidebar ? <p className="px-2 py-3 text-sm text-(--color-text-muted)">Loading...</p> : null}
-            {conversations.map((conversation) => (
-              <ConversationListItem
-                key={conversation.conversationId}
-                conversation={conversation}
-                href={`/dashboard/messages/${conversation.conversationId}`}
-                active={conversation.conversationId === conversationId}
-              />
-            ))}
-          </div>
-        </section>
-
-        <ConversationThread conversationId={conversationId} />
+      <div className="h-[calc(100dvh-64px)] p-0 sm:p-3 lg:p-4">
+        <div className="ui-surface mx-auto grid h-full w-full max-w-[1500px] min-w-0 overflow-hidden lg:grid-cols-[320px_minmax(0,1fr)]">
+          <MessagesSidebar
+            conversations={conversations}
+            activeConversationId={conversationId}
+            loading={isLoading}
+            errorMessage={getConversationError(error)}
+            className="hidden lg:flex"
+          />
+          <ConversationThread conversationId={conversationId} />
+        </div>
       </div>
     </main>
   );

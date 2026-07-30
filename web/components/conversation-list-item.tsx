@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { ImageIcon, Video, FileText } from "lucide-react";
-import type { ConversationSummary } from "@/lib/types/chat";
+import { FileText, ImageIcon, Video } from "lucide-react";
 import ChatMessageTimestamp from "@/components/chat-message-timestamp";
+import Avatar from "@/components/conversation-thread/avatar";
+import type { ConversationSummary } from "@/lib/types/chat";
 
 type ConversationListItemProps = {
   conversation: ConversationSummary;
@@ -12,45 +12,11 @@ type ConversationListItemProps = {
   active?: boolean;
 };
 
-const AVATAR_COLORS = [
-  "#4f8ef7", "#7c6ef7", "#36b37e", "#f97316",
-  "#e11d48", "#0891b2", "#8b5cf6", "#059669",
-];
-
-function getAvatarColor(name: string) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
-
-function getInitials(name: string) {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-
-function Avatar({ name, url }: { name: string; url?: string | null }) {
-  if (url) {
-    return (
-      <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full">
-        <Image src={url} alt={name} width={44} height={44} className="h-full w-full object-cover" unoptimized />
-      </div>
-    );
-  }
-  return (
-    <div
-      className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
-      style={{ backgroundColor: getAvatarColor(name) }}
-    >
-      {getInitials(name)}
-    </div>
-  );
-}
-
 function LastMessagePreview({ conversation }: { conversation: ConversationSummary }) {
   if (!conversation.lastMessageText) {
     return <span className="italic">No messages yet</span>;
   }
+
   if (conversation.lastAttachmentType === "IMAGE") {
     return (
       <span className="flex items-center gap-1">
@@ -59,6 +25,7 @@ function LastMessagePreview({ conversation }: { conversation: ConversationSummar
       </span>
     );
   }
+
   if (conversation.lastAttachmentType === "VIDEO") {
     return (
       <span className="flex items-center gap-1">
@@ -67,6 +34,7 @@ function LastMessagePreview({ conversation }: { conversation: ConversationSummar
       </span>
     );
   }
+
   if (conversation.lastAttachmentType === "DOCUMENT") {
     return (
       <span className="flex items-center gap-1">
@@ -75,6 +43,7 @@ function LastMessagePreview({ conversation }: { conversation: ConversationSummar
       </span>
     );
   }
+
   return <span className="truncate">{conversation.lastMessageText}</span>;
 }
 
@@ -84,39 +53,54 @@ export default function ConversationListItem({ conversation, href, active }: Con
   return (
     <Link
       href={href}
-      className={`flex w-full min-w-0 items-start gap-3 overflow-hidden rounded-xl bg-transparent px-3 py-3 no-underline transition-colors hover:bg-(--background-color-chat-list-item) ${
-        active ? "bg-(--background-color-chat-list-item)" : ""
+      title={conversation.taskTitle}
+      aria-current={active ? "page" : undefined}
+      className={`group flex w-full min-w-0 items-center gap-3 overflow-hidden rounded-[var(--radius-md)] border px-3 py-2.5 no-underline transition-colors ${
+        active
+          ? "border-[color-mix(in_srgb,var(--color-brand)_16%,var(--color-border))] bg-(--background-color-chat-list-item)"
+          : "border-transparent bg-transparent hover:bg-(--color-hover)"
       }`}
     >
-      <div className="relative">
-        <Avatar name={conversation.otherUserName} url={conversation.otherUserAvatarUrl} />
+      <div className="relative shrink-0">
+        <Avatar name={conversation.otherUserName} url={conversation.otherUserAvatarUrl} size={44} />
         <span
-          className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[color-mix(in_srgb,var(--background-color-chat-list-box)_95%,transparent)] ${conversation.otherUserOnline ? "bg-emerald-500" : "bg-slate-400"}`}
+          className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-(--color-surface) ${
+            conversation.otherUserOnline ? "bg-(--color-success)" : "bg-(--color-text-muted)"
+          }`}
           aria-label={conversation.otherUserOnline ? "Online" : "Offline"}
         />
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-(--color-text-main)">{conversation.otherUserName}</p>
-            <p className="truncate text-xs text-(--color-text-muted)">{conversation.taskTitle}</p>
-          </div>
-          <div className="flex shrink-0 flex-col items-end gap-1">
-            <span className="text-[11px] text-(--color-text-muted)">
-              <ChatMessageTimestamp value={conversation.lastMessageAt ?? conversation.updatedAt} />
-            </span>
-            {unreadCount > 0 ? (
-              <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                {unreadCount > 99 ? "99+" : unreadCount}
-              </span>
-            ) : null}
-          </div>
+        <div className="flex items-center justify-between gap-2">
+          <p
+            className={`truncate text-sm text-(--color-text-main) ${
+              unreadCount > 0 ? "font-bold" : "font-semibold"
+            }`}
+          >
+            {conversation.otherUserName}
+          </p>
+          <ChatMessageTimestamp
+            value={conversation.lastMessageAt ?? conversation.updatedAt}
+            format="list"
+            className={unreadCount > 0 ? "font-semibold text-(--color-brand)" : undefined}
+          />
         </div>
 
-        <p className="mt-0.5 truncate text-xs text-(--color-text-muted)">
-          <LastMessagePreview conversation={conversation} />
-        </p>
+        <div className="mt-1 flex min-w-0 items-center gap-2">
+          <p
+            className={`min-w-0 flex-1 truncate text-xs ${
+              unreadCount > 0
+                ? "font-semibold text-(--color-text-secondary)"
+                : "text-(--color-text-muted)"
+            }`}
+          >
+            <LastMessagePreview conversation={conversation} />
+          </p>
+          {unreadCount > 0 ? (
+            <span className="ui-badge shrink-0">{unreadCount > 99 ? "99+" : unreadCount}</span>
+          ) : null}
+        </div>
       </div>
     </Link>
   );
