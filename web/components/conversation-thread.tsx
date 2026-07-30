@@ -1,8 +1,7 @@
 "use client";
 
-import Image from "next/image";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, CalendarPlus, FileText, Loader2, Paperclip, RotateCcw, Send, Smile, UserCircle, Video, X } from "lucide-react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, CalendarPlus, Loader2, Paperclip, Send, Smile, UserCircle, Video } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Virtuoso, type Components } from "react-virtuoso";
@@ -18,8 +17,10 @@ import { createThumbnailFile } from "@/lib/utils/createThumbnailFile";
 import MediaModal from "@/components/media-modal";
 import Avatar from "@/components/conversation-thread/avatar";
 import ScheduleMeetingModal from "@/components/conversation-thread/schedule-meeting-modal";
+import AttachmentPickerMenu, { ATTACHMENT_ACCEPT, type AttachmentPickerKind } from "@/components/conversation-thread/attachment-picker-menu";
+import PendingAttachmentPreview from "@/components/conversation-thread/pending-attachment-preview";
 import { renderMessageItemRow, type DisplayChatMessage } from "@/components/conversation-thread/render-message-item-row";
-import { CHAT_MESSAGE_PAGE_SIZE, CHAT_VIDEO_UPLOAD_MAX_SIZE_BYTES } from "@/lib/constants/upload";
+import { CHAT_ATTACHMENT_UPLOAD_TIMEOUT_MS, CHAT_MESSAGE_PAGE_SIZE, CHAT_SMALL_IMAGE_SIZE_BYTES, CHAT_VIDEO_UPLOAD_MAX_SIZE_BYTES, CHAT_VIDEO_UPLOAD_TIMEOUT_MS } from "@/lib/constants/upload";
 import {
   useConversationsControllerGetConversationQuery,
   useConversationsControllerGetMessagesQuery,
@@ -36,7 +37,6 @@ type PendingAttachment = {
   localId: string;
   file: File;
   preview: string | null;
-  uploading: boolean;
   error: string | null;
   result: AttachmentDto | null;
 };
@@ -77,6 +77,8 @@ const MESSAGE_OVERSCAN_PX = 1_200;
 const MESSAGE_OVERSCAN_ITEMS = 8;
 const MEETING_STATUS_POLL_INTERVAL_MS = 60_000;
 const MAX_BROWSER_TIMEOUT_MS = 2_147_000_000;
+const CHAT_COMPOSER_MIN_HEIGHT_PX = 40;
+const CHAT_COMPOSER_MAX_HEIGHT_PX = 120;
 
 type MessageListContext = {
   isLoadingOlder: boolean;
@@ -184,6 +186,9 @@ export default function ConversationThread({ conversationId }: { conversationId:
 
   const [body, setBody] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
+  const [isSubmittingMessage, setIsSubmittingMessage] = useState(false);
+  const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
+  const [attachmentPickerKind, setAttachmentPickerKind] = useState<AttachmentPickerKind>("IMAGE");
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [mediaPreview, setMediaPreview] = useState<{ open: boolean; src: string; type: "IMAGE" | "VIDEO"; title?: string }>({
     open: false,
@@ -191,6 +196,8 @@ export default function ConversationThread({ conversationId }: { conversationId:
     type: "IMAGE",
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const attachmentMenuRef = useRef<HTMLDivElement>(null);
+  const activeUploadControllerRef = useRef<AbortController | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const emojiMenuRef = useRef<HTMLDivElement>(null);
   const isLoadingOlderRef = useRef(false);
@@ -267,6 +274,10 @@ export default function ConversationThread({ conversationId }: { conversationId:
   }, []);
 
   useEffect(() => {
+    activeUploadControllerRef.current?.abort(new DOMException("Conversation changed", "AbortError"));
+    activeUploadControllerRef.current = null;
+    setIsSubmittingMessage(false);
+    setAttachmentMenuOpen(false);
     setMessages([]);
     setOptimisticMessages([]);
     setPatches({});
@@ -449,16 +460,34 @@ export default function ConversationThread({ conversationId }: { conversationId:
     };
   }, [conversationId, refetchUpcomingMeetings, socket, userId]);
 
+  useEffect(() => () => {
+    activeConversationIdRef.current = "";
+    activeUploadControllerRef.current?.abort();
+  }, []);
+
   useEffect(() => {
     const onPointerDown = (event: MouseEvent) => {
       if (emojiMenuRef.current && !emojiMenuRef.current.contains(event.target as Node)) {
         setEmojiPickerOpen(false);
+      }
+      if (attachmentMenuRef.current && !attachmentMenuRef.current.contains(event.target as Node)) {
+        setAttachmentMenuOpen(false);
       }
     };
 
     document.addEventListener("mousedown", onPointerDown);
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, []);
+
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    textarea.style.height = "auto";
+    const contentHeight = textarea.scrollHeight;
+    textarea.style.height = `${Math.min(Math.max(contentHeight, CHAT_COMPOSER_MIN_HEIGHT_PX), CHAT_COMPOSER_MAX_HEIGHT_PX)}px`;
+    textarea.style.overflowY = contentHeight > CHAT_COMPOSER_MAX_HEIGHT_PX ? "auto" : "hidden";
+  }, [body]);
 
   const insertEmoji = (emoji: string) => {
     const textarea = textareaRef.current;
@@ -482,84 +511,128 @@ export default function ConversationThread({ conversationId }: { conversationId:
     });
   };
 
-  const uploadFile = async (pending: PendingAttachment) => {
-    const setErr = (msg: string) =>
-      setPendingAttachments((prev) => prev.map((p) => p.localId === pending.localId ? { ...p, uploading: false, error: msg } : p));
+  type SignedUpload = { signedUrl: string; publicUrl: string; objectName: string };
+
+  const requestSignedUpload = async (file: File, folder: string, signal: AbortSignal) => {
+    signal.throwIfAborted();
+    const request = generateSignedUrl({
+      generateUploadUrlDto: {
+        fileName: file.name,
+        mimeType: file.type || "application/octet-stream",
+        folder,
+      },
+    });
+    const abortRequest = () => request.abort();
+    signal.addEventListener("abort", abortRequest, { once: true });
+
     try {
-      // If image, create thumbnail first
-      let thumbFile: File | null = null;
-      if (pending.file.type.startsWith("image/")) {
-        try {
-          thumbFile = await createThumbnailFile(pending.file);
-        } catch (e) {
-          console.error(`[thumbnail] error localId=${pending.localId} name=${pending.file.name} message=Thumbnail creation failed`, e);
-        }
-      }
-
-      // Request signed URLs for original and thumbnail (if any) in parallel
-      const origSignedPromise = generateSignedUrl({ generateUploadUrlDto: { fileName: pending.file.name, mimeType: pending.file.type, folder: "chat-attachments" } }).unwrap();
-      const thumbSignedPromise = thumbFile
-        ? (
-            generateSignedUrl({ generateUploadUrlDto: { fileName: thumbFile.name, mimeType: thumbFile.type, folder: "chat-attachments/thumbnails" } }).unwrap()
-          )
-        : Promise.resolve(null);
-
-      type Signed = { signedUrl: string; publicUrl: string; objectName: string } | null;
-      const [origSigned, thumbSigned] = await Promise.all([origSignedPromise, thumbSignedPromise]) as [Signed, Signed];
-      if (!origSigned) throw new Error('Failed to obtain signed URL for original');
-      const signedUrl = origSigned.signedUrl;
-      const publicUrl = origSigned.publicUrl;
-      const objectName = origSigned.objectName;
-
-      // Upload both files (original and thumbnail) concurrently
-      const origPut = fetch(signedUrl, { method: "PUT", headers: { "Content-Type": pending.file.type }, body: pending.file });
-      const thumbPut = thumbFile && thumbSigned
-        ? (
-            fetch(thumbSigned.signedUrl, { method: "PUT", headers: { "Content-Type": thumbFile.type }, body: thumbFile })
-          )
-        : Promise.resolve(null);
-
-      const [origRes, thumbRes] = await Promise.all([origPut, thumbPut]);
-      if (!(origRes as Response)?.ok) throw new Error(`Upload failed (HTTP ${(origRes as Response)?.status})`);
-
-      let thumbnailUrl: string | undefined = undefined;
-      if (thumbRes && (thumbRes as Response).ok && thumbSigned) {
-        thumbnailUrl = thumbSigned.publicUrl;
-      }
-
-      const result: AttachmentDto = {
-        url: publicUrl,
-        publicId: objectName,
-        name: pending.file.name,
-        mimeType: pending.file.type,
-        type: resolveAttachmentType(pending.file),
-        size: pending.file.size,
-        thumbnailUrl,
-      };
-
-      setPendingAttachments((prev) => prev.map((p) => p.localId === pending.localId ? { ...p, uploading: false, result } : p));
-    } catch (err) {
-      const msg = err instanceof Error ? err.message
-        : typeof err === "object" && err !== null && "data" in err
-          ? String((err as { data?: unknown }).data ?? "Upload failed")
-          : "Upload failed";
-      setErr(msg);
+      signal.throwIfAborted();
+      return (await request.unwrap()) as SignedUpload;
+    } finally {
+      signal.removeEventListener("abort", abortRequest);
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    e.target.value = "";
+  const uploadAttachment = async (pending: PendingAttachment, signal: AbortSignal): Promise<AttachmentDto> => {
+    if (pending.result) return pending.result;
+
+    const isImage = pending.file.type.startsWith("image/");
+    const useOriginalAsThumbnail = isImage && pending.file.size <= CHAT_SMALL_IMAGE_SIZE_BYTES;
+    let thumbnailFile: File | null = null;
+
+    if (isImage && !useOriginalAsThumbnail) {
+      thumbnailFile = await createThumbnailFile(pending.file, 800, 0.8, signal);
+    }
+
+    signal.throwIfAborted();
+    const originalSignedPromise = requestSignedUpload(pending.file, "chat-attachments", signal);
+    const thumbnailSignedPromise = thumbnailFile
+      ? requestSignedUpload(thumbnailFile, "chat-attachments/thumbnails", signal).catch((error) => {
+          signal.throwIfAborted();
+          console.warn("Could not prepare the optional image thumbnail upload.", error);
+          return null;
+        })
+      : Promise.resolve(null);
+    const [originalSigned, thumbnailSigned] = await Promise.all([
+      originalSignedPromise,
+      thumbnailSignedPromise,
+    ]);
+
+    const originalUpload = fetch(originalSigned.signedUrl, {
+      method: "PUT",
+      headers: { "Content-Type": pending.file.type || "application/octet-stream" },
+      body: pending.file,
+      signal,
+    });
+    const thumbnailUpload = thumbnailFile && thumbnailSigned
+      ? fetch(thumbnailSigned.signedUrl, {
+          method: "PUT",
+          headers: { "Content-Type": thumbnailFile.type },
+          body: thumbnailFile,
+          signal,
+        }).catch((error) => {
+          signal.throwIfAborted();
+          console.warn("Could not upload the optional image thumbnail.", error);
+          return null;
+        })
+      : Promise.resolve(null);
+    const [originalResponse, thumbnailResponse] = await Promise.all([
+      originalUpload,
+      thumbnailUpload,
+    ]);
+
+    if (!originalResponse.ok) {
+      throw new Error(`Upload failed (HTTP ${originalResponse.status})`);
+    }
+
+    return {
+      url: originalSigned.publicUrl,
+      publicId: originalSigned.objectName,
+      name: pending.file.name,
+      mimeType: pending.file.type || "application/octet-stream",
+      type: resolveAttachmentType(pending.file),
+      size: pending.file.size,
+      thumbnailUrl: useOriginalAsThumbnail
+        ? originalSigned.publicUrl
+        : thumbnailResponse?.ok && thumbnailSigned
+          ? thumbnailSigned.publicUrl
+          : undefined,
+    };
+  };
+
+  const openAttachmentPicker = (kind: AttachmentPickerKind) => {
+    setAttachmentPickerKind(kind);
+    setAttachmentMenuOpen(false);
+    window.requestAnimationFrame(() => fileInputRef.current?.click());
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    setSendError(null);
+
     for (const file of files) {
+      const matchesSelectedType =
+        (attachmentPickerKind === "IMAGE" && file.type.startsWith("image/")) ||
+        (attachmentPickerKind === "VIDEO" && file.type.startsWith("video/")) ||
+        (attachmentPickerKind === "DOCUMENT" && !file.type.startsWith("image/") && !file.type.startsWith("video/"));
+      if (!matchesSelectedType) {
+        setSendError(`Please choose a ${attachmentPickerKind.toLowerCase()} file.`);
+        continue;
+      }
       if (file.type.startsWith("video/") && file.size > CHAT_VIDEO_UPLOAD_MAX_SIZE_BYTES) {
         setSendError("Video must be under 100 MB.");
         continue;
       }
-      const localId = `${Date.now()}-${Math.random()}`;
-      const preview = file.type.startsWith("image/") || file.type.startsWith("video/") ? URL.createObjectURL(file) : null;
-      const pending: PendingAttachment = { localId, file, preview, uploading: true, error: null, result: null };
-      setPendingAttachments((prev) => [...prev, pending]);
-      uploadFile(pending);
+
+      const pending: PendingAttachment = {
+        localId: crypto.randomUUID(),
+        file,
+        preview: URL.createObjectURL(file),
+        error: null,
+        result: null,
+      };
+      setPendingAttachments((current) => [...current, pending]);
     }
   };
 
@@ -571,38 +644,23 @@ export default function ConversationThread({ conversationId }: { conversationId:
     });
   };
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSend = async (event: React.FormEvent) => {
+    event.preventDefault();
     const trimmed = body.trim();
-    const readyAttachments = pendingAttachments.filter(
-      (pending): pending is PendingAttachment & { result: AttachmentDto } => pending.result !== null,
-    );
-    const ready = readyAttachments.map((pending) => pending.result);
-    if (
-      (!trimmed && ready.length === 0) ||
-      !token ||
-      pendingAttachments.some((pending) => pending.uploading)
-    ) {
+    const selectedAttachments = pendingAttachments;
+    if ((!trimmed && selectedAttachments.length === 0) || !token || isSubmittingMessage) {
       return;
     }
 
     const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const optimisticAttachments: MessageAttachment[] = readyAttachments.map((attachment) => ({
-      url: (
-        attachment.result.thumbnailUrl ??
-        (
-          attachment.file.type.startsWith("image/") && attachment.preview
-            ? attachment.preview
-            : attachment.result.url
-        )
-      ) as string,
-      publicId: attachment.result.publicId,
-      name: attachment.result.name,
-      mimeType: attachment.result.mimeType,
-      type: attachment.result.type,
-      size: attachment.result.size,
+    const optimisticAttachments: MessageAttachment[] = selectedAttachments.map((attachment) => ({
+      url: attachment.preview ?? attachment.result?.url ?? "",
+      publicId: attachment.result?.publicId ?? attachment.localId,
+      name: attachment.file.name,
+      mimeType: attachment.file.type || "application/octet-stream",
+      type: resolveAttachmentType(attachment.file),
+      size: attachment.file.size,
     }));
-
     const optimisticMessage: DisplayChatMessage = {
       id: optimisticId,
       conversationId,
@@ -616,6 +674,27 @@ export default function ConversationThread({ conversationId }: { conversationId:
       optimistic: true,
     };
 
+    const requestedConversationId = conversationId;
+    const uploadController = new AbortController();
+    const uploadedById = new Map<string, AttachmentDto>();
+    for (const attachment of selectedAttachments) {
+      if (attachment.result) uploadedById.set(attachment.localId, attachment.result);
+    }
+    let uploadPhase = selectedAttachments.some((attachment) => !attachment.result);
+    let failedAttachmentId: string | null = null;
+    let uploadTimedOut = false;
+    const uploadTimeoutMs = selectedAttachments.some((attachment) => attachment.file.type.startsWith("video/"))
+      ? CHAT_VIDEO_UPLOAD_TIMEOUT_MS
+      : CHAT_ATTACHMENT_UPLOAD_TIMEOUT_MS;
+    const uploadTimeout = uploadPhase
+      ? window.setTimeout(() => {
+          uploadTimedOut = true;
+          uploadController.abort(new DOMException("Upload timed out", "TimeoutError"));
+        }, uploadTimeoutMs)
+      : null;
+
+    activeUploadControllerRef.current = uploadController;
+    setIsSubmittingMessage(true);
     setSendError(null);
     setOptimisticMessages((current) => [...current, optimisticMessage]);
     setBody("");
@@ -623,22 +702,85 @@ export default function ConversationThread({ conversationId }: { conversationId:
     window.requestAnimationFrame(() => textareaRef.current?.focus());
 
     try {
-      await sendMessage({
-        id: conversationId,
+      await Promise.all(
+        selectedAttachments.map(async (attachment) => {
+          if (attachment.result) return;
+          try {
+            const result = await uploadAttachment(attachment, uploadController.signal);
+            uploadedById.set(attachment.localId, result);
+          } catch (error) {
+            failedAttachmentId ??= attachment.localId;
+            throw error;
+          }
+        }),
+      );
+      uploadPhase = false;
+      if (uploadTimeout !== null) window.clearTimeout(uploadTimeout);
+
+      const readyAttachments = selectedAttachments.map((attachment) => {
+        const result = uploadedById.get(attachment.localId);
+        if (!result) throw new Error(`Could not upload ${attachment.file.name}`);
+        return result;
+      });
+      const sentMessage = (await sendMessage({
+        id: requestedConversationId,
         sendMessageDto: {
           ...(trimmed ? { body: trimmed } : {}),
-          ...(ready.length > 0 ? { attachments: ready } : {}),
+          ...(readyAttachments.length > 0 ? { attachments: readyAttachments } : {}),
         },
-      }).unwrap();
+      }).unwrap()) as ChatMessage;
+
+      if (activeConversationIdRef.current === requestedConversationId) {
+        setMessages((current) => mergeUniqueMessages(current, [sentMessage]));
+        setOptimisticMessages((current) => current.filter((message) => message.id !== optimisticId));
+        setPatches((current) => ({
+          ...current,
+          lastMessageText: sentMessage.body,
+          lastMessageAt: sentMessage.createdAt,
+        }));
+      }
+      window.setTimeout(() => {
+        for (const attachment of selectedAttachments) {
+          if (attachment.preview) URL.revokeObjectURL(attachment.preview);
+        }
+      }, 0);
     } catch {
-      setOptimisticMessages((current) =>
-        current.filter((message) => message.id !== optimisticId),
-      );
-      setBody((current) => current || trimmed);
-      setPendingAttachments((current) =>
-        current.length > 0 ? current : readyAttachments,
-      );
-      setSendError("Failed to send. Please try again.");
+      if (!uploadController.signal.aborted) uploadController.abort();
+
+      if (activeConversationIdRef.current === requestedConversationId) {
+        const errorMessage = uploadPhase
+          ? uploadTimedOut
+            ? "Upload timed out. Check your connection and send again."
+            : "Attachment upload failed. Send again to retry."
+          : "Failed to send. Please try again.";
+        setOptimisticMessages((current) => current.filter((message) => message.id !== optimisticId));
+        setBody((current) => current || trimmed);
+        setPendingAttachments((current) => {
+          const restored = selectedAttachments.map((attachment) => ({
+            ...attachment,
+            result: uploadedById.get(attachment.localId) ?? attachment.result,
+            error:
+              uploadPhase && (!failedAttachmentId || failedAttachmentId === attachment.localId)
+                ? errorMessage
+                : null,
+          }));
+          const restoredIds = new Set(restored.map((attachment) => attachment.localId));
+          return [...restored, ...current.filter((attachment) => !restoredIds.has(attachment.localId))];
+        });
+        setSendError(errorMessage);
+      } else {
+        for (const attachment of selectedAttachments) {
+          if (attachment.preview) URL.revokeObjectURL(attachment.preview);
+        }
+      }
+    } finally {
+      if (uploadTimeout !== null) window.clearTimeout(uploadTimeout);
+      if (activeUploadControllerRef.current === uploadController) {
+        activeUploadControllerRef.current = null;
+      }
+      if (activeConversationIdRef.current === requestedConversationId) {
+        setIsSubmittingMessage(false);
+      }
     }
   };
 
@@ -669,8 +811,10 @@ export default function ConversationThread({ conversationId }: { conversationId:
     }
   };
 
-  const canSend = !sending && !pendingAttachments.some((p) => p.uploading)
-    && (body.trim().length > 0 || pendingAttachments.some((p) => p.result !== null));
+  const canSend =
+    !sending &&
+    !isSubmittingMessage &&
+    (body.trim().length > 0 || pendingAttachments.length > 0);
 
   const showInitialLoading =
     (!conversation && convLoading) || (loadedMessagesConversationId !== conversationId && !messagesQueryFailed);
@@ -853,101 +997,50 @@ export default function ConversationThread({ conversationId }: { conversationId:
 
       <form onSubmit={handleSend} className="border-t border-(--color-border) bg-(--color-surface) p-3 sm:p-4">
         {pendingAttachments.length > 0 ? (
-          <div className="ui-scrollbar mb-3 flex max-h-28 flex-wrap gap-2 overflow-y-auto">
+          <div className="ui-scrollbar mb-3 flex max-h-40 gap-3 overflow-x-auto overflow-y-hidden pb-1">
             {pendingAttachments.map((pending) => (
-              <div
+              <PendingAttachmentPreview
                 key={pending.localId}
-                className={`relative flex items-center gap-2 rounded-[var(--radius-md)] border p-2 ${
-                  pending.error
-                    ? "border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-danger)_6%,var(--color-surface))]"
-                    : "border-(--color-border) bg-(--color-surface-tint)"
-                }`}
-              >
-                {pending.file.type.startsWith("image/") && pending.preview ? (
-                  <Image
-                    src={pending.preview}
-                    alt={pending.file.name}
-                    width={48}
-                    height={48}
-                    className="h-12 w-12 rounded-[var(--radius-sm)] object-cover"
-                    unoptimized
-                  />
-                ) : pending.file.type.startsWith("video/") && pending.preview ? (
-                  <video src={pending.preview} className="h-12 w-12 rounded-[var(--radius-sm)] object-cover" muted />
-                ) : (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-[var(--radius-sm)] bg-(--color-hover)">
-                    <FileText className="h-5 w-5 text-(--color-text-muted)" />
-                  </div>
-                )}
-
-                <div className="flex min-w-0 flex-col gap-0.5 pr-5">
-                  {pending.uploading ? (
-                    <div className="flex items-center gap-1.5">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-(--color-brand)" />
-                      <span className="text-[11px] text-(--color-text-muted)">Uploading...</span>
-                    </div>
-                  ) : pending.error ? (
-                    <>
-                      <span className="text-[11px] font-medium text-(--color-danger)">Upload failed</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPendingAttachments((current) =>
-                            current.map((item) =>
-                              item.localId === pending.localId
-                                ? { ...item, uploading: true, error: null }
-                                : item,
-                            ),
-                          );
-                          uploadFile({ ...pending, uploading: true, error: null });
-                        }}
-                        className="flex items-center gap-1 text-[11px] font-semibold text-(--color-brand) hover:underline"
-                      >
-                        <RotateCcw className="h-3 w-3" />
-                        Retry
-                      </button>
-                    </>
-                  ) : (
-                    <span className="max-w-36 truncate text-[11px] text-(--color-text-secondary)">
-                      {pending.file.name}
-                    </span>
-                  )}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => removePending(pending.localId)}
-                  className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-[var(--radius-sm)] text-(--color-text-muted) transition hover:bg-(--color-hover) hover:text-(--color-text-main)"
-                  aria-label="Remove attachment"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
+                file={pending.file}
+                preview={pending.preview}
+                error={pending.error}
+                onRemove={() => removePending(pending.localId)}
+                onOpenMedia={() => {
+                  if (!pending.preview) return;
+                  const type = resolveAttachmentType(pending.file);
+                  if (type === "IMAGE" || type === "VIDEO") {
+                    openMediaPreview({ url: pending.preview, type, name: pending.file.name });
+                  }
+                }}
+              />
             ))}
           </div>
         ) : null}
-
         {sendError ? <p className="mb-2 text-xs text-(--color-danger)">{sendError}</p> : null}
 
         <div className="ui-input-shell chat-composer flex min-w-0 items-end gap-1 p-1.5">
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/*,video/*,.pdf,.doc,.docx,.txt,.xlsx,.pptx,.zip"
-            className="hidden"
-            onChange={handleFileChange}
-          />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            aria-label="Attach file"
-            title="Attach file"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-(--color-text-muted) transition hover:bg-(--color-hover) hover:text-(--color-text-main)"
-          >
-            <Paperclip className="h-4 w-4" />
-          </button>
-
+          <div className="relative shrink-0" ref={attachmentMenuRef}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept={ATTACHMENT_ACCEPT[attachmentPickerKind]}
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <button
+              type="button"
+              onClick={() => setAttachmentMenuOpen((open) => !open)}
+              disabled={isSubmittingMessage}
+              aria-label="Attach media or document"
+              title="Attach media or document"
+              aria-expanded={attachmentMenuOpen}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-(--color-text-muted) transition hover:bg-(--color-hover) hover:text-(--color-text-main) disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Paperclip className="h-4 w-4" />
+            </button>
+            <AttachmentPickerMenu open={attachmentMenuOpen} onSelect={openAttachmentPicker} />
+          </div>
           <div className="relative shrink-0" ref={emojiMenuRef}>
             <button
               type="button"
@@ -974,8 +1067,8 @@ export default function ConversationThread({ conversationId }: { conversationId:
             }}
             rows={1}
             placeholder="Write a message..."
-            className="min-h-10 min-w-0 flex-1 resize-none bg-transparent px-2 py-2.5 text-sm leading-5 text-(--color-text-main) outline-none placeholder:text-(--color-text-muted)"
-            style={{ maxHeight: 160 }}
+            className="ui-scrollbar min-h-10 min-w-0 flex-1 resize-none bg-transparent px-2 py-2.5 text-sm leading-5 text-(--color-text-main) outline-none placeholder:text-(--color-text-muted)"
+            style={{ maxHeight: CHAT_COMPOSER_MAX_HEIGHT_PX }}
           />
 
           <button

@@ -2,6 +2,7 @@ export async function createThumbnailFile(
   file: File,
   maxWidth = 800,
   quality = 0.8,
+  signal?: AbortSignal,
 ): Promise<File | null> {
   if (!file.type.startsWith("image/")) {
     return null;
@@ -10,16 +11,15 @@ export async function createThumbnailFile(
   const imageUrl = URL.createObjectURL(file);
   const image = new Image();
   image.src = imageUrl;
+  const abortDecode = () => {
+    image.src = "";
+  };
+  signal?.addEventListener("abort", abortDecode, { once: true });
 
   try {
+    signal?.throwIfAborted();
     await image.decode();
-
-    const sourceCanvas = document.createElement("canvas");
-    sourceCanvas.width = image.naturalWidth;
-    sourceCanvas.height = image.naturalHeight;
-
-    const sourceContext = sourceCanvas.getContext("2d");
-    sourceContext?.drawImage(image, 0, 0);
+    signal?.throwIfAborted();
 
     const scale = Math.min(1, maxWidth / image.naturalWidth);
     const targetCanvas = document.createElement("canvas");
@@ -33,7 +33,13 @@ export async function createThumbnailFile(
 
     targetContext.imageSmoothingEnabled = true;
     targetContext.imageSmoothingQuality = "high";
-    targetContext.drawImage(sourceCanvas, 0, 0, targetCanvas.width, targetCanvas.height);
+    targetContext.drawImage(
+      image,
+      0,
+      0,
+      targetCanvas.width,
+      targetCanvas.height,
+    );
 
     const blob = await new Promise<Blob | null>((resolve) => {
       targetCanvas.toBlob((result) => resolve(result), "image/jpeg", quality);
@@ -42,11 +48,17 @@ export async function createThumbnailFile(
       return null;
     }
 
-    const thumbnailFile = new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), { type: "image/jpeg" });
-    return thumbnailFile;
-  } catch (error) {
+    signal?.throwIfAborted();
+    return new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), {
+      type: "image/jpeg",
+    });
+  } catch {
+    if (signal?.aborted) {
+      throw signal.reason ?? new DOMException("Upload cancelled", "AbortError");
+    }
     return null;
   } finally {
+    signal?.removeEventListener("abort", abortDecode);
     URL.revokeObjectURL(imageUrl);
   }
 }

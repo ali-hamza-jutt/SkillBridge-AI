@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import type { MessageAttachment } from "@/lib/types/chat";
 import { normalizeAttachmentUrl } from "@/lib/utils/formatting";
 import { inferAttachmentType } from "@/lib/utils/chatAttachmentType";
+import MediaDownloadButton from "@/components/conversation-thread/media-download-button";
 
 function MediaPreview({
   attachment,
@@ -14,7 +15,11 @@ function MediaPreview({
 }: {
   attachment: MessageAttachment;
   optimistic?: boolean;
-  onOpen?: (item: { url: string; type: "IMAGE" | "VIDEO"; name?: string }) => void;
+  onOpen?: (item: {
+    url: string;
+    type: "IMAGE" | "VIDEO";
+    name?: string;
+  }) => void;
 }) {
   const url = normalizeAttachmentUrl(attachment.url);
   const isLocalPreview = url.startsWith("blob:");
@@ -23,15 +28,21 @@ function MediaPreview({
   if (!url.startsWith("http") && !isLocalPreview) return null;
 
   if (attachmentType === "IMAGE") {
-    const displayUrl = optimistic || isLocalPreview ? url : (attachment.thumbnailUrl ?? url);
+    const displayUrl =
+      optimistic || isLocalPreview ? url : (attachment.thumbnailUrl ?? url);
 
-    if (optimistic || isLocalPreview) {
-      return (
+    return (
+      <div
+        className="group relative overflow-hidden rounded-[var(--radius-md)]"
+        style={{ width: "min(380px, 100%)", aspectRatio: "4 / 3" }}
+      >
         <button
           type="button"
-          onClick={() => onOpen?.({ url, type: "IMAGE", name: attachment.name })}
-          className="relative overflow-hidden rounded-xl text-left"
-          style={{ width: "min(380px, 100%)", aspectRatio: "4 / 3" }}
+          onClick={() =>
+            onOpen?.({ url, type: "IMAGE", name: attachment.name })
+          }
+          className="block h-full w-full text-left"
+          aria-label={`Open ${attachment.name}`}
         >
           <Image
             src={displayUrl}
@@ -40,60 +51,52 @@ function MediaPreview({
             height={285}
             unoptimized
             decoding="async"
-            loading="eager"
+            loading={
+              optimistic || isLocalPreview || attachment.thumbnailUrl
+                ? "eager"
+                : "lazy"
+            }
             sizes="380px"
-            className="h-full w-full rounded-xl object-cover blur-md scale-105"
+            className={`h-full w-full object-cover ${optimistic ? "scale-105 blur-md" : ""}`}
           />
-          <div className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-2 py-1 text-[11px] font-medium text-white shadow-sm backdrop-blur-sm">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            Sending...
-          </div>
+          {optimistic ? (
+            <span className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-full bg-black/65 px-2 py-1 text-[11px] font-medium text-white shadow-sm backdrop-blur-sm">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Sending...
+            </span>
+          ) : null}
         </button>
-      );
-    }
-
-    return (
-      <button
-        type="button"
-        onClick={() => onOpen?.({ url, type: "IMAGE", name: attachment.name })}
-        className="relative block overflow-hidden rounded-xl text-left"
-        style={{ width: "min(380px, 100%)", aspectRatio: "4 / 3" }}
-      >
-        <Image
-          src={displayUrl}
-          alt={attachment.name}
-          width={380}
-          height={285}
-          unoptimized
-          decoding="async"
-          loading={attachment.thumbnailUrl ? "eager" : "lazy"}
-          sizes="380px"
-          className="h-full w-full rounded-xl object-cover"
-        />
-      </button>
+        <MediaDownloadButton url={url} fileName={attachment.name} />
+      </div>
     );
   }
 
   return (
-    <button
-      type="button"
-      onClick={() => onOpen?.({ url, type: "VIDEO", name: attachment.name })}
-      className="relative block overflow-hidden rounded-xl text-left"
-      aria-label={`Open ${attachment.name}`}
+    <div
+      className="group relative overflow-hidden rounded-[var(--radius-md)]"
       style={{ width: "min(380px, 100%)", aspectRatio: "4 / 3" }}
     >
-      <video
-        src={`${url}#t=0.1`}
-        muted
-        playsInline
-        className="h-full w-full rounded-xl object-cover"
-        preload="metadata"
-      />
-      <div className="absolute inset-0 bg-black/10" />
-      <div className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-1 text-[11px] font-medium text-white shadow-sm backdrop-blur-sm">
-        Tap to preview
-      </div>
-    </button>
+      <button
+        type="button"
+        onClick={() => onOpen?.({ url, type: "VIDEO", name: attachment.name })}
+        className="block h-full w-full text-left"
+        aria-label={`Open ${attachment.name}`}
+      >
+        <video
+          src={`${url}#t=0.1`}
+          muted
+          playsInline
+          className={`h-full w-full object-cover ${optimistic ? "opacity-75" : ""}`}
+          preload="metadata"
+        />
+        <span className="absolute inset-0 bg-black/10" />
+        <span className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-full bg-black/65 px-2 py-1 text-[11px] font-medium text-white shadow-sm backdrop-blur-sm">
+          {optimistic ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+          {optimistic ? "Sending..." : "Open preview"}
+        </span>
+      </button>
+      <MediaDownloadButton url={url} fileName={attachment.name} />
+    </div>
   );
 }
 
