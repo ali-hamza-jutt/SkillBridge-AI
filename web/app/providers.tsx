@@ -8,6 +8,7 @@ import { setCredentials, setHydrated } from "@/lib/features/auth/authSlice";
 import ChatSocketProvider from "@/components/chat-socket-provider";
 import { NotificationsProvider } from "@/lib/notifications-context";
 import { useConversationListRealtimeUpdates } from "@/lib/useConversationListRealtimeUpdates";
+import NavigationLoadingProvider from "@/components/navigation-loading-provider";
 
 function ConversationRealtimeSync() {
   useConversationListRealtimeUpdates();
@@ -55,7 +56,9 @@ export default function Providers({ children }: PropsWithChildren) {
       <Toaster position="top-right" richColors closeButton duration={5000} />
       <ChatSocketProvider>
         <ConversationRealtimeSync />
-        <NotificationsProvider>{children}</NotificationsProvider>
+        <NotificationsProvider>
+          <NavigationLoadingProvider>{children}</NavigationLoadingProvider>
+        </NotificationsProvider>
       </ChatSocketProvider>
     </Provider>
   );

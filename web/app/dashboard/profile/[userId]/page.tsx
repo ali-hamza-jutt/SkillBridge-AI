@@ -4,7 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { Building2, GraduationCap, Star, ExternalLink, FileText, ImageIcon, Loader2 } from "lucide-react";
+import { Building2, GraduationCap, Star, ExternalLink, FileText, ImageIcon } from "lucide-react";
+import AppLoader from "@/components/app-loader";
 import { useAppSelector } from "@/lib/hooks";
 import { useUsersControllerFindOneQuery, usePortfolioControllerFindByUserQuery, useCategoryControllerGetAllCategoriesQuery } from "@/lib/api";
 import DashboardNavbar from "@/components/dashboard-navbar";
@@ -103,7 +104,7 @@ function ExperienceItem({ entry }: { entry: ExperienceEntry }) {
         <p className="text-sm font-semibold text-(--color-text-main)">{entry.jobTitle}</p>
         <p className="text-sm text-(--color-text-muted)">{entry.company}</p>
         <p className="mt-0.5 text-xs text-(--color-text-muted)">
-          {monthLabel(entry.startDate)} – {entry.current ? "Present" : monthLabel(entry.endDate ?? "")}
+          {monthLabel(entry.startDate)} {"\u2013"} {entry.current ? "Present" : monthLabel(entry.endDate ?? "")}
         </p>
         {entry.description && <p className="mt-1.5 whitespace-pre-wrap text-sm leading-6 text-(--color-text-muted)">{entry.description}</p>}
       </div>
@@ -118,10 +119,10 @@ function EducationItem({ entry }: { entry: EducationEntry }) {
         <GraduationCap className="h-4 w-4 text-(--color-brand-strong)" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-(--color-text-main)">{entry.degree} · {entry.field}</p>
+        <p className="text-sm font-semibold text-(--color-text-main)">{entry.degree} {"\u00B7"} {entry.field}</p>
         <p className="text-sm text-(--color-text-muted)">{entry.institution}</p>
         <p className="mt-0.5 text-xs text-(--color-text-muted)">
-          {monthLabel(entry.startDate)} – {entry.current ? "Present" : monthLabel(entry.endDate ?? "")}
+          {monthLabel(entry.startDate)} {"\u2013"} {entry.current ? "Present" : monthLabel(entry.endDate ?? "")}
         </p>
       </div>
     </div>
@@ -148,9 +149,7 @@ export default function FreelancerProfilePage() {
     return (
       <main className="min-h-screen">
         <DashboardNavbar role={role} activeItem={undefined} />
-        <div className="flex h-[60vh] items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-(--color-brand)" />
-        </div>
+        <AppLoader label="Loading profile..." className="min-h-[60vh]" />
       </main>
     );
   }

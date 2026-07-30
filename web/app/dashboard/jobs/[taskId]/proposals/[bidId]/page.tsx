@@ -15,6 +15,8 @@ import {
 } from "@/lib/api";
 import type { ConversationSummary } from "@/lib/types/chat";
 import { getAttachmentDisplayItems, money, formatBidDate } from "@/lib/utils/formatting";
+import { LoadingSpinner } from "@/components/app-loader";
+import { useNavigationLoading } from "@/components/navigation-loading-provider";
 
 const attachmentTypeLabel = (kind: "image" | "video" | "pdf" | "doc" | "file") => {
   switch (kind) {
@@ -34,6 +36,7 @@ const attachmentTypeLabel = (kind: "image" | "video" | "pdf" | "doc" | "file") =
 export default function ProposalDetailsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { startRouteLoading } = useNavigationLoading();
   const { role, userId } = useAppSelector((state) => state.auth);
   const [createPreHire] = useConversationsControllerCreatePreHireMutation();
   const [hire] = useConversationsControllerHireMutation();
@@ -62,7 +65,9 @@ export default function ProposalDetailsPage() {
           bidId: bid._id,
         },
       }).unwrap()) as ConversationSummary;
-      router.push(`/dashboard/messages/${conversation.conversationId}`);
+      const destination = `/dashboard/messages/${conversation.conversationId}`;
+      startRouteLoading(destination);
+      router.push(destination);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Failed to open chat");
     } finally {
@@ -84,7 +89,9 @@ export default function ProposalDetailsPage() {
           bidId: bid._id,
         },
       }).unwrap()) as ConversationSummary;
-      router.push(`/dashboard/messages/${conversation.conversationId}`);
+      const destination = `/dashboard/messages/${conversation.conversationId}`;
+      startRouteLoading(destination);
+      router.push(destination);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Failed to hire freelancer");
     } finally {
@@ -159,7 +166,12 @@ export default function ProposalDetailsPage() {
               disabled={isSendingMessage || isHiring}
               className="inline-flex items-center justify-center rounded-full border border-[color-mix(in_srgb,var(--color-brand)_30%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-brand-soft)_72%,var(--color-surface))] px-5 py-2.5 text-sm font-semibold text-(--color-brand-strong) transition hover:border-[color-mix(in_srgb,var(--color-brand)_42%,var(--color-border))] disabled:opacity-60"
             >
-              {isSendingMessage ? "Opening chat..." : "Send Message"}
+              {isSendingMessage ? (
+                <>
+                  <LoadingSpinner size="sm" />
+                  Opening chat...
+                </>
+              ) : "Send Message"}
             </button>
             <button
               type="button"
@@ -167,7 +179,12 @@ export default function ProposalDetailsPage() {
               disabled={isSendingMessage || isHiring}
               className="inline-flex items-center justify-center rounded-full border border-transparent bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] px-5 py-2.5 text-sm font-semibold text-white transition disabled:opacity-60"
             >
-              {isHiring ? "Hiring..." : "Hire Freelancer"}
+              {isHiring ? (
+                <>
+                  <LoadingSpinner size="sm" className="!text-white" />
+                  Hiring...
+                </>
+              ) : "Hire Freelancer"}
             </button>
           </div>
 

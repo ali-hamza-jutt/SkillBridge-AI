@@ -9,6 +9,7 @@ import type { RefObject } from "react";
 import { logout } from "@/lib/features/auth/authSlice";
 import { useAppDispatch, useAppSelector } from "@/lib/hooks";
 import { useUnreadConversationCount } from "@/lib/useUnreadMessages";
+import { useNavigationLoading } from "@/components/navigation-loading-provider";
 
 type DashboardNavbarProps = {
   role: "FREELANCER" | "HIRER" | "ADMIN" | null;
@@ -109,6 +110,7 @@ export default function DashboardNavbar({ role, activeItem, onPostJob }: Dashboa
   const searchParams = useSearchParams();
   const dispatch = useAppDispatch();
   const unreadCount = useUnreadConversationCount();
+  const { startRouteLoading } = useNavigationLoading();
   const { avatarUrl, email } = useAppSelector((state) => state.auth);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -142,6 +144,7 @@ export default function DashboardNavbar({ role, activeItem, onPostJob }: Dashboa
     localStorage.removeItem("auth_skills");
     localStorage.removeItem("auth_avatar_url");
     dispatch(logout());
+    startRouteLoading("/login");
     router.push("/login");
   };
 
@@ -155,7 +158,9 @@ export default function DashboardNavbar({ role, activeItem, onPostJob }: Dashboa
     else nextParams.delete("q");
 
     const nextQuery = nextParams.toString();
-    router.push(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+    const destination = nextQuery ? `${pathname}?${nextQuery}` : pathname;
+    startRouteLoading(destination);
+    router.push(destination);
   };
 
   useEffect(() => {
@@ -217,7 +222,10 @@ export default function DashboardNavbar({ role, activeItem, onPostJob }: Dashboa
 
           <button
             type="button"
-            onClick={() => router.push("/dashboard/messages")}
+            onClick={() => {
+              startRouteLoading("/dashboard/messages");
+              router.push("/dashboard/messages");
+            }}
             className="ui-icon-button relative"
             aria-label="Notifications"
           >

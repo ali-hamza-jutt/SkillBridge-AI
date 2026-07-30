@@ -19,6 +19,7 @@ import { getApiErrorMessage } from "@/lib/getApiErrorMessage";
 import DashboardNavbar from "@/components/dashboard-navbar";
 import TaskDetailDrawer from "@/components/task-detail-drawer";
 import SkillSuggestionInput from "@/components/skill-suggestion-input";
+import { LoadingSpinner } from "@/components/app-loader";
 
 type BudgetType = "hourly" | "fixed";
 type ProjectType = "ongoing" | "one_time";
@@ -284,7 +285,11 @@ export default function DashboardPage() {
 
         <div className="mx-auto grid w-[min(100%-2rem,1200px)] gap-5 py-5">
           <section className="grid gap-4">
-            {isLoadingMatchedTasks ? <p className="text-sm text-(--color-text-muted)">Loading jobs...</p> : null}
+            {isLoadingMatchedTasks ? (
+              <div className="flex justify-center py-10" aria-label="Loading jobs">
+                <LoadingSpinner />
+              </div>
+            ) : null}
             {!isLoadingMatchedTasks && matchedTasks.length === 0 ? (
               <article className="rounded-3xl border border-dashed border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] p-8 text-center shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)]">
                 <h2 className="text-2xl font-bold tracking-tight text-(--color-text-main)">No jobs available yet</h2>
@@ -332,7 +337,7 @@ export default function DashboardPage() {
 
                 <div className="mt-4 inline-flex items-center text-sm font-semibold text-(--color-brand-strong) opacity-80 transition group-hover:opacity-100">
                   View details
-                  <span className="ml-2 transition-transform duration-200 group-hover:translate-x-1">→</span>
+                  <span className="ml-2 transition-transform duration-200 group-hover:translate-x-1">{"\u2192"}</span>
                 </div>
               </article>
             ))}
@@ -380,7 +385,11 @@ export default function DashboardPage() {
         </section>
 
         <section className="grid gap-4">
-          {isLoadingMyTasks ? <p className="text-sm text-(--color-text-muted)">Loading your jobs...</p> : null}
+          {isLoadingMyTasks ? (
+            <div className="flex justify-center py-10" aria-label="Loading your jobs">
+              <LoadingSpinner />
+            </div>
+          ) : null}
 
           {!isLoadingMyTasks && filteredTasks.length === 0 ? (
             <article className="rounded-3xl border border-dashed border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] p-8 text-center shadow-[0_20px_44px_-34px_rgba(15,23,42,0.35)]">
@@ -445,7 +454,7 @@ export default function DashboardPage() {
 
               <div className="mt-4 inline-flex items-center text-sm font-semibold text-(--color-brand-strong) opacity-80 transition group-hover:opacity-100">
                 View proposals
-                <span className="ml-2 transition-transform duration-200 group-hover:translate-x-1">→</span>
+                <span className="ml-2 transition-transform duration-200 group-hover:translate-x-1">{"\u2192"}</span>
               </div>
             </Link>
           ))}

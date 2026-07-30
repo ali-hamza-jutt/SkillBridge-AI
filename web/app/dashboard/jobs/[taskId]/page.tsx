@@ -9,6 +9,7 @@ import RoleAccessNotice from "@/components/role-access-notice";
 import TaskSummaryPanel from "@/components/task-summary-panel";
 import type { Task, TaskBid } from "@/lib/types/proposal";
 import { getAttachmentUrls, money, formatBidDate } from "@/lib/utils/formatting";
+import AppLoader, { LoadingSpinner } from "@/components/app-loader";
 
 export default function EmployerJobDetailsPage() {
   const params = useParams<{ taskId: string }>();
@@ -39,10 +40,8 @@ export default function EmployerJobDetailsPage() {
 
   if (isLoadingTask) {
     return (
-      <main className="min-h-screen bg-[var(--color-bg)] py-10">
-        <div className="mx-auto w-[min(100%-2rem,1200px)]">
-          <p className="text-sm text-[var(--color-text-muted)]">Loading job details...</p>
-        </div>
+      <main className="flex min-h-screen items-center justify-center bg-(--color-bg)">
+        <AppLoader label="Loading job details..." />
       </main>
     );
   }
@@ -99,7 +98,11 @@ export default function EmployerJobDetailsPage() {
             </div>
 
             <div className="mt-4 grid gap-3">
-              {isLoadingBids ? <p className="text-sm text-[var(--color-text-muted)]">Loading proposals...</p> : null}
+              {isLoadingBids ? (
+                <div className="flex items-center justify-center py-8" aria-label="Loading proposals">
+                  <LoadingSpinner />
+                </div>
+              ) : null}
 
               {!isLoadingBids && taskBids.length === 0 ? (
                 <article className="rounded-2xl border border-dashed border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_85%,transparent)] p-6 text-center">
@@ -151,7 +154,7 @@ export default function EmployerJobDetailsPage() {
 
                   <div className="mt-4 inline-flex items-center text-sm font-semibold text-[var(--color-brand-strong)] opacity-85 transition group-hover:opacity-100">
                     Open proposal
-                    <span className="ml-2 transition-transform duration-200 group-hover:translate-x-1">→</span>
+                    <span className="ml-2 transition-transform duration-200 group-hover:translate-x-1">{"\u2192"}</span>
                   </div>
                 </Link>
                   );
