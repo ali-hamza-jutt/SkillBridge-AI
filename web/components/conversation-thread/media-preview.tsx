@@ -1,12 +1,13 @@
 "use client";
 
 import Image from "next/image";
+import { memo } from "react";
 import { Loader2 } from "lucide-react";
 import type { MessageAttachment } from "@/lib/types/chat";
 import { normalizeAttachmentUrl } from "@/lib/utils/formatting";
 import { inferAttachmentType } from "@/lib/utils/chatAttachmentType";
 
-export default function MediaPreview({
+function MediaPreview({
   attachment,
   optimistic = false,
   onOpen,
@@ -38,6 +39,8 @@ export default function MediaPreview({
             width={380}
             height={285}
             unoptimized
+            decoding="async"
+            loading="eager"
             sizes="380px"
             className="h-full w-full rounded-xl object-cover blur-md scale-105"
           />
@@ -62,6 +65,8 @@ export default function MediaPreview({
           width={380}
           height={285}
           unoptimized
+          decoding="async"
+          loading={attachment.thumbnailUrl ? "eager" : "lazy"}
           sizes="380px"
           className="h-full w-full rounded-xl object-cover"
         />
@@ -91,3 +96,5 @@ export default function MediaPreview({
     </button>
   );
 }
+
+export default memo(MediaPreview);
