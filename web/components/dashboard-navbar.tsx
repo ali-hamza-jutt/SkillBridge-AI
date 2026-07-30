@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
+import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Bell, LogOut, MessageSquareText, Search, UserRound } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Bell, Mail, Search } from "lucide-react";
 import { logout } from "@/lib/features/auth/authSlice";
 import { useAppDispatch, useAppSelector } from "@/lib/hooks";
 import { useUnreadConversationCount } from "@/lib/useUnreadMessages";
@@ -16,23 +16,9 @@ type DashboardNavbarProps = {
   onPostJob?: () => void;
 };
 
-const AVATAR_COLORS = ["#4f8ef7", "#7c6ef7", "#36b37e", "#f97316", "#e11d48", "#0891b2", "#8b5cf6", "#059669"];
-
-function avatarBg(seed: string) {
-  let hash = 0;
-  for (let index = 0; index < seed.length; index += 1) {
-    hash = seed.charCodeAt(index) + ((hash << 5) - hash);
-  }
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
-
-const navButtonClass =
-  "rounded-full px-4 py-2 text-sm font-semibold text-black no-underline transition hover:bg-transparent hover:text-black";
-
 type ProfileAvatarProps = {
   activeItem?: "jobs" | "messages" | "profile";
   avatarUrl?: string | null;
-  bg: string;
   email?: string | null;
   profileMenuOpen: boolean;
   profileMenuRef: RefObject<HTMLDivElement | null>;
@@ -43,7 +29,6 @@ type ProfileAvatarProps = {
 function ProfileAvatar({
   activeItem,
   avatarUrl,
-  bg,
   email,
   profileMenuOpen,
   profileMenuRef,
@@ -57,19 +42,26 @@ function ProfileAvatar({
       <button
         type="button"
         onClick={() => setProfileMenuOpen((open) => !open)}
-        className={`relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 transition ${
+        className={`relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-md)] border transition ${
           activeItem === "profile"
             ? "border-(--color-brand)"
-            : "border-[color-mix(in_srgb,var(--color-border)_90%,transparent)] hover:border-(--color-brand)"
+            : "border-(--color-border) hover:border-[color-mix(in_srgb,var(--color-brand)_40%,var(--color-border))]"
         }`}
         aria-label="Profile menu"
         aria-expanded={profileMenuOpen}
         aria-haspopup="menu"
       >
         {avatarUrl ? (
-          <Image src={avatarUrl} alt="Profile" width={36} height={36} className="h-full w-full object-cover" unoptimized />
+          <Image
+            src={avatarUrl}
+            alt="Profile"
+            width={36}
+            height={36}
+            className="h-full w-full object-cover"
+            unoptimized
+          />
         ) : (
-          <span className="flex h-full w-full items-center justify-center text-sm font-bold text-white" style={{ backgroundColor: bg }}>
+          <span className="flex h-full w-full items-center justify-center bg-(--color-brand) text-sm font-bold text-white">
             {initial}
           </span>
         )}
@@ -77,19 +69,21 @@ function ProfileAvatar({
 
       {profileMenuOpen ? (
         <div
-          className="absolute right-0 top-[calc(100%+0.6rem)] z-50 w-48 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--color-border)_88%,transparent)] bg-[color-mix(in_srgb,var(--color-surface)_96%,transparent)] p-2 shadow-[0_18px_36px_-24px_rgba(15,23,42,0.42)]"
+          className="absolute right-0 top-[calc(100%+0.55rem)] z-50 w-52 overflow-hidden rounded-[var(--radius-lg)] border border-(--color-border) bg-(--color-surface) p-1.5 shadow-(--shadow-panel)"
           role="menu"
         >
+          <div className="border-b border-(--color-border) px-3 py-2">
+            <p className="truncate text-xs font-semibold text-(--color-text-main)">{email ?? "Your account"}</p>
+            <p className="mt-0.5 text-[11px] text-(--color-text-muted)">Account settings</p>
+          </div>
           <Link
             href="/dashboard/profile"
-            className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-(--color-text-main) no-underline transition hover:bg-[color-mix(in_srgb,var(--color-brand-soft)_55%,transparent)]"
+            className="mt-1 flex items-center gap-2 rounded-[var(--radius-sm)] px-3 py-2 text-sm font-medium text-(--color-text-main) no-underline transition hover:bg-(--color-hover)"
             role="menuitem"
             onClick={() => setProfileMenuOpen(false)}
           >
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--color-brand-soft)_70%,var(--color-surface))] text-(--color-brand-strong)">
-              <Mail className="h-4 w-4" />
-            </span>
-            Edit Profile
+            <UserRound className="h-4 w-4 text-(--color-text-muted)" />
+            Edit profile
           </Link>
           <button
             type="button"
@@ -97,13 +91,11 @@ function ProfileAvatar({
               setProfileMenuOpen(false);
               signOut();
             }}
-            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold text-(--color-text-main) transition hover:bg-[color-mix(in_srgb,var(--color-brand-soft)_55%,transparent)]"
+            className="flex w-full items-center gap-2 rounded-[var(--radius-sm)] px-3 py-2 text-left text-sm font-medium text-(--color-danger) transition hover:bg-[color-mix(in_srgb,var(--color-danger)_6%,transparent)]"
             role="menuitem"
           >
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--color-brand-soft)_70%,var(--color-surface))] text-(--color-brand-strong)">
-              <Bell className="h-4 w-4" />
-            </span>
-            Logout
+            <LogOut className="h-4 w-4" />
+            Log out
           </button>
         </div>
       ) : null}
@@ -121,8 +113,24 @@ export default function DashboardNavbar({ role, activeItem, onPostJob }: Dashboa
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
-  const bg = avatarBg(email ?? "U");
   const canPostJob = role === "HIRER" && Boolean(onPostJob);
+  const navItems = [
+    {
+      label: role === "HIRER" ? "Dashboard" : "Find Work",
+      href: "/dashboard",
+      active: activeItem === "jobs" || pathname === "/dashboard",
+    },
+    {
+      label: "Finances",
+      href: "/dashboard/profile",
+      active: activeItem === "profile" || pathname === "/dashboard/profile",
+    },
+    {
+      label: "Messages",
+      href: "/dashboard/messages",
+      active: activeItem === "messages" || pathname.startsWith("/dashboard/messages"),
+    },
+  ];
 
   const signOut = () => {
     localStorage.removeItem("auth_token");
@@ -137,28 +145,14 @@ export default function DashboardNavbar({ role, activeItem, onPostJob }: Dashboa
     router.push("/login");
   };
 
-  const navItems = [
-    { label: "Find Work", href: "/dashboard", active: activeItem === "jobs" || pathname === "/dashboard" },
-    { label: "Manage Finances", href: "/dashboard/profile", active: activeItem === "profile" || pathname === "/dashboard/profile" },
-    { label: "Deliver Work", href: "/dashboard/messages", active: pathname.startsWith("/dashboard/messages") },
-    { label: "Messages", href: "/dashboard/messages", active: activeItem === "messages" || pathname.startsWith("/dashboard/messages") },
-  ];
-
-  const goToNotifications = () => {
-    router.push("/dashboard/messages");
-  };
-
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const query = String(formData.get("search") ?? "").trim();
     const nextParams = new URLSearchParams(searchParams.toString());
 
-    if (query) {
-      nextParams.set("q", query);
-    } else {
-      nextParams.delete("q");
-    }
+    if (query) nextParams.set("q", query);
+    else nextParams.delete("q");
 
     const nextQuery = nextParams.toString();
     router.push(nextQuery ? `${pathname}?${nextQuery}` : pathname);
@@ -176,61 +170,68 @@ export default function DashboardNavbar({ role, activeItem, onPostJob }: Dashboa
   }, []);
 
   return (
-    <header className="sticky top-0 z-20 bg-(--color-bg) backdrop-blur-xl">
-      <div className="mx-auto flex w-full max-w-360 flex-nowrap items-center gap-3 px-4 py-3 sm:px-6 md:gap-4 md:px-8 md:py-4 lg:px-10">
-        <Link
-          href="/dashboard"
-          className="relative inline-flex shrink-0 items-center pl-4 text-lg font-bold text-(--color-text-main) no-underline before:absolute before:left-0 before:top-1 before:h-3 before:w-3 before:rounded-full before:bg-[linear-gradient(145deg,var(--color-brand),var(--color-accent))]"
-        >
-          SkillBridge
+    <header className="sticky top-0 z-20 h-16 border-b border-(--color-border) bg-(--color-surface)">
+      <div className="mx-auto flex h-full w-full max-w-[1500px] items-center gap-3 px-3 sm:px-5 lg:px-6">
+        <Link href="/dashboard" className="flex shrink-0 items-center gap-2.5 text-(--color-text-main) no-underline">
+          <span className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] bg-(--color-brand) text-white shadow-(--shadow-sm)">
+            <MessageSquareText className="h-4.5 w-4.5" />
+          </span>
+          <span className="hidden text-base font-bold tracking-tight sm:inline">SkillBridge</span>
         </Link>
 
-        <div className="min-w-0 flex-1 px-2">
-          <div className="flex min-w-0 items-center gap-3 flex-nowrap">
-            <nav className="flex min-w-0 flex-wrap items-center gap-2 whitespace-nowrap" aria-label="Dashboard navigation">
-              {navItems.map((item) => (
-                <Link key={item.label} href={item.href} className={`${navButtonClass} relative inline-flex items-center`}>
-                  {item.label}
-                  {item.label === "Messages" && unreadCount > 0 ? (
-                    <span className="ml-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
-                      {unreadCount > 99 ? "99+" : unreadCount}
-                    </span>
-                  ) : null}
-                </Link>
-              ))}
-            </nav>
-          </div>
-        </div>
+        <nav className="ml-2 hidden min-w-0 items-center gap-1 md:flex" aria-label="Dashboard navigation">
+          {navItems.map((item) => (
+            <Link
+              key={item.label}
+              href={item.href}
+              aria-current={item.active ? "page" : undefined}
+              className={`relative inline-flex h-9 items-center rounded-[var(--radius-sm)] px-3 text-sm font-semibold no-underline transition-colors ${
+                item.active
+                  ? "bg-(--color-brand-soft) text-(--color-brand)"
+                  : "text-(--color-text-secondary) hover:bg-(--color-hover) hover:text-(--color-text-main)"
+              }`}
+            >
+              {item.label}
+              {item.label === "Messages" && unreadCount > 0 ? (
+                <span className="ui-badge ml-2">{unreadCount > 99 ? "99+" : unreadCount}</span>
+              ) : null}
+            </Link>
+          ))}
+        </nav>
 
-        <div className="flex shrink-0 flex-nowrap items-center justify-start gap-2 md:justify-end">
+        <div className="ml-auto flex items-center gap-2">
           <form
-            className="flex w-60 shrink-0 items-center gap-2 rounded-xl border border-black bg-transparent px-3 py-1.5"
+            className="ui-input-shell hidden h-9 w-64 items-center gap-2 px-3 xl:flex"
             onSubmit={handleSearchSubmit}
             role="search"
           >
             <Search className="h-4 w-4 shrink-0 text-(--color-text-muted)" />
             <input
               type="search"
-              placeholder="Search jobs, finances, messages"
+              placeholder="Search SkillBridge"
               aria-label="Search dashboard"
               name="search"
-              className="min-w-0 flex-1 bg-transparent text-sm text-(--color-text-main) outline-none placeholder:text-[color-mix(in_srgb,var(--color-text-muted)_82%,transparent)]"
+              className="min-w-0 flex-1 bg-transparent text-sm text-(--color-text-main) outline-none placeholder:text-(--color-text-muted)"
             />
           </form>
 
           <button
             type="button"
-            onClick={goToNotifications}
-            className="relative inline-flex items-center justify-center rounded-full p-2.5 transition bg-[color-mix(in_srgb,var(--color-surface)_88%,transparent)] text-(--color-text-main)"
+            onClick={() => router.push("/dashboard/messages")}
+            className="ui-icon-button relative"
             aria-label="Notifications"
           >
-            <Bell className="h-5 w-5 shrink-0" />
+            <Bell className="h-4 w-4" />
+            {unreadCount > 0 ? (
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-(--color-surface) bg-(--color-brand) px-1 text-[9px] font-bold text-white">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            ) : null}
           </button>
 
           <ProfileAvatar
             activeItem={activeItem}
             avatarUrl={avatarUrl}
-            bg={bg}
             email={email}
             profileMenuOpen={profileMenuOpen}
             profileMenuRef={profileMenuRef}
@@ -239,12 +240,8 @@ export default function DashboardNavbar({ role, activeItem, onPostJob }: Dashboa
           />
 
           {canPostJob ? (
-            <button
-              type="button"
-              className="hidden rounded-full border border-transparent bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-strong))] px-4 py-2.5 text-sm font-semibold text-white transition md:inline-flex"
-              onClick={onPostJob}
-            >
-              Post a Job
+            <button type="button" className="ui-primary-button hidden md:inline-flex" onClick={onPostJob}>
+              Post a job
             </button>
           ) : null}
         </div>
