@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 
+// Keep the same bootstrap entry point across local and automated deployment builds.
 async function bootstrap() {
       console.log('MONGODB_URI (main):', process.env.MONGODB_URI);
       console.log('REDIS_URL (main):', process.env.REDIS_URL);
